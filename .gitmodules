@@ -1,0 +1,3 @@
+[submodule "CachedBuffers"]
+	path = CachedBuffers
+	url = https://github.com/d-mozulyov/CachedBuffers.git

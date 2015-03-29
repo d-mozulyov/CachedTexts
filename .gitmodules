@@ -1,0 +1,6 @@
+[submodule "CachedBuffers"]
+	path = CachedBuffers
+	url = https://github.com/d-mozulyov/CachedBuffers.git
+[submodule "UniConv"]
+	path = UniConv
+	url = https://github.com/d-mozulyov/UniConv

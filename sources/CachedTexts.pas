@@ -1,7 +1,7 @@
 unit CachedTexts;
 
 {******************************************************************************}
-{ Copyright (c) 2014 Dmitry Mozulyov (aka Devil)                               }
+{ Copyright (c) 2014-2015 Dmitry Mozulyov                                      }
 {                                                                              }
 { Permission is hereby granted, free of charge, to any person obtaining a copy }
 { of this software and associated documentation files (the "Software"), to deal}
@@ -22,10 +22,12 @@ unit CachedTexts;
 { THE SOFTWARE.                                                                }
 {                                                                              }
 { email: softforyou@inbox.ru                                                   }
-{ icq: 250481638                                                               }
 { skype: dimandevil                                                            }
-{ site: http://sourceforge.net/projects/cachedbuffers/                         }
-{       http://sourceforge.net/projects/uniconv/                               }
+{ repository: https://github.com/d-mozulyov/CachedTexts                        }
+{                                                                              }
+{ see also:                                                                    }
+{ https://github.com/d-mozulyov/UniConv                                        }
+{ https://github.com/d-mozulyov/CachedBuffers                                  }
 {******************************************************************************}
 
 
@@ -82,17 +84,36 @@ interface
        {$endif};
 
 type
+  // standard types
   {$if CompilerVersion < 19}
-  NativeInt = CachedBuffers.NativeInt;
-  PNativeInt = CachedBuffers.PNativeInt;
-  NativeUInt = CachedBuffers.NativeUInt;
-  PNativeUInt = CachedBuffers.PNativeUInt;
+  NativeInt = Integer;
+  PNativeInt = PInteger;
+  NativeUInt = Cardinal;
+  PNativeUInt = PCardinal;
   {$ifend}
-  TBytes = CachedBuffers.TBytes;
+  {$if (not Defined(FPC)) and (CompilerVersion < 15)}
+  UInt64 = Int64;
+  PUInt64 = ^UInt64;
+  {$ifend}
   {$if CompilerVersion < 23}
-  TExtended80Rec = CachedBuffers.TExtended80Rec;
-  PExtended80Rec = CachedBuffers.PExtended80Rec;
+  TExtended80Rec = Extended;
+  PExtended80Rec = ^TExtended80Rec;
   {$ifend}
+  TBytes = array of Byte;
+
+  // exception class
+  ECachedText = class(Exception)
+  {$ifdef KOL}
+    constructor Create(const Msg: string);
+    constructor CreateFmt(const Msg: string; const Args: array of const);
+    constructor CreateRes(Ident: NativeUInt); overload;
+    constructor CreateRes(ResStringRec: PResStringRec); overload;
+    constructor CreateResFmt(Ident: NativeUInt; const Args: array of const); overload;
+    constructor CreateResFmt(ResStringRec: PResStringRec; const Args: array of const); overload;
+  {$endif}
+  end;
+
+  // CachedBuffers types
   ECachedBuffer = CachedBuffers.ECachedBuffer;
   TCachedBufferMemory = CachedBuffers.TCachedBufferMemory;
   PCachedBufferMemory = CachedBuffers.PCachedBufferMemory;
@@ -113,6 +134,7 @@ type
   TCachedResourceReader = CachedBuffers.TCachedResourceReader;
   {$endif}
 
+  // UniConv types
   TUnicodeChar = UniConv.TUnicodeChar;
   PUnicodeChar = UniConv.PUnicodeChar;
   TUnicodeString = UniConv.TUnicodeString;
@@ -142,11 +164,6 @@ type
   ShortString = UniConv.ShortString;
   PShortString = UniConv.PShortString;
   {$endif}
-
-  {$if (not Defined(FPC)) and (CompilerVersion < 15)}
-  UInt64 = Int64;
-  PUInt64 = ^UInt64;
-  {$ifend}
 
 var
   CODEPAGE_DEFAULT: Word; // = UniConv.CODEPAGE_DEFAULT;
@@ -790,6 +807,81 @@ type
 
 
 implementation
+
+{ ECachedText }
+
+{$ifdef KOL}
+constructor ECachedText.Create(const Msg: string);
+begin
+  inherited Create(e_Custom, Msg);
+end;
+
+constructor ECachedText.CreateFmt(const Msg: string;
+  const Args: array of const);
+begin
+  inherited CreateFmt(e_Custom, Msg, Args);
+end;
+
+type
+  PStrData = ^TStrData;
+  TStrData = record
+    Ident: Integer;
+    Buffer: PKOLChar;
+    BufSize: Integer;
+    nChars: Integer;
+  end;
+
+function EnumStringModules(Instance: NativeInt; Data: Pointer): Boolean;
+begin
+  with PStrData(Data)^ do
+  begin
+    nChars := LoadString(Instance, Ident, Buffer, BufSize);
+    Result := nChars = 0;
+  end;
+end;
+
+function FindStringResource(Ident: Integer; Buffer: PKOLChar; BufSize: Integer): Integer;
+var
+  StrData: TStrData;
+begin
+  StrData.Ident := Ident;
+  StrData.Buffer := Buffer;
+  StrData.BufSize := BufSize;
+  StrData.nChars := 0;
+  EnumResourceModules(EnumStringModules, @StrData);
+  Result := StrData.nChars;
+end;
+
+function LoadStr(Ident: Integer): string;
+var
+  Buffer: array[0..1023] of KOLChar;
+begin
+  SetString(Result, Buffer, FindStringResource(Ident, Buffer, SizeOf(Buffer)));
+end;
+
+constructor ECachedText.CreateRes(Ident: NativeUInt);
+begin
+  inherited Create(e_Custom, LoadStr(Ident));
+end;
+
+constructor ECachedText.CreateRes(ResStringRec: PResStringRec);
+begin
+  inherited Create(e_Custom, System.LoadResString(ResStringRec));
+end;
+
+constructor ECachedText.CreateResFmt(Ident: NativeUInt;
+  const Args: array of const);
+begin
+  inherited CreateFmt(e_Custom, LoadStr(Ident), Args);
+end;
+
+constructor ECachedText.CreateResFmt(ResStringRec: PResStringRec;
+  const Args: array of const);
+begin
+  inherited CreateFmt(e_Custom, System.LoadResString(ResStringRec), Args);
+end;
+{$endif}
+
 
   {$ifNdef CPUX86}
     {$define MANY_REGS}

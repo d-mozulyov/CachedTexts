@@ -3,14 +3,11 @@ unit TestUnit;
 {$i crystal_options.inc}
 
 interface
-  uses
-  {$ifdef MSWINDOWS}
-  Windows,
-  {$endif}
-  SysUtils,
-  CachedBuffers,
-  UniConv,
-  CachedTexts;
+  uses {$ifdef UNITSCOPENAMES}System.SysUtils{$else}SysUtils{$endif},
+       {$ifdef MSWINDOWS}{$ifdef UNITSCOPENAMES}Winapi.Windows{$else}Windows{$endif},{$endif}
+       CachedBuffers,
+       UniConv,
+       CachedTexts;
 
 
 
@@ -35,10 +32,11 @@ begin
   BreakPoint := S;
 
   {$ifdef MSWINDOWS}
-    Windows.MessageBox(0, PChar(BreakPoint), 'Сообщение:', 0);
+    if ({$ifdef UNITSCOPENAMES}Winapi.{$endif}Windows.MessageBox(GetForegroundWindow,
+      PChar(BreakPoint), 'Сообщение:', MB_OKCANCEL) = IDCANCEL) then Halt;
+  {$else}
+    Halt;
   {$endif}
-
-  Halt;
 end;
 
 procedure ShowMessage(const StrFmt: string; const Args: array of const);

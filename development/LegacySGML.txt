@@ -1,0 +1,560 @@
+  // SGML encode:
+  // - sgmlXml/sgmlHtml modes are used to encode "parsed character data"(PCDATA)
+  // - sgmlAttrQuote/sgmlAttrApos/sgmlComment can be used for both languages
+  //
+  // SGML decode:
+  // - use sgmlHtml mode to parse HTML entities like "&euro;" or "&copy;" correctly
+  // - another modes (except sgmlNone) have the same effect
+  TUniConvSgml = (sgmlNone, sgmlXml, sgmlXmlCDATA, sgmlAttrQuote, sgmlAttrApos, sgmlComment, sgmlHtml);
+  PUniConvSgml = ^TUniConvSgml;
+  
+const
+  UNICONV_MAX_SGML_LENGHT = 8{#1114111 or #x10FFFF};
+
+const
+  // SGML chars information (flags)
+  SGML_CHAR_NONE       = 0;
+
+  SGML_CHAR_AMP_LT     = 1; // &<
+  SGML_CHAR_QUOTE      = 2; // "
+  SGML_CHAR_APOS       = 4; // '
+  SGML_CHAR_AMP_GT     = 8; // >
+  SGML_CHAR_PREDEFINED = SGML_CHAR_AMP_LT or SGML_CHAR_QUOTE or SGML_CHAR_APOS or SGML_CHAR_AMP_GT; // &<"'>
+
+  SGML_CHAR_SPACE         =  16; // #x20 | #x9 | #xD | #xA
+
+  SGML_CHAR_NAME_START    =  32; // ":" | [A-Z] | "_" | [a-z] | [#xC0-#xD6] | [#xD8-#xF6] | [#xF8-#x2FF] | [#x370-#x37D] | [#x37F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD]
+  SGML_CHAR_NAME_ADVANCED =  64; // "-" | "." | [0-9] | #xB7 | [#x0300-#x036F] | [#x203F-#x2040]
+  SGML_CHAR_NAME = SGML_CHAR_NAME_START or SGML_CHAR_NAME_ADVANCED;
+
+  SGML_CHAR_ADVANCED      = 128; // (#x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD]) - (PREDEFINED | SPACE | NAME_START | NAME_ADVANCED)
+  SGML_CHAR = SGML_CHAR_PREDEFINED or SGML_CHAR_SPACE or SGML_CHAR_NAME or SGML_CHAR_ADVANCED;
+
+var
+  uniconv_lookup_sgml_flags: TUniConvB_W;
+  
+  
+  // TUniConvSgml = (sgmlNone, sgmlXml, sgmlXmlCDATA, sgmlAttrQuote, sgmlAttrApos, sgmlComment, sgmlHtml);
+  // TMappedSgml = (sgmlNone, sgmlXml{1}, sgmlAttrQuote{2}, sgmlHtml{3}, sgmlAttrApos{4}, sgmlComment{5}, sgmlXmlCDATA{6});
+  SGML_MAPPED: array[0..Ord(High(TUniConvSgml))] of Byte  =
+     (0, 1{sgmlXml}, 6{sgmlXmlCDATA}, 2{sgmlAttrQuote}, 4{sgmlAttrApos}, 5{sgmlComment}, 3{sgmlHtml});
+
+  f_none = 1 shl Ord(sgmlNone);
+  f_xml = 1 shl Ord(sgmlXml);
+  f_xml_cdata = 1 shl Ord(sgmlXmlCDATA);
+  f_attr_quot = 1 shl Ord(sgmlAttrQuote);
+  f_attr_apos = 1 shl Ord(sgmlAttrApos);
+  f_comment = 1 shl Ord(sgmlComment);
+  f_html = 1 shl Ord(sgmlHtml);
+
+  SGML_DEST_FLAGS: array[0..Ord(High(TUniConvSgml))] of Byte  =
+  (f_none, f_xml, f_xml_cdata, f_attr_quot, f_attr_apos, f_comment, f_html);
+  SGML_SRC_FLAGS: array[0..Ord(High(TUniConvSgml))] of Byte  =
+  (0, // sgmlNone
+   f_xml or f_html, // sgmlXml
+   f_xml_cdata, // sgmlXmlCDATA
+   f_attr_quot or f_xml or f_html, // sgmlAttrQuote
+   f_attr_apos or f_xml or f_html, // sgmlAttrApos
+   f_comment, // sgmlComment
+   f_html // sgmlHtml
+   );  
+  
+  
+  // sgml writing
+  if ({DestSgml <> sgmlNone}Flags and (7 shl 13) <> 0) then
+  begin
+    // special xml modes test: sgmlComment(5), sgmlXmlCDATA(6)
+    if {(DestSgml in [sgmlComment, sgmlXmlCDATA])}(Flags >= (5 shl 13)) then
+    begin
+      if (X > $ffff) or (uniconv_lookup_sgml_flags[X] = SGML_CHAR_NONE) then
+      goto char_to_sgml_unknown;
+
+      if {DestSgml = sgmlComment}((Flags and (1 shl 13)) <> 0) then
+      begin
+        // sgmlComment: "--" --> "-?" / last "-" --> "?"
+        if (X <> Ord('-')) then goto char_to_sgml_null_counter;
+        if (FStore.sgml_special_counter <> 0) or ((src_size = 0) and ({F.ModeFinalize}Flags and (1 shl 7) <> 0)) then goto char_to_sgml_unknown;
+        FStore.sgml_special_counter := 1;
+        goto char_write;
+      end else
+      begin
+        // sgmlXmlCDATA: "]]>" --> "]]?"
+        Y := FStore.sgml_special_counter;
+        if (X = Ord(']')) then
+        begin
+          FStore.sgml_special_counter := Y+1;
+          goto char_write;
+        end else
+        begin
+          if (X <> Ord('>')) or (Y < 2) then goto char_to_sgml_null_counter;
+          goto char_to_sgml_unknown;
+        end;
+      end;
+    end;
+
+    // sgmlXml{1}, sgmlAttrQuote{2}, sgmlHtml{3}, sgmlAttrApos{4}
+    if (X > $ffff) then
+    begin
+      // if (DestMode <= ucuUCS2) then goto char_to_sgml_chars;
+      // if (DestMode > ucuUCS2) then goto char_write;
+      if (Flags and (($f xor 1) shl 9) <> 0) then goto char_write;
+    end else
+    begin
+      // xml/html character test: SGML_CHAR_NONE or some predefined(&<"'>) in xml/html modes
+      sgml_flags := uniconv_lookup_sgml_flags[X];
+      if (sgml_flags <= SGML_CHAR_APOS) then
+      begin
+        if (sgml_flags <= SGML_CHAR_AMP_LT) or (sgml_flags = {DestSgml}Byte(Flags shr 13)) then goto char_to_sgml_chars;
+      end;
+
+      // single byte encoding char test
+      if (Flags and ($f shl 9) <> 0) or (X <= 127) then goto char_write;
+      {$ifdef CPUX86}
+      if (FStore.writer_ucs2[PUniConvB_W(FStore.writer)[X]] = X) then goto char_write;
+      {$else}
+      if (PUniConvW_B(Self.FWriterUCS2)[PUniConvB_W(Self.FWriter)[X]] = X) then goto char_write;
+      {$endif}
+    end;
+
+  char_to_sgml_chars:
+    X := {$ifdef CPUX86}FStore.{$endif}Self.SgmlCharsFill(X){-1};
+    Flags := Flags + (X shl 16);
+    X := Ord('&');//{$ifdef CPUX86}FStore.{$endif}Self.FSgmlChars[X-1];
+    goto char_write;
+  char_to_sgml_unknown:
+    X := UNKNOWN_CHAR;
+  char_to_sgml_null_counter:
+    FStore.sgml_special_counter := 0;
+  end;
+  
+  SGML_MUL_MASK = {$ifdef LARGEINT}$0101010101010101{$else}$01010101{$endif};
+  sgml_char_adv = 0;
+  sgml_name_str = 1;
+  sgml_name_adv = 2;
+  SGML_CHAR_VALUES: array[sgml_char_adv..sgml_name_adv] of NativeUInt  =
+                    (NativeUInt(SGML_CHAR_ADVANCED)*NativeUInt(SGML_MUL_MASK),
+                     NativeUInt(SGML_CHAR_NAME_START)*NativeUInt(SGML_MUL_MASK),
+                     NativeUInt(SGML_CHAR_NAME_ADVANCED)*NativeUInt(SGML_MUL_MASK));
+  SGML_BIG_VALUES: array[0..18] of Cardinal  =
+  (
+    ($23 shl 16) or ((($2C-$23+1)+3) and -4) or sgml_char_adv,
+    ($2D shl 16) or ((($3A-$2D+1)+3) and -4) or sgml_name_adv,
+    ($41 shl 16) or ((($7A-$41+1)+3) and -4) or sgml_name_str,
+    ($5B shl 16) or ((($60-$5B+1)+3) and -4) or sgml_char_adv,
+    ($7B shl 16) or ((60+3) and -4) or sgml_char_adv,
+    ($B8 shl 16) or ((8+3) and -4) or sgml_char_adv,
+    ($C0 shl 16) or ((($2FF-$C0+1)+3) and -4) or sgml_name_str,
+    ($300 shl 16) or ((112+3) and -4) or sgml_name_adv,
+    ($370 shl 16) or (($1FFF-$370+3) and -4) or sgml_name_str,
+    ($2000 shl 16) or ((($206F-$2000+1)+3) and -4) or sgml_char_adv,
+    ($2070 shl 16) or ((288+3) and -4) or sgml_name_str,
+    ($2190 shl 16) or ((2672+3) and -4) or sgml_char_adv,
+    ($2C00 shl 16) or ((1008+3) and -4) or sgml_name_str,
+    ($2FF0 shl 16) or ((17+3) and -4) or sgml_char_adv,
+    ($3001 shl 16) or ((43007+3) and -4) or sgml_name_str,
+    Cardinal($E000 shl 16) or ((6400+3) and -4) or sgml_char_adv,
+    Cardinal($F900 shl 16) or ((1232+3) and -4) or sgml_name_str,
+    Cardinal($FDD0 shl 16) or ((32+3) and -4) or sgml_char_adv,
+    Cardinal($FDF0 shl 16) or ((526+3) and -4) or sgml_name_str
+  );
+
+  SGML_CHARS_SPACE: array[0..3] of Word = ($9,$A,$D,$20);
+  SGML_CHARS_NAME_START: array[0..5] of Word = ($3A,$5F,$61,$62,$200C,$200D);
+  SGML_CHARS_NAME_ADVANCED: array[0..2] of Word = ($B7,$203F,$2040);
+  SGML_CHARS_ADVANCED: array[0..8] of Word = ($21,$2F,$3B,$3D,$3F,$40,$D7,$F7,$37E);
+
+
+  // uniconv_lookup_sgml_flags
+  begin
+    for i := Low(SGML_BIG_VALUES) to High(SGML_BIG_VALUES) do
+    begin
+      Y := SGML_BIG_VALUES[i];
+      P1 := Pointer(@uniconv_lookup_sgml_flags[Y shr 16]);
+      X := SGML_CHAR_VALUES[Y and 3];
+      Y := (Y and $ffff) shr 2;
+      {$ifdef LARGEINT}
+        if (Y and 1 <> 0) then
+        begin
+          PCardinal(P1)^ := X;
+          Inc(NativeInt(P1), SizeOf(Cardinal));
+        end;
+        Y := Y shr 1;
+      {$endif}
+      while (Y <> 0) do
+      begin
+        P1^ := X;
+        Dec(Y);
+        Inc(P1);
+      end;
+    end;
+
+
+    for i := Low(SGML_CHARS_SPACE) to High(SGML_CHARS_SPACE) do
+    uniconv_lookup_sgml_flags[SGML_CHARS_SPACE[i]] := SGML_CHAR_SPACE;
+
+    for i := Low(SGML_CHARS_NAME_START) to High(SGML_CHARS_NAME_START) do
+    uniconv_lookup_sgml_flags[SGML_CHARS_NAME_START[i]] := SGML_CHAR_NAME_START;
+
+    for i := Low(SGML_CHARS_NAME_ADVANCED) to High(SGML_CHARS_NAME_ADVANCED) do
+    uniconv_lookup_sgml_flags[SGML_CHARS_NAME_ADVANCED[i]] := SGML_CHAR_NAME_ADVANCED;
+
+    for i := Low(SGML_CHARS_ADVANCED) to High(SGML_CHARS_ADVANCED) do
+    uniconv_lookup_sgml_flags[SGML_CHARS_ADVANCED[i]] := SGML_CHAR_ADVANCED;
+
+    uniconv_lookup_sgml_flags[Ord('&')] := SGML_CHAR_AMP_LT;
+    uniconv_lookup_sgml_flags[Ord('<')] := SGML_CHAR_AMP_LT;
+    uniconv_lookup_sgml_flags[Ord('"')] := SGML_CHAR_QUOTE;
+    uniconv_lookup_sgml_flags[Ord('''')] := SGML_CHAR_APOS;
+    uniconv_lookup_sgml_flags[Ord('>')] := SGML_CHAR_AMP_GT;
+  end;
+  
+  
+    // sgml options
+  dest := (DST_ENC shr OFFS_SGML) and OFFS_SGML_MASK;
+  src := (SRC_ENC shr OFFS_SGML) and OFFS_SGML_MASK;
+  DST_ENC := (DST_ENC shr OFFS_INDEX) and OFFS_INDEX_MASK;
+  SRC_ENC := (SRC_ENC shr OFFS_INDEX) and OFFS_INDEX_MASK;
+  if (DST_ENC or SRC_ENC > ENC_SINGLEBYTE_HIGH) then goto fail;
+  buf := dest or src;
+  if (buf <> 0) then
+  begin
+    if (buf > Cardinal(High(TUniConvSgml))) then goto fail;
+
+    if (Flags and f_case_changing = 0)  then
+    begin
+      d := SGML_DEST_FLAGS[dest];
+      if (d and SGML_SRC_FLAGS[src] <> 0) then
+      begin
+        // encodings compatibility
+        if (DST_ENC = SRC_ENC) then goto encoding_options;
+        case DST_ENC of
+          0: goto fail;
+          Ord(ucuUCS2):
+          begin
+            if {(SRC_ENC = Ord(ucuUCS2)) or} (SRC_ENC >= ENC_SINGLEBYTE_LOW) then goto encoding_options;
+            {todo multy Byte?}
+          end;
+          Ord(ucuUCS2)+1..ENC_UNICODE_HIGH:
+          begin
+            goto encoding_options;
+          end;
+          ENC_MULTYBYTE_LOW..ENC_MULTYBYTE_HIGH:
+          begin
+            {todo multy Byte?}
+          end;
+        else
+          // ENC_SINGLEBYTE_LOW..ENC_SINGLEBYTE_HIGH
+          {todo multy Byte?}
+        end;
+      end;
+    end;
+
+    if (src <> 0) then
+    begin
+      Flags := Flags or f_src_sgml;
+      FSgmlCharsParseEx := nil;
+
+      if (src = Cardinal(sgmlHtml)) then
+      begin
+        Flags := Flags or f_src_sgml_html;
+        Self.FSgmlCharsParseEx := @TUniConvContext.__html_chars_parse;
+      end;
+    end;
+
+    if (dest <> 0) then
+    begin
+      Flags := Flags or (SGML_MAPPED[dest] shl 13);
+      if (DST_ENC >= ENC_SINGLEBYTE_LOW) then Self.FWriterUCS2 := uniconv_lookup_sbcs[DST_ENC-ENC_MODIFIER].UCS2;
+    end;
+  end;
+
+  
+  function TUniConvContext.SgmlCharsParse(Length: Cardinal): Cardinal;
+label
+  unknown, fail;
+var
+  i, X: Cardinal;
+  proc_ex: function(Context: PUniConvContext; Length: Cardinal): Cardinal;
+begin
+  if (FSgmlChars[0] = Ord('#')) then
+  begin
+    i := Ord(FSgmlChars[1] or (Self.F.Value and $20) = Ord('x'));
+    if (Length > UNICONV_MAX_SGML_LENGHT) then goto fail;
+    if (Length <= i+1) then goto fail;
+
+    Result := 0;
+    if (i <> 0) then
+    begin
+      for i := 2 to Length-1 do
+      begin
+        X := FSgmlChars[i];
+        Result := Result shl 4;
+
+        if (X >= Ord('A')) then
+        begin
+          X := X or $20;
+          Dec(X, Ord('a') - 10);
+          if (X >= 16) then goto fail;
+        end else
+        begin
+          Dec(X, Ord('0'));
+          if (X >= 10) then goto fail;
+        end;
+
+        Inc(Result, X);
+      end;
+    end else
+    begin
+      for i := 1 to Length-1 do
+      begin
+        X := FSgmlChars[i];
+        Result := Result * 10;
+
+        Dec(X, Ord('0'));
+        if (X >= 10) then goto fail;
+
+        Inc(Result, X);
+      end;
+    end;
+
+    // check character
+    if (Result < UNICODE_CHARACTERS_COUNT) then Exit;
+    goto fail;
+  end else
+  case Length of
+    4: case FSgmlChars[0] of
+         Ord('a'):
+         if (FSgmlChars[1] = Ord('p')) and
+            (FSgmlChars[2] = Ord('o')) and
+            (FSgmlChars[3] = Ord('s')) then
+         begin
+           Result := Ord('''');
+           Exit;
+         end;
+
+         Ord('q'):
+         if (FSgmlChars[1] = Ord('u')) and
+            (FSgmlChars[2] = Ord('o')) and
+            (FSgmlChars[3] = Ord('t')) then
+         begin
+           Result := Ord('"');
+           Exit;
+         end;
+       end;
+    3: if (FSgmlChars[0] = Ord('a')) and
+          (FSgmlChars[1] = Ord('m')) and
+          (FSgmlChars[2] = Ord('p')) then
+       begin
+         Result := Ord('&');
+         Exit;
+       end;
+    2: if (FSgmlChars[1] = Ord('t')) then
+       begin
+         if (FSgmlChars[0] = Ord('l')) then
+         begin
+           Result := Ord('<');
+           Exit;
+         end else
+         if (FSgmlChars[0] = Ord('g')) then
+         begin
+           Result := Ord('>');
+           Exit;
+         end;
+       end;
+  end;
+
+unknown:
+  if (Length <> 0) then
+  begin
+    proc_ex := Self.FSgmlCharsParseEx;
+    if (Assigned(proc_ex)) then
+    begin
+      Result := proc_ex(@Self, Length);
+      Exit;
+    end;
+  end;
+fail:
+  Result := UNKNOWN_CHAR;
+end;
+
+function TUniConvContext.SgmlCharsFill(X: Cardinal): Cardinal{Length};
+const
+  HEX: array[0..15] of Byte = (Ord('0'),Ord('1'),Ord('2'),Ord('3'),Ord('4'),Ord('5'),
+                               Ord('6'),Ord('7'),Ord('8'),Ord('9'),Ord('a'),Ord('b'),
+                               Ord('c'),Ord('d'),Ord('e'),Ord('f'));
+var
+  V: Cardinal;
+begin
+  FSgmlChars[0] := Ord(';');
+  Result := 1;
+
+  case X of
+    Ord(''''):
+    begin
+      Inc(Result, 4);
+      FSgmlChars[1] := Ord('s');
+      FSgmlChars[2] := Ord('o');
+      FSgmlChars[3] := Ord('p');
+      FSgmlChars[4] := Ord('a');
+    end;
+    Ord('"'):
+    begin
+      Inc(Result, 4);
+      FSgmlChars[1] := Ord('t');
+      FSgmlChars[2] := Ord('o');
+      FSgmlChars[3] := Ord('u');
+      FSgmlChars[4] := Ord('q');
+    end;
+    Ord('&'):
+    begin
+      Inc(Result, 3);
+      FSgmlChars[1] := Ord('p');
+      FSgmlChars[2] := Ord('m');
+      FSgmlChars[3] := Ord('a');
+    end;
+    Ord('<'):
+    begin
+      Inc(Result, 2);
+      FSgmlChars[1] := Ord('t');
+      FSgmlChars[2] := Ord('l');
+    end;
+    Ord('>'):
+    begin
+      Inc(Result, 2);
+      FSgmlChars[1] := Ord('t');
+      FSgmlChars[2] := Ord('g');
+    end;
+  else
+    repeat
+      V := X and $f;
+      X := X shr 4;
+      Inc(Result);
+      V := HEX[V];
+      FSgmlChars[Result - 1] := V;
+    until (X = 0);
+
+    Inc(Result);
+    FSgmlChars[Result - 1] := Ord('x');
+    Inc(Result);
+    FSgmlChars[Result - 1] := Ord('#');
+  end;
+end;
+
+
+  // sgml reading
+  if {SrcSgml <> sgmlNone}(Flags and (1 shl 4) <> 0) then
+  begin
+    if (Flags <= High(Word){pos = 0}) then
+    begin
+      if (X = Ord('&')) then
+      begin
+        Inc(Flags, $010000);
+      end;
+    end else
+    begin
+      Y := Flags shr 16; {Y-1 is current position to write}
+      if (X = Ord(';')) then
+      begin
+        Flags := Flags and $ffff; //Word(Flags);
+
+        if (Y <= SGML_BUFFER_LENGTH) then X := {$ifdef CPUX86}FStore.{$endif}Self.SgmlCharsParse(Y)
+        else X := UNKNOWN_CHAR;
+      end else
+      begin
+        if (Y <> (SGML_BUFFER_LENGTH+1)) then
+        begin
+          {$ifdef CPUX86}FStore.{$endif}Self.FSgmlChars[{$ifdef CPUX86}Flags shr 16{$else}Y{$endif}-1] := X;
+          Inc(Flags, $010000);
+        end;
+
+        if (src_size >= 4) then goto char_read_normal;
+        goto char_read_small;
+      end;
+    end;
+  end;
+
+  
+  // if have some sgml characters to write
+  if (Flags > High(Word)) then
+  begin
+    X := {$ifdef CPUX86}FStore.{$endif}Self.FSgmlChars[Flags shr 16 -1];
+    Dec(Flags, $010000);
+    goto char_write;
+  end;
+ 
+  
+  
+  
+  
+  // todo
+(*  procedure sbcs_from_UTF8(const Destination: PAnsiChar{maxlen = length}; const Source: PUTF8Char; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_from_UTF8(var Destination: AnsiString; const Source: UTF8String; const CodePage: Word = 0); overload;
+  procedure sbcs_from_ucs2(const Destination: PAnsiChar{len = length}; const Source: PWideChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_from_ucs2(var Destination: AnsiString; const Source: WideString; const CodePage: Word = 0); overload;
+  {$ifdef UNICODE} procedure sbcs_from_ucs2(var Destination: AnsiString; const Source: UnicodeString; const CodePage: Word = 0); overload; {$endif}
+  procedure UTF8_from_sbcs(const Destination: PUTF8Char{maxlen = length*3}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure UTF8_from_sbcs(var Destination: UTF8String; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure UTF8_from_ucs2(const Destination: PUTF8Char{maxlen = length*3}; const Source: PWideChar; const Length: Cardinal); overload;
+  procedure UTF8_from_ucs2(var Destination: UTF8String; const Source: WideString); overload;
+  {$ifdef UNICODE} procedure UTF8_from_ucs2(var Destination: UTF8String; const Source: UnicodeString); overload; {$endif}
+  procedure ucs2_from_sbcs(const Destination: PWideChar{len = length}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure ucs2_from_sbcs(var Destination: WideString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure ucs2_from_UTF8(const Destination: PWideChar{maxlen = length}; const Source: PUTF8Char; const Length: Cardinal); overload;
+  procedure ucs2_from_UTF8(var Destination: WideString; const Source: UTF8String); overload;
+  {$ifdef UNICODE} procedure ucs2_from_ucs2(var Destination: WideString; const Source: UnicodeString); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_from_sbcs(var Destination: UnicodeString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_from_UTF8(var Destination: UnicodeString; const Source: UTF8String); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_from_ucs2(var Destination: UnicodeString; const Source: WideString); overload; {$endif}
+  procedure sbcs_upper_from_sbcs(const Destination: PAnsiChar{len = length}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_upper_from_sbcs(var Destination: AnsiString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure sbcs_upper_from_sbcs(var Destination: ShortString{len = length}; const Source: ShortString; const CodePage: Word = 0); overload;
+  procedure sbcs_upper_from_UTF8(const Destination: PAnsiChar{maxlen = length}; const Source: PUTF8Char; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_upper_from_UTF8(var Destination: AnsiString; const Source: UTF8String; const CodePage: Word = 0); overload;
+  procedure sbcs_upper_from_ucs2(const Destination: PAnsiChar{len = length}; const Source: PWideChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_upper_from_ucs2(var Destination: AnsiString; const Source: WideString; const CodePage: Word = 0); overload;
+  {$ifdef UNICODE} procedure sbcs_upper_from_ucs2(var Destination: AnsiString; const Source: UnicodeString; const CodePage: Word = 0); overload; {$endif}
+  procedure UTF8_upper_from_sbcs(const Destination: PUTF8Char{maxlen = length*3}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure UTF8_upper_from_sbcs(var Destination: UTF8String; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure UTF8_upper_from_UTF8(const Destination: PUTF8Char{len = length}; const Source: PUTF8Char; const Length: Cardinal); overload;
+  procedure UTF8_upper_from_UTF8(var Destination: UTF8String; const Source: UTF8String); overload;
+  procedure UTF8_upper_from_ucs2(const Destination: PUTF8Char{maxlen = length*3}; const Source: PWideChar; const Length: Cardinal); overload;
+  procedure UTF8_upper_from_ucs2(var Destination: UTF8String; const Source: WideString); overload;
+  {$ifdef UNICODE} procedure UTF8_upper_from_ucs2(var Destination: UTF8String; const Source: UnicodeString); overload; {$endif}
+  procedure ucs2_upper_from_sbcs(const Destination: PWideChar{len = length}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure ucs2_upper_from_sbcs(var Destination: WideString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure ucs2_upper_from_UTF8(const Destination: PWideChar{maxlen = length}; const Source: PUTF8Char; const Length: Cardinal); overload;
+  procedure ucs2_upper_from_UTF8(var Destination: WideString; const Source: UTF8String); overload;
+  procedure ucs2_upper_from_ucs2(const Destination: PWideChar{len = length}; const Source: PWideChar; const Length: Cardinal); overload;
+  procedure ucs2_upper_from_ucs2(var Destination: WideString; const Source: WideString); overload;
+  {$ifdef UNICODE} procedure ucs2_upper_from_ucs2(var Destination: WideString; const Source: UnicodeString); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_upper_from_sbcs(var Destination: UnicodeString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_upper_from_UTF8(var Destination: UnicodeString; const Source: UTF8String); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_upper_from_ucs2(var Destination: UnicodeString; const Source: WideString); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_upper_from_ucs2(var Destination: UnicodeString; const Source: UnicodeString); overload; {$endif}
+  procedure sbcs_lower_from_sbcs(const Destination: PAnsiChar{len = length}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_lower_from_sbcs(var Destination: AnsiString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure sbcs_lower_from_sbcs(var Destination: ShortString{len = length}; const Source: ShortString; const CodePage: Word = 0); overload;
+  procedure sbcs_lower_from_UTF8(const Destination: PAnsiChar{maxlen = length}; const Source: PUTF8Char; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_lower_from_UTF8(var Destination: AnsiString; const Source: UTF8String; const CodePage: Word = 0); overload;
+  procedure sbcs_lower_from_ucs2(const Destination: PAnsiChar{len = length}; const Source: PWideChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure sbcs_lower_from_ucs2(var Destination: AnsiString; const Source: WideString; const CodePage: Word = 0); overload;
+  {$ifdef UNICODE} procedure sbcs_lower_from_ucs2(var Destination: AnsiString; const Source: UnicodeString; const CodePage: Word = 0); overload; {$endif}
+  procedure UTF8_lower_from_sbcs(const Destination: PUTF8Char{maxlen = length*3}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure UTF8_lower_from_sbcs(var Destination: UTF8String; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure UTF8_lower_from_UTF8(const Destination: PUTF8Char{len = length}; const Source: PUTF8Char; const Length: Cardinal); overload;
+  procedure UTF8_lower_from_UTF8(var Destination: UTF8String; const Source: UTF8String); overload;
+  procedure UTF8_lower_from_ucs2(const Destination: PUTF8Char{maxlen = length*3}; const Source: PWideChar; const Length: Cardinal); overload;
+  procedure UTF8_lower_from_ucs2(var Destination: UTF8String; const Source: WideString); overload;
+  {$ifdef UNICODE} procedure UTF8_lower_from_ucs2(var Destination: UTF8String; const Source: UnicodeString); overload; {$endif}
+  procedure ucs2_lower_from_sbcs(const Destination: PWideChar{len = length}; const Source: PAnsiChar; const Length: Cardinal; const CodePage: Word = 0); overload;
+  procedure ucs2_lower_from_sbcs(var Destination: WideString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+  procedure ucs2_lower_from_UTF8(const Destination: PWideChar{maxlen = length}; const Source: PUTF8Char; const Length: Cardinal); overload;
+  procedure ucs2_lower_from_UTF8(var Destination: WideString; const Source: UTF8String); overload;
+  procedure ucs2_lower_from_ucs2(const Destination: PWideChar{len = length}; const Source: PWideChar; const Length: Cardinal); overload;
+  procedure ucs2_lower_from_ucs2(var Destination: WideString; const Source: WideString); overload;
+  {$ifdef UNICODE} procedure ucs2_lower_from_ucs2(var Destination: WideString; const Source: UnicodeString); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_lower_from_sbcs(var Destination: UnicodeString; const Source: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_lower_from_UTF8(var Destination: UnicodeString; const Source: UTF8String); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_lower_from_ucs2(var Destination: UnicodeString; const Source: WideString); overload; {$endif}
+  {$ifdef UNICODE} procedure ucs2_lower_from_ucs2(var Destination: UnicodeString; const Source: UnicodeString); overload; {$endif}
+  *)  

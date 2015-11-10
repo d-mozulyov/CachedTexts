@@ -81,6 +81,8 @@ unit CachedTexts;
   {$define KOL}
 {$endif}
 
+
+//   {$undef INLINESUPPORT}
 interface
   uses {$ifdef UNITSCOPENAMES}System.Types, System.SysConst{$else}Types, SysConst{$endif},
        {$ifdef MSWINDOWS}{$ifdef UNITSCOPENAMES}Winapi.Windows{$else}Windows{$endif},{$endif}
@@ -274,11 +276,11 @@ type
     function GetCodePage: Word; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetCodePage(CodePageValue: Word);
 
-    function GetAnsiString: AnsiString; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetUTF8String: UTF8String; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetWideString: WideString; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
-    function GetUnicodeString: UnicodeString; inline;
+    function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -402,11 +404,11 @@ type
   protected
     FChars: PUnicodeChar;
 
-    function GetAnsiString: AnsiString; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetUTF8String: UTF8String; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetWideString: WideString; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
-    function GetUnicodeString: UnicodeString; inline;
+    function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -527,11 +529,11 @@ type
   protected
     FChars: PUCS4Char;
 
-    function GetAnsiString: AnsiString; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetUTF8String: UTF8String; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetWideString: WideString; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
-    function GetUnicodeString: UnicodeString; inline;
+    function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -2128,24 +2130,211 @@ begin
 end;
 
 procedure CachedByteString.ToAnsiString(var S: AnsiString; const CP: Word);
+label
+  copy_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToUTF8String(UTF8String(S));
+    Exit;
+  end;
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> SBCS
+      Index := Index shr 24;
+      if (Index = DestSBCS.Index) then goto copy_characters;
+
+      Converter := DestSBCS.FromSBCS(Pointer(Index));
+      Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+      Pointer(S) := Dest;
+      sbcs_from_sbcs(Dest, Src, L, Converter);
+    end else
+    begin
+      // UTF8 --> SBCS
+      Converter := DestSBCS.FVALUES;
+      if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+
+      Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+      AnsiStringFinish(Pointer(S), Dest, UniConv.sbcs_from_utf8(Dest, Pointer(Src), L, Converter));
+    end;
+  end else
+  begin
+    // Ascii chars
+  copy_characters:
+    Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+    Pointer(S) := Dest;
+    Move(Src^, Dest^, L);
+  end;
 end;
 
 procedure CachedByteString.ToUTF8String(var S: UTF8String);
+label
+  copy_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) < 0) then goto copy_characters;
+
+    // converter
+    Index := Index shr 24;
+    SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    Converter := SrcSBCS.FUTF8.Original;
+    if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Original, ccOriginal);
+
+    // conversion
+    Dest := AnsiStringAlloc(Pointer(S), Length, CODEPAGE_UTF8 or (1 shl 31));
+    AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_sbcs(Dest, Pointer(Src), L, Converter));
+  end else
+  begin
+    // Ascii chars
+  copy_characters:
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8 or (1 shl 31));
+    Pointer(S) := Dest;
+    Move(Src^, Dest^, L);
+  end;
 end;
 
 procedure CachedByteString.ToWideString(var S: WideString);
+label
+  copy_samelength_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      WideStringClear(S);
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> UTF16
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUCS2.Original;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUCS2(SrcSBCS.FUCS2.Original, ccOriginal);
+      goto copy_samelength_characters;
+    end;
+
+    // UTF8 --> UTF16
+    Dest := WideStringAlloc(Pointer(S), L, 0);
+    WideStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), Length));
+  end else
+  begin
+    // Ascii chars
+    Converter := nil;
+  copy_samelength_characters:
+    Dest := WideStringAlloc(Pointer(S), L, (1 shl 31));
+    Pointer(S) := Dest;
+    utf16_from_sbcs(Dest, Src, L, Converter);
+  end;
 end;
 
 procedure CachedByteString.ToUnicodeString(var S: UnicodeString);
 {$ifdef UNICODE}
+label
+  copy_samelength_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+    {$ifNdef NEXTGEN}
+      AnsiStringClear(S);
+    {$else}
+      UnicodeStringClear(S);
+    {$endif}
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> UTF16
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUCS2.Original;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUCS2(SrcSBCS.FUCS2.Original, ccOriginal);
+      goto copy_samelength_characters;
+    end;
+
+    // UTF8 --> UTF16
+    Dest := UnicodeStringAlloc(Pointer(S), L, 0);
+    UnicodeStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), Length));
+  end else
+  begin
+    // Ascii chars
+    Converter := nil;
+  copy_samelength_characters:
+    Dest := UnicodeStringAlloc(Pointer(S), L, (1 shl 31));
+    Pointer(S) := Dest;
+    utf16_from_sbcs(Dest, Src, L, Converter);
+  end;
 end;
 {$else .NONUNICODE_CPUX86}
 asm
@@ -2170,44 +2359,54 @@ end;
 {$ifend}
 
 function CachedByteString.GetAnsiString: AnsiString;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToAnsiString(Result);
 end;
-{$else .NONUNICODE_CPUX86}
+{$else .CPUX86/CPUX64}
 asm
+  {$ifdef CPUX86}
   xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
   jmp ToAnsiString
 end;
-{$ifend}
+{$endif}
 
 function CachedByteString.GetUTF8String: UTF8String;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToUTF8String(Result);
 end;
-{$else .CPUX86}
+{$else .CPUX86/CPUX64}
 asm
   jmp ToUTF8String
 end;
-{$ifend}
+{$endif}
 
 function CachedByteString.GetWideString: WideString;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToWideString(Result);
 end;
-{$else .CPUX86}
+{$else .CPUX86/CPUX64}
 asm
   jmp ToWideString
 end;
-{$ifend}
+{$endif}
 
 {$ifdef UNICODE}
 function CachedByteString.GetUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
 begin
   ToUnicodeString(Result);
 end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUnicodeString
+end;
+{$endif}
 {$endif}
 
 procedure CachedByteString.Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word{$endif});
@@ -4482,24 +4681,125 @@ end;
 { CachedUTF16String }
 
 procedure CachedUTF16String.ToAnsiString(var S: AnsiString; const CP: Word);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToUTF8String(UTF8String(S));
+    Exit;
+  end;
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  Src := Self.Chars;
+  if (not Self.Ascii) then
+  begin
+    Converter := DestSBCS.FVALUES;
+    if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+
+    Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+    Pointer(S) := Dest;
+    AnsiStringFinish(Pointer(S), Dest, UniConv.sbcs_from_utf16(Dest, Src, L, Converter));
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+    Pointer(S) := Dest;
+    sbcs_from_utf16(Dest, Src, L, nil)
+  end;
 end;
 
 procedure CachedUTF16String.ToUTF8String(var S: UTF8String);
+var
+  L: NativeUInt;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  Src := Self.Chars;
+  if (not Self.Ascii) then
+  begin
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
+    Pointer(S) := Dest;
+    AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_utf16(Dest, Src, L));
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8 or (1 shl 31));
+    Pointer(S) := Dest;
+    utf8_from_utf16(Dest, Src, L)
+  end;
 end;
 
 procedure CachedUTF16String.ToWideString(var S: WideString);
+var
+  L: NativeUInt;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      WideStringClear(S);
+    Exit;
+  end;
+
+  Src := Self.Chars;
+  Dest := WideStringAlloc(Pointer(S), L, -1);
+  Pointer(S) := Dest;
+  Move(Src^, Dest^, L + L);
 end;
 
 procedure CachedUTF16String.ToUnicodeString(var S: UnicodeString);
 {$ifdef UNICODE}
+var
+  L: NativeUInt;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+    {$ifNdef NEXTGEN}
+      AnsiStringClear(S);
+    {$else}
+      UnicodeStringClear(S);
+    {$endif}
+    Exit;
+  end;
+
+  Src := Self.Chars;
+  Dest := UnicodeStringAlloc(Pointer(S), L, -1);
+  Pointer(S) := Dest;
+  Move(Src^, Dest^, L + L);
 end;
 {$else .NONUNICODE_CPUX86}
 asm
@@ -4524,44 +4824,54 @@ end;
 {$ifend}
 
 function CachedUTF16String.GetAnsiString: AnsiString;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToAnsiString(Result);
 end;
-{$else .NONUNICODE_CPUX86}
+{$else .CPUX86/CPUX64}
 asm
+  {$ifdef CPUX86}
   xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
   jmp ToAnsiString
 end;
-{$ifend}
+{$endif}
 
 function CachedUTF16String.GetUTF8String: UTF8String;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToUTF8String(Result);
 end;
-{$else .CPUX86}
+{$else .CPUX86/CPUX64}
 asm
   jmp ToUTF8String
 end;
-{$ifend}
+{$endif}
 
 function CachedUTF16String.GetWideString: WideString;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToWideString(Result);
 end;
-{$else .CPUX86}
+{$else .CPUX86/CPUX64}
 asm
   jmp ToWideString
 end;
-{$ifend}
+{$endif}
 
 {$ifdef UNICODE}
 function CachedUTF16String.GetUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
 begin
   ToUnicodeString(Result);
 end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUnicodeString
+end;
+{$endif}
 {$endif}
 
 procedure CachedUTF16String.Assign(const S: WideString);
@@ -6637,44 +6947,54 @@ end;
 {$ifend}
 
 function CachedUTF32String.GetAnsiString: AnsiString;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToAnsiString(Result);
 end;
-{$else .NONUNICODE_CPUX86}
+{$else .CPUX86/CPUX64}
 asm
+  {$ifdef CPUX86}
   xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
   jmp ToAnsiString
 end;
-{$ifend}
+{$endif}
 
 function CachedUTF32String.GetUTF8String: UTF8String;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToUTF8String(Result);
 end;
-{$else .CPUX86}
+{$else .CPUX86/CPUX64}
 asm
   jmp ToUTF8String
 end;
-{$ifend}
+{$endif}
 
 function CachedUTF32String.GetWideString: WideString;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+{$ifNdef CPUINTEL}
 begin
   ToWideString(Result);
 end;
-{$else .CPUX86}
+{$else .CPUX86/CPUX64}
 asm
   jmp ToWideString
 end;
-{$ifend}
+{$endif}
 
 {$ifdef UNICODE}
 function CachedUTF32String.GetUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
 begin
   ToUnicodeString(Result);
 end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUnicodeString
+end;
+{$endif}
 {$endif}
 
 procedure CachedUTF32String.Assign(const S: UCS4String; const NullTerminated: Boolean);

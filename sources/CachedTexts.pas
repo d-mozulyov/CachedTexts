@@ -83,7 +83,7 @@ unit CachedTexts;
 
 interface
   uses {$ifdef UNITSCOPENAMES}System.Types, System.SysConst{$else}Types, SysConst{$endif},
-       {$ifdef MSWINDOWS}{$ifdef UNITSCOPENAMES}Winapi.Windows{$else}Windows{$endif}{$endif},
+       {$ifdef MSWINDOWS}{$ifdef UNITSCOPENAMES}Winapi.Windows{$else}Windows{$endif},{$endif}
        {$ifdef POSIX}Posix.String_, Posix.SysStat, Posix.Unistd,{$endif}
        {$ifdef KOL}
          KOL, err
@@ -187,6 +187,23 @@ type
 
 const
   // UniConv constants
+  ccOriginal = UniConv.ccOriginal;
+  ccLower = UniConv.ccLower;
+  ccUpper = UniConv.ccUpper;
+  bomNone = UniConv.bomNone;
+  bomUTF8 = UniConv.bomUTF8;
+  bomUTF16 = UniConv.bomUTF16;
+  bomUTF16BE = UniConv.bomUTF16BE;
+  bomUTF32 = UniConv.bomUTF32;
+  bomUTF32BE = UniConv.bomUTF32BE;
+  bomUCS2143 = UniConv.bomUCS2143;
+  bomUCS3412 = UniConv.bomUCS3412;
+  bomUTF1 = UniConv.bomUTF1;
+  bomUTF7 = UniConv.bomUTF7;
+  bomUTFEBCDIC = UniConv.bomUTFEBCDIC;
+  bomSCSU = UniConv.bomSCSU;
+  bomBOCU1 = UniConv.bomBOCU1;
+  bomGB18030 = UniConv.bomGB18030;
   CODEPAGE_UTF7 = UniConv.CODEPAGE_UTF7;
   CODEPAGE_UTF8 = UniConv.CODEPAGE_UTF8;
   CODEPAGE_UTF16  = UniConv.CODEPAGE_UTF16;
@@ -204,6 +221,11 @@ const
   UNKNOWN_CHARACTER = UniConv.UNKNOWN_CHARACTER;
   MAXIMUM_CHARACTER = UniConv.MAXIMUM_CHARACTER;
 
+var
+  // UniConv "constants"
+  CODEPAGE_DEFAULT: Word;
+  DEFAULT_UNICONV_SBCS: PUniConvSBCS;
+  DEFAULT_UNICONV_SBCS_INDEX: NativeUInt;
 
 type
   PCachedString = ^CachedString;
@@ -226,9 +248,10 @@ type
     F: packed record
     case Integer of
       0: (Flags: Cardinal);
-      1: (D0, D1, D2, D3: Byte);
-      2: (B0, B1, B2, B3: Boolean);
-      3: (NativeFlags: NativeUInt);
+      1: (B0, B1, B2, B3: Boolean);
+      2: (U0, U1, U2, U3: Byte);
+      3: (S0, S1, S2, S3: ShortInt);
+      4: (NativeFlags: NativeUInt);
     end;
     function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
@@ -244,13 +267,12 @@ type
   protected
     FChars: PAnsiChar;
 
-    function GetLookup: PUniConvSBCS; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure SetLookup(Value: PUniConvSBCS); {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetSBCS: PUniConvSBCS; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetSBCS(Value: PUniConvSBCS); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetUTF8: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetUTF8(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetCodePage: Word; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure _SetCodePage(Value: Word);
-    procedure SetCodePage(Value: Word);
+    procedure SetCodePage(CodePageValue: Word);
 
     function GetAnsiString: AnsiString; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetUTF8String: UTF8String; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -285,16 +307,17 @@ type
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
     property Chars: PAnsiChar read FChars write FChars;
-    property LookupIndex: Byte read F.D3 write F.D3;
-    property Lookup: PUniConvSBCS read GetLookup write SetLookup;
+    property SBCSIndex: ShortInt read F.S3 write F.S3;
+    property SBCS: PUniConvSBCS read GetSBCS write SetSBCS;
     property UTF8: Boolean read GetUTF8 write SetUTF8;
     property CodePage: Word read GetCodePage write SetCodePage;
   public
     { basic methods }
 
-    procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word = 0{$endif}); overload;
-    procedure Assign(const S: ShortString; const CP: Word = 0); overload;
-    procedure Assign(const S: TBytes; const CP: Word = 0); overload;
+    procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word = 0{$endif}); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: UTF8String); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: ShortString; const CP: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: TBytes; const CP: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function DetectAscii: Boolean;
 
     function LTrim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -793,13 +816,6 @@ end;
   {$ifend}
 
 type
-  PAnsiWideLength = ^TAnsiWideLength;
-  {$ifdef NEXTGEN}
-  TAnsiWideLength = NativeInt;
-  {$else}
-  TAnsiWideLength = Integer;
-  {$endif}
-
   PByteArray = ^TByteArray;
   TByteArray = array[0..0] of Byte;
 
@@ -822,7 +838,18 @@ type
   TUniConvContextEx = object(TUniConvContext) end;
 
 var
+  UNICONV_SUPPORTED_SBCS_HASH: array[0..High(UniConv.UNICONV_SUPPORTED_SBCS_HASH)] of Integer;
   UNICONV_UTF8_SIZE: TUniConvBB;
+
+procedure InternalLookupsInitialize;
+begin
+  CODEPAGE_DEFAULT := UniConv.CODEPAGE_DEFAULT;
+  DEFAULT_UNICONV_SBCS := UniConv.DEFAULT_UNICONV_SBCS;
+  DEFAULT_UNICONV_SBCS_INDEX := UniConv.DEFAULT_UNICONV_SBCS_INDEX;
+
+  Move(UniConv.UNICONV_SUPPORTED_SBCS_HASH, UNICONV_SUPPORTED_SBCS_HASH, SizeOf(UNICONV_SUPPORTED_SBCS_HASH));
+  Move(UniConv.UNICONV_UTF8_SIZE, UNICONV_UTF8_SIZE, SizeOf(UNICONV_UTF8_SIZE));
+end;
 
 resourcestring
   SInvalidHex = '''%s'' is not a valid hex value';
@@ -2017,100 +2044,88 @@ end;
 
 { CachedByteString }
 
-function CachedByteString.GetLookup: PUniConvSBCS;
+function CachedByteString.GetSBCS: PUniConvSBCS;
 var
   Index: NativeInt;
 begin
-  Index := LookupIndex;
+  Index := SBCSIndex;
 
-  if (Index = 0) then Result := Pointer(Index){nil}
-  else
-  {$ifdef CPUX86}
-    Result := nil;//Pointer(@PAnsiChar(@uniconv_lookup_sbcs)[(Index-1)*SizeOf(TUniConvSBCSLookup)]);
-  {$else}
-    Result := nil;//@uniconv_lookup_sbcs[Index];
-  {$endif}
+  if (Index < 0) then
+  begin
+    Inc(Index){Result := nil};
+  end else
+  begin
+    Index := Index * SizeOf(TUniConvSBCS);
+    Inc(Index, NativeInt(@UNICONV_SUPPORTED_SBCS));
+  end;
+
+  Result := Pointer(Index);
 end;
 
-procedure CachedByteString.SetLookup(Value: PUniConvSBCS);
+procedure CachedByteString.SetSBCS(Value: PUniConvSBCS);
 begin
-  if (Value = nil) then LookupIndex := 0
-  else LookupIndex := Value.Index;
+  if (Value = nil) then
+  begin
+    SBCSIndex := -1;
+  end else
+  begin
+    SBCSIndex := Value.Index;
+  end;
 end;
 
 function CachedByteString.GetUTF8: Boolean;
 begin
-  Result := (LookupIndex = 0);
+  Result := Boolean(Flags shr 31);
 end;
 
 procedure CachedByteString.SetUTF8(Value: Boolean);
 begin
-  if (Value) then LookupIndex := 0
-  else LookupIndex := 0;//default_lookup_sbcs_index;
+  if (Value) then
+  begin
+    SBCSIndex := -1;
+  end else
+  begin
+    SBCSIndex := DEFAULT_UNICONV_SBCS_INDEX;
+  end;
 end;
 
 function CachedByteString.GetCodePage: Word;
 var
   Index: NativeInt;
 begin
-  Index := LookupIndex;
+  Index := SBCSIndex;
 
-  if (Index = 0) then Result := CODEPAGE_UTF8
-  else
-  {$ifdef CPUX86}
-    Result := 0;//PUniConvSBCS(@PAnsiChar(@uniconv_lookup_sbcs)[(Index-1)*SizeOf(TUniConvSBCSLookup)]).CodePage;
-  {$else}
-    Result := 0;//uniconv_lookup_sbcs[Index].CodePage;
-  {$endif}
+  if (Index < 0) then
+  begin
+    Result := CODEPAGE_UTF8;
+  end else
+  begin
+    Index := Index * SizeOf(TUniConvSBCS);
+    Inc(Index, NativeInt(@UNICONV_SUPPORTED_SBCS));
+    Result := PUniConvSBCS(Index).CodePage;
+  end;
 end;
 
-procedure CachedByteString._SetCodePage(Value: Word);
+procedure CachedByteString.SetCodePage(CodePageValue: Word);
 var
-  SBCSLookup: PUniConvSBCS;
+  Index: NativeUInt;
+  Value: Integer;
 begin
-  SBCSLookup := UniConvSBCS(Value);
-  if (SBCSLookup = nil) then
+  if (CodePageValue = CODEPAGE_UTF8) then
   begin
-    LookupIndex := 1;
+    SBCSIndex := -1;
   end else
   begin
-    LookupIndex := SBCSLookup.Index;
+    Index := NativeUInt(CodePageValue);
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+    repeat
+      if (Word(Value) = CodePageValue) or (Value < 0) then Break;
+      Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+    until (False);
+
+    SBCSIndex := Byte(Value shr 16);
   end;
 end;
-
-procedure CachedByteString.SetCodePage(Value: Word);
- {$ifdef INLINESUPPORT}
-begin
-  if (Value = 0) or (Value = CODEPAGE_DEFAULT) then
-  begin
-    LookupIndex := 0;//default_lookup_sbcs_index;
-  end else
-  if (Value = CODEPAGE_UTF8) then
-  begin
-    LookupIndex := 0;
-  end else
-  begin
-    _SetCodePage(Value);
-  end;
-end;
-{$else .CPUX86}
-asm
-  test dx, dx
-  je @fill_default
-  cmp dx, CODEPAGE_DEFAULT
-  je @fill_default
-  cmp dx, CODEPAGE_UTF8
-  je @fill_utf8
-
-  jmp _SetCodePage
-@fill_utf8:
-  mov [EAX].CachedByteString.F.D3, 0
-  ret
-@fill_default:
-  mov edx, default_lookup_sbcs_index
-  mov [EAX].CachedByteString.F.D3, dl
-end;
-{$endif}
 
 procedure CachedByteString.ToAnsiString(var S: AnsiString; const CP: Word);
 begin
@@ -2139,7 +2154,7 @@ end;
 {$endif}
 
 procedure CachedByteString.ToString(var S: string);
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   {$ifdef UNICODE}
      ToUnicodeString(S);
@@ -2152,10 +2167,10 @@ asm
   xor ecx, ecx
   jmp ToAnsiString
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.GetAnsiString: AnsiString;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToAnsiString(Result);
 end;
@@ -2164,10 +2179,10 @@ asm
   xor ecx, ecx
   jmp ToAnsiString
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.GetUTF8String: UTF8String;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToUTF8String(Result);
 end;
@@ -2175,10 +2190,10 @@ end;
 asm
   jmp ToUTF8String
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.GetWideString: WideString;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToWideString(Result);
 end;
@@ -2186,7 +2201,7 @@ end;
 asm
   jmp ToWideString
 end;
-{$endif}
+{$ifend}
 
 {$ifdef UNICODE}
 function CachedByteString.GetUnicodeString: UnicodeString;
@@ -2197,7 +2212,7 @@ end;
 
 procedure CachedByteString.Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word{$endif});
 var
-  P: PAnsiWideLength;
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
   {$ifdef INTERNALCODEPAGE}
   CP: Word;
   {$endif}
@@ -2218,12 +2233,30 @@ begin
     {$endif}
     if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
     begin
-      Self.Flags := 0;//default_lookup_sbcs_index shl 24
+      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
     end else
     begin
-      Self.Flags := 0;
-      if (CP <> CODEPAGE_UTF8) then _SetCodePage(CP);
+      Self.Flags := $ff000000;
+      if (CP <> CODEPAGE_UTF8) then SetCodePage(CP);
     end;
+  end;
+end;
+
+procedure CachedByteString.Assign(const S: UTF8String);
+var
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
+begin
+  P := Pointer(S);
+  Self.FChars := Pointer(P);
+  if (P = nil) then
+  begin
+    Self.FLength := NativeUInt(P){0};
+    Self.F.NativeFlags := NativeUInt(P){0};
+  end else
+  begin
+    Dec(P);
+    Self.FLength := P^;
+    Self.Flags := $ff000000;
   end;
 end;
 
@@ -2242,11 +2275,11 @@ begin
     Self.FChars := Pointer(@S[1]);
     if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
     begin
-      Self.Flags := 0;//default_lookup_sbcs_index shl 24
+      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
     end else
     begin
-      Self.Flags := 0;
-      if (CP <> CODEPAGE_UTF8) then _SetCodePage(CP);
+      Self.Flags := $ff000000;
+      if (CP <> CODEPAGE_UTF8) then SetCodePage(CP);
     end;
   end;
 end;
@@ -2267,11 +2300,11 @@ begin
     Self.FLength := P^{$ifdef FPC}+1{$endif};
     if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
     begin
-      Self.Flags := 0;//default_lookup_sbcs_index shl 24
+      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
     end else
     begin
-      Self.Flags := 0;
-      if (CP <> CODEPAGE_UTF8) then _SetCodePage(CP);
+      Self.Flags := $ff000000;
+      if (CP <> CODEPAGE_UTF8) then SetCodePage(CP);
     end;
   end;
 end;
@@ -2330,7 +2363,7 @@ fail:
 end;
 
 function CachedByteString.LTrim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 var
   L: NativeUInt;
   S: PByte;
@@ -2364,7 +2397,7 @@ asm
   jbe _LTrim
   mov al, 1
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._LTrim(S: PByte; L: NativeUInt): Boolean;
 label
@@ -2394,7 +2427,7 @@ fail:
 end;
 
 function CachedByteString.RTrim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
   TCharArray = array[0..0] of Byte;
   PCharArray = ^TCharArray;
@@ -2434,7 +2467,7 @@ asm
   jbe _RTrim
   mov al, 1
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._RTrim(S: PByte; H: NativeUInt): Boolean;
 label
@@ -2464,7 +2497,7 @@ fail:
 end;
 
 function CachedByteString.Trim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
   TCharArray = array[0..0] of Byte;
   PCharArray = ^TCharArray;
@@ -2530,7 +2563,7 @@ asm
   ja _RTrim
   jmp _Trim
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._Trim(S: PByte; H: NativeUInt): Boolean;
 label
@@ -2924,7 +2957,7 @@ begin
     SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs);
     Inc(SBCSLookup, NF-1);
   {$else}
-    SBCSLookup := Pointer(@uniconv_lookup_sbcs[NF]);
+    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs[NF]);
   {$endif}
   // Lower := inline SBCSLookup.GetLowerCaseUCS2;
   Lower := Pointer(SBCSLookup.FUCS2.Lower);
@@ -3027,7 +3060,7 @@ begin
 end;
 
 function CachedByteString.TryAsBoolean(out Value: Boolean): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
@@ -3046,7 +3079,7 @@ asm
   mov [ecx], al
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsBooleanDef(const Default: Boolean): Boolean;
 begin
@@ -3054,7 +3087,7 @@ begin
 end;
 
 function CachedByteString.GetBoolean: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetBool(Pointer(Chars), Length);
 end;
@@ -3065,7 +3098,7 @@ asm
   xor eax, eax
   jmp _GetBool
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._GetBool(S: PByte; L: NativeUInt): Boolean;
 label
@@ -3144,7 +3177,7 @@ fail:
 end;
 
 function CachedByteString.TryAsHex(out Value: Integer): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
@@ -3163,7 +3196,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsHexDef(const Default: Integer): Integer;
 begin
@@ -3171,7 +3204,7 @@ begin
 end;
 
 function CachedByteString.GetHex: Integer;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetHex(Pointer(Chars), Length);
 end;
@@ -3182,7 +3215,7 @@ asm
   xor eax, eax
   jmp _GetHex
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._GetHex(S: PByte; L: NativeInt): Integer;
 label
@@ -3247,7 +3280,7 @@ fail:
 end;
 
 function CachedByteString.TryAsCardinal(out Value: Cardinal): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
@@ -3266,7 +3299,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsCardinalDef(const Default: Cardinal): Cardinal;
 begin
@@ -3274,7 +3307,7 @@ begin
 end;
 
 function CachedByteString.GetCardinal: Cardinal;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetInt(Pointer(Chars), Length);
 end;
@@ -3285,10 +3318,10 @@ asm
   xor eax, eax
   jmp _GetInt
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.TryAsInteger(out Value: Integer): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
@@ -3308,7 +3341,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsIntegerDef(const Default: Integer): Integer;
 begin
@@ -3316,7 +3349,7 @@ begin
 end;
 
 function CachedByteString.GetInteger: Integer;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetInt(Pointer(Chars), -Length);
 end;
@@ -3328,7 +3361,7 @@ asm
   xor eax, eax
   jmp _GetInt
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._GetInt(S: PByte; L: NativeInt): Integer;
 label
@@ -3487,7 +3520,7 @@ fail:
 end;
 
 function CachedByteString.TryAsHex64(out Value: Int64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
@@ -3507,10 +3540,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsHex64Def(const Default: Int64): Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(@Default)._GetHex64(Pointer(Chars), Length);
 end;
@@ -3521,10 +3554,10 @@ asm
   lea eax, Default
   call _GetHex64
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.GetHex64: Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetHex64(Pointer(Chars), Length);
 end;
@@ -3535,7 +3568,7 @@ asm
   xor eax, eax
   jmp _GetHex64
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._GetHex64(S: PByte; L: NativeInt): Int64;
 label
@@ -3633,7 +3666,7 @@ fail:
 end;
 
 function CachedByteString.TryAsUInt64(out Value: UInt64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
@@ -3653,10 +3686,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsUInt64Def(const Default: UInt64): UInt64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(@Default)._GetInt64(Pointer(Chars), Length);
 end;
@@ -3667,10 +3700,10 @@ asm
   lea eax, Default
   call _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.GetUInt64: UInt64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetInt64(Pointer(Chars), Length);
 end;
@@ -3681,10 +3714,10 @@ asm
   xor eax, eax
   jmp _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.TryAsInt64(out Value: Int64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedByteString(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
@@ -3705,10 +3738,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsInt64Def(const Default: Int64): Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(@Default)._GetInt64(Pointer(Chars), -Length);
 end;
@@ -3720,10 +3753,10 @@ asm
   lea eax, Default
   call _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.GetInt64: Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedByteString(0)._GetInt64(Pointer(Chars), -Length);
 end;
@@ -3735,7 +3768,7 @@ asm
   xor eax, eax
   jmp _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._GetInt64(S: PByte; L: NativeInt): Int64;
 label
@@ -4348,7 +4381,7 @@ end;
 function CachedByteString.TryAsDate(out Value: TDateTime): Boolean;
 const
   DT = 1{Date};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -4357,7 +4390,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsTimeDef(const Default: TDateTime): TDateTime;
 begin
@@ -4374,7 +4407,7 @@ end;
 function CachedByteString.TryAsTime(out Value: TDateTime): Boolean;
 const
   DT = 2{Time};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -4383,7 +4416,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString.AsDateTimeDef(const Default: TDateTime): TDateTime;
 begin
@@ -4400,7 +4433,7 @@ end;
 function CachedByteString.TryAsDateTime(out Value: TDateTime): Boolean;
 const
   DT = 3{DateTime};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -4409,7 +4442,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedByteString._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
 label
@@ -4475,7 +4508,7 @@ end;
 {$endif}
 
 procedure CachedUTF16String.ToString(var S: string);
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   {$ifdef UNICODE}
      ToUnicodeString(S);
@@ -4488,10 +4521,10 @@ asm
   xor ecx, ecx
   jmp ToAnsiString
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.GetAnsiString: AnsiString;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToAnsiString(Result);
 end;
@@ -4500,10 +4533,10 @@ asm
   xor ecx, ecx
   jmp ToAnsiString
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.GetUTF8String: UTF8String;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToUTF8String(Result);
 end;
@@ -4511,10 +4544,10 @@ end;
 asm
   jmp ToUTF8String
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.GetWideString: WideString;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToWideString(Result);
 end;
@@ -4522,7 +4555,7 @@ end;
 asm
   jmp ToWideString
 end;
-{$endif}
+{$ifend}
 
 {$ifdef UNICODE}
 function CachedUTF16String.GetUnicodeString: UnicodeString;
@@ -4533,7 +4566,7 @@ end;
 
 procedure CachedUTF16String.Assign(const S: WideString);
 var
-  P: PAnsiWideLength;
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
 begin
   P := Pointer(S);
   Self.FChars := Pointer(P);
@@ -4615,7 +4648,7 @@ fail:
 end;
 
 function CachedUTF16String.LTrim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 var
   L: NativeUInt;
   S: PWord;
@@ -4649,7 +4682,7 @@ asm
   jbe _LTrim
   mov al, 1
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._LTrim(S: PWord; L: NativeUInt): Boolean;
 label
@@ -4679,7 +4712,7 @@ fail:
 end;
 
 function CachedUTF16String.RTrim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
   TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
@@ -4719,7 +4752,7 @@ asm
   jbe _RTrim
   mov al, 1
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._RTrim(S: PWord; H: NativeUInt): Boolean;
 label
@@ -4749,7 +4782,7 @@ fail:
 end;
 
 function CachedUTF16String.Trim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
   TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
@@ -4815,7 +4848,7 @@ asm
   ja _RTrim
   jmp _Trim
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._Trim(S: PWord; H: NativeUInt): Boolean;
 label
@@ -4956,7 +4989,7 @@ begin
 end;
 
 function CachedUTF16String.HashIgnoreCase: Cardinal;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   if (Self.Ascii) then Result := _HashIgnoreCaseAscii
   else Result := _HashIgnoreCase;
@@ -4967,7 +5000,7 @@ asm
   jnz _HashIgnoreCaseAscii
   jmp _HashIgnoreCase
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._HashIgnoreCaseAscii: Cardinal;
 label
@@ -5137,7 +5170,7 @@ begin
 end;
 
 function CachedUTF16String.TryAsBoolean(out Value: Boolean): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
@@ -5156,7 +5189,7 @@ asm
   mov [ecx], al
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsBooleanDef(const Default: Boolean): Boolean;
 begin
@@ -5164,7 +5197,7 @@ begin
 end;
 
 function CachedUTF16String.GetBoolean: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetBool(Pointer(Chars), Length);
 end;
@@ -5175,7 +5208,7 @@ asm
   xor eax, eax
   jmp _GetBool
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._GetBool(S: PWord; L: NativeUInt): Boolean;
 label
@@ -5256,7 +5289,7 @@ fail:
 end;
 
 function CachedUTF16String.TryAsHex(out Value: Integer): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
@@ -5275,7 +5308,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsHexDef(const Default: Integer): Integer;
 begin
@@ -5283,7 +5316,7 @@ begin
 end;
 
 function CachedUTF16String.GetHex: Integer;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetHex(Pointer(Chars), Length);
 end;
@@ -5294,7 +5327,7 @@ asm
   xor eax, eax
   jmp _GetHex
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._GetHex(S: PWord; L: NativeInt): Integer;
 label
@@ -5359,7 +5392,7 @@ fail:
 end;
 
 function CachedUTF16String.TryAsCardinal(out Value: Cardinal): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
@@ -5378,7 +5411,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsCardinalDef(const Default: Cardinal): Cardinal;
 begin
@@ -5386,7 +5419,7 @@ begin
 end;
 
 function CachedUTF16String.GetCardinal: Cardinal;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetInt(Pointer(Chars), Length);
 end;
@@ -5397,10 +5430,10 @@ asm
   xor eax, eax
   jmp _GetInt
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.TryAsInteger(out Value: Integer): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
@@ -5420,7 +5453,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsIntegerDef(const Default: Integer): Integer;
 begin
@@ -5428,7 +5461,7 @@ begin
 end;
 
 function CachedUTF16String.GetInteger: Integer;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetInt(Pointer(Chars), -Length);
 end;
@@ -5440,7 +5473,7 @@ asm
   xor eax, eax
   jmp _GetInt
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._GetInt(S: PWord; L: NativeInt): Integer;
 label
@@ -5599,7 +5632,7 @@ fail:
 end;
 
 function CachedUTF16String.TryAsHex64(out Value: Int64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
@@ -5619,10 +5652,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsHex64Def(const Default: Int64): Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(@Default)._GetHex64(Pointer(Chars), Length);
 end;
@@ -5633,10 +5666,10 @@ asm
   lea eax, Default
   call _GetHex64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.GetHex64: Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetHex64(Pointer(Chars), Length);
 end;
@@ -5647,7 +5680,7 @@ asm
   xor eax, eax
   jmp _GetHex64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._GetHex64(S: PWord; L: NativeInt): Int64;
 label
@@ -5745,7 +5778,7 @@ fail:
 end;
 
 function CachedUTF16String.TryAsUInt64(out Value: UInt64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
@@ -5765,10 +5798,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsUInt64Def(const Default: UInt64): UInt64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(@Default)._GetInt64(Pointer(Chars), Length);
 end;
@@ -5779,10 +5812,10 @@ asm
   lea eax, Default
   call _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.GetUInt64: UInt64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetInt64(Pointer(Chars), Length);
 end;
@@ -5793,10 +5826,10 @@ asm
   xor eax, eax
   jmp _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.TryAsInt64(out Value: Int64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF16String(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
@@ -5817,10 +5850,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsInt64Def(const Default: Int64): Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(@Default)._GetInt64(Pointer(Chars), -Length);
 end;
@@ -5832,10 +5865,10 @@ asm
   lea eax, Default
   call _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.GetInt64: Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF16String(0)._GetInt64(Pointer(Chars), -Length);
 end;
@@ -5847,7 +5880,7 @@ asm
   xor eax, eax
   jmp _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._GetInt64(S: PWord; L: NativeInt): Int64;
 label
@@ -6461,7 +6494,7 @@ end;
 function CachedUTF16String.TryAsDate(out Value: TDateTime): Boolean;
 const
   DT = 1{Date};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -6470,7 +6503,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsTimeDef(const Default: TDateTime): TDateTime;
 begin
@@ -6487,7 +6520,7 @@ end;
 function CachedUTF16String.TryAsTime(out Value: TDateTime): Boolean;
 const
   DT = 2{Time};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -6496,7 +6529,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String.AsDateTimeDef(const Default: TDateTime): TDateTime;
 begin
@@ -6513,7 +6546,7 @@ end;
 function CachedUTF16String.TryAsDateTime(out Value: TDateTime): Boolean;
 const
   DT = 3{DateTime};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -6522,7 +6555,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF16String._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
 label
@@ -6588,7 +6621,7 @@ end;
 {$endif}
 
 procedure CachedUTF32String.ToString(var S: string);
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   {$ifdef UNICODE}
      ToUnicodeString(S);
@@ -6601,10 +6634,10 @@ asm
   xor ecx, ecx
   jmp ToAnsiString
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.GetAnsiString: AnsiString;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToAnsiString(Result);
 end;
@@ -6613,10 +6646,10 @@ asm
   xor ecx, ecx
   jmp ToAnsiString
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.GetUTF8String: UTF8String;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToUTF8String(Result);
 end;
@@ -6624,10 +6657,10 @@ end;
 asm
   jmp ToUTF8String
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.GetWideString: WideString;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   ToWideString(Result);
 end;
@@ -6635,7 +6668,7 @@ end;
 asm
   jmp ToWideString
 end;
-{$endif}
+{$ifend}
 
 {$ifdef UNICODE}
 function CachedUTF32String.GetUnicodeString: UnicodeString;
@@ -6701,7 +6734,7 @@ fail:
 end;
 
 function CachedUTF32String.LTrim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 var
   L: NativeUInt;
   S: PCardinal;
@@ -6735,7 +6768,7 @@ asm
   jbe _LTrim
   mov al, 1
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._LTrim(S: PCardinal; L: NativeUInt): Boolean;
 label
@@ -6765,7 +6798,7 @@ fail:
 end;
 
 function CachedUTF32String.RTrim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
   TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
@@ -6805,7 +6838,7 @@ asm
   jbe _RTrim
   mov al, 1
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._RTrim(S: PCardinal; H: NativeUInt): Boolean;
 label
@@ -6835,7 +6868,7 @@ fail:
 end;
 
 function CachedUTF32String.Trim: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
   TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
@@ -6901,7 +6934,7 @@ asm
   ja _RTrim
   jmp _Trim
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._Trim(S: PCardinal; H: NativeUInt): Boolean;
 label
@@ -7032,7 +7065,7 @@ begin
 end;
 
 function CachedUTF32String.HashIgnoreCase: Cardinal;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   if (Self.Ascii) then Result := _HashIgnoreCaseAscii
   else Result := _HashIgnoreCase;
@@ -7044,7 +7077,7 @@ asm
   // todo
   jmp _HashIgnoreCase
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._HashIgnoreCaseAscii: Cardinal;
 var
@@ -7159,7 +7192,7 @@ begin
 end;
 
 function CachedUTF32String.TryAsBoolean(out Value: Boolean): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
@@ -7178,7 +7211,7 @@ asm
   mov [ecx], al
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsBooleanDef(const Default: Boolean): Boolean;
 begin
@@ -7186,7 +7219,7 @@ begin
 end;
 
 function CachedUTF32String.GetBoolean: Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetBool(Pointer(Chars), Length);
 end;
@@ -7197,7 +7230,7 @@ asm
   xor eax, eax
   jmp _GetBool
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._GetBool(S: PCardinal; L: NativeUInt): Boolean;
 label
@@ -7277,7 +7310,7 @@ fail:
 end;
 
 function CachedUTF32String.TryAsHex(out Value: Integer): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
@@ -7296,7 +7329,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsHexDef(const Default: Integer): Integer;
 begin
@@ -7304,7 +7337,7 @@ begin
 end;
 
 function CachedUTF32String.GetHex: Integer;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetHex(Pointer(Chars), Length);
 end;
@@ -7315,7 +7348,7 @@ asm
   xor eax, eax
   jmp _GetHex
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._GetHex(S: PCardinal; L: NativeInt): Integer;
 label
@@ -7380,7 +7413,7 @@ fail:
 end;
 
 function CachedUTF32String.TryAsCardinal(out Value: Cardinal): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
@@ -7399,7 +7432,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsCardinalDef(const Default: Cardinal): Cardinal;
 begin
@@ -7407,7 +7440,7 @@ begin
 end;
 
 function CachedUTF32String.GetCardinal: Cardinal;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetInt(Pointer(Chars), Length);
 end;
@@ -7418,10 +7451,10 @@ asm
   xor eax, eax
   jmp _GetInt
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.TryAsInteger(out Value: Integer): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
@@ -7441,7 +7474,7 @@ asm
   mov [ecx], eax
   xchg eax, edx
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsIntegerDef(const Default: Integer): Integer;
 begin
@@ -7449,7 +7482,7 @@ begin
 end;
 
 function CachedUTF32String.GetInteger: Integer;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetInt(Pointer(Chars), -Length);
 end;
@@ -7461,7 +7494,7 @@ asm
   xor eax, eax
   jmp _GetInt
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._GetInt(S: PCardinal; L: NativeInt): Integer;
 label
@@ -7620,7 +7653,7 @@ fail:
 end;
 
 function CachedUTF32String.TryAsHex64(out Value: Int64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
@@ -7640,10 +7673,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsHex64Def(const Default: Int64): Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(@Default)._GetHex64(Pointer(Chars), Length);
 end;
@@ -7654,10 +7687,10 @@ asm
   lea eax, Default
   call _GetHex64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.GetHex64: Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetHex64(Pointer(Chars), Length);
 end;
@@ -7668,7 +7701,7 @@ asm
   xor eax, eax
   jmp _GetHex64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._GetHex64(S: PCardinal; L: NativeInt): Int64;
 label
@@ -7766,7 +7799,7 @@ fail:
 end;
 
 function CachedUTF32String.TryAsUInt64(out Value: UInt64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
@@ -7786,10 +7819,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsUInt64Def(const Default: UInt64): UInt64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(@Default)._GetInt64(Pointer(Chars), Length);
 end;
@@ -7800,10 +7833,10 @@ asm
   lea eax, Default
   call _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.GetUInt64: UInt64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetInt64(Pointer(Chars), Length);
 end;
@@ -7814,10 +7847,10 @@ asm
   xor eax, eax
   jmp _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.TryAsInt64(out Value: Int64): Boolean;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
   Value := PCachedUTF32String(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
@@ -7838,10 +7871,10 @@ asm
   mov eax, [esp]
   add esp, 8
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsInt64Def(const Default: Int64): Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(@Default)._GetInt64(Pointer(Chars), -Length);
 end;
@@ -7853,10 +7886,10 @@ asm
   lea eax, Default
   call _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.GetInt64: Int64;
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := PCachedUTF32String(0)._GetInt64(Pointer(Chars), -Length);
 end;
@@ -7868,7 +7901,7 @@ asm
   xor eax, eax
   jmp _GetInt64
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._GetInt64(S: PCardinal; L: NativeInt): Int64;
 label
@@ -8482,7 +8515,7 @@ end;
 function CachedUTF32String.TryAsDate(out Value: TDateTime): Boolean;
 const
   DT = 1{Date};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -8491,7 +8524,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsTimeDef(const Default: TDateTime): TDateTime;
 begin
@@ -8508,7 +8541,7 @@ end;
 function CachedUTF32String.TryAsTime(out Value: TDateTime): Boolean;
 const
   DT = 2{Time};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -8517,7 +8550,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String.AsDateTimeDef(const Default: TDateTime): TDateTime;
 begin
@@ -8534,7 +8567,7 @@ end;
 function CachedUTF32String.TryAsDateTime(out Value: TDateTime): Boolean;
 const
   DT = 3{DateTime};
-{$ifdef INLINESUPPORT}
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := _GetDateTime(Value, DT);
 end;
@@ -8543,7 +8576,7 @@ asm
   mov ecx, DT
   jmp _GetDateTime
 end;
-{$endif}
+{$ifend}
 
 function CachedUTF32String._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
 label
@@ -9204,9 +9237,6 @@ end;
 
 
 initialization
-(*  CODEPAGE_DEFAULT := UniConv.CODEPAGE_DEFAULT;
-  default_lookup_sbcs := UniConv.default_lookup_sbcs;
-  default_lookup_sbcs_index := UniConv.default_lookup_sbcs_index; *)
-  UNICONV_UTF8_SIZE := UniConv.UNICONV_UTF8_SIZE;
+  InternalLookupsInitialize;
 
 end.

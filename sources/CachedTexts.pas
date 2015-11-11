@@ -1963,6 +1963,7 @@ var
   Buffer: CachedByteString;
 begin
   Buffer := Value^;
+  Buffer.Ascii := False;
   if (Buffer.Chars <> nil) and (Buffer.Length > 0) then
   begin
     if (Buffer.Length < 16) then
@@ -1985,6 +1986,7 @@ var
   Buffer: CachedUTF16String;
 begin
   Buffer := Value^;
+  Buffer.Ascii := False;
   if (Buffer.Chars <> nil) and (Buffer.Length > 0) then
   begin
     if (Buffer.Length < 16) then
@@ -2007,6 +2009,7 @@ var
   Buffer: CachedUTF32String;
 begin
   Buffer := Value^;
+  Buffer.Ascii := False;
   if (Buffer.Chars <> nil) and (Buffer.Length > 0) then
   begin
     if (Buffer.Length < 16) then
@@ -2175,7 +2178,7 @@ begin
       if (Index = DestSBCS.Index) then goto copy_characters;
 
       Converter := DestSBCS.FromSBCS(Pointer(Index));
-      Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+      Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
       Pointer(S) := Dest;
       sbcs_from_sbcs(Dest, Src, L, Converter);
     end else
@@ -2184,14 +2187,14 @@ begin
       Converter := DestSBCS.FVALUES;
       if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
 
-      Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+      Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
       AnsiStringFinish(Pointer(S), Dest, UniConv.sbcs_from_utf8(Dest, Pointer(Src), L, Converter));
     end;
   end else
   begin
     // Ascii chars
   copy_characters:
-    Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+    Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
     Pointer(S) := Dest;
     Move(Src^, Dest^, L);
   end;
@@ -2234,7 +2237,7 @@ begin
   begin
     // Ascii chars
   copy_characters:
-    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8 or (1 shl 31));
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
     Pointer(S) := Dest;
     Move(Src^, Dest^, L);
   end;
@@ -2273,14 +2276,14 @@ begin
     end;
 
     // UTF8 --> UTF16
-    Dest := WideStringAlloc(Pointer(S), L, 0);
+    Dest := WideStringAlloc(Pointer(S), L, -1);
     WideStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), Length));
   end else
   begin
     // Ascii chars
     Converter := nil;
   copy_samelength_characters:
-    Dest := WideStringAlloc(Pointer(S), L, (1 shl 31));
+    Dest := WideStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
     utf16_from_sbcs(Dest, Src, L, Converter);
   end;
@@ -2324,14 +2327,14 @@ begin
     end;
 
     // UTF8 --> UTF16
-    Dest := UnicodeStringAlloc(Pointer(S), L, 0);
+    Dest := UnicodeStringAlloc(Pointer(S), L, -1);
     UnicodeStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), Length));
   end else
   begin
     // Ascii chars
     Converter := nil;
   copy_samelength_characters:
-    Dest := UnicodeStringAlloc(Pointer(S), L, (1 shl 31));
+    Dest := UnicodeStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
     utf16_from_sbcs(Dest, Src, L, Converter);
   end;
@@ -4719,13 +4722,13 @@ begin
     Converter := DestSBCS.FVALUES;
     if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
 
-    Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+    Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
     Pointer(S) := Dest;
     AnsiStringFinish(Pointer(S), Dest, UniConv.sbcs_from_utf16(Dest, Src, L, Converter));
   end else
   begin
     // Ascii chars
-    Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+    Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
     Pointer(S) := Dest;
     sbcs_from_utf16(Dest, Src, L, nil)
   end;
@@ -4747,13 +4750,13 @@ begin
   Src := Self.Chars;
   if (not Self.Ascii) then
   begin
-    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8 or (1 shl 31));
     Pointer(S) := Dest;
     AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_utf16(Dest, Src, L));
   end else
   begin
     // Ascii chars
-    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8 or (1 shl 31));
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
     Pointer(S) := Dest;
     utf8_from_utf16(Dest, Src, L)
   end;
@@ -4773,7 +4776,7 @@ begin
   end;
 
   Src := Self.Chars;
-  Dest := WideStringAlloc(Pointer(S), L, -1);
+  Dest := WideStringAlloc(Pointer(S), L, 0);
   Pointer(S) := Dest;
   Move(Src^, Dest^, L + L);
 end;
@@ -4797,7 +4800,7 @@ begin
   end;
 
   Src := Self.Chars;
-  Dest := UnicodeStringAlloc(Pointer(S), L, -1);
+  Dest := UnicodeStringAlloc(Pointer(S), L, 0);
   Pointer(S) := Dest;
   Move(Src^, Dest^, L + L);
 end;
@@ -6904,25 +6907,287 @@ end;
 
 { CachedUTF32String }
 
-procedure CachedUTF32String.ToAnsiString(var S: AnsiString; const CP: Word);
+procedure ascii_from_utf32(Dest: Pointer; Src: PCardinal; Count: NativeInt);
+var
+  i: NativeInt;
 begin
-  // todo
+  if (Count < 0) then
+  begin
+    Count := -Count;
+    for i := 0 to Count - 1 do
+    begin
+      PWord(Dest)^ := Src^;
+      Inc(Src);
+      Inc(NativeUInt(Dest), SizeOf(Word));
+    end;
+  end else
+  begin
+    for i := 0 to Count - 1 do
+    begin
+      PByte(Dest)^ := Src^;
+      Inc(Src);
+      Inc(NativeUInt(Dest), SizeOf(Byte));
+    end;
+  end;
+end;
+
+procedure CachedUTF32String.ToAnsiString(var S: AnsiString; const CP: Word);
+var
+  L, X: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS, StoredDestSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
+begin
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToUTF8String(UTF8String(S));
+    Exit;
+  end;
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+  StoredDestSBCS := DestSBCS;
+  Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+  Pointer(S) := Dest;
+
+  Src := Self.Chars;
+  if (not Self.Ascii) then
+  begin
+    Converter := StoredDestSBCS.FVALUES;
+    if (Converter = nil) then Converter := StoredDestSBCS.AllocFillVALUES(StoredDestSBCS.FVALUES);
+
+    {$ifdef CPUX86}
+    Dest := Pointer(S);
+    {$endif}
+
+    repeat
+      X := PCardinal(Src)^;
+      if (X > $7f) then
+      begin
+        if (X > $ffff) then X := UNKNOWN_CHARACTER;
+        X := PUniConvBW(Converter)[X];
+      end;
+
+      Dec(L);
+      PByte(Dest)^ := X;
+      Inc(NativeUInt(Src), SizeOf(Cardinal));
+      Inc(NativeUInt(Dest), SizeOf(Byte));
+    until (L = 0)
+  end else
+  begin
+    ascii_from_utf32(Dest, Src, L)
+  end;
+end;
+
+function utf8_from_utf32(Dest: PByte; Src: PCardinal; Count: NativeUInt): NativeUInt;
+var
+  X, Y, i: NativeUInt;
+  StoredDest: PByte;
+begin
+  StoredDest := Dest;
+
+  for i := 1 to Count do
+  begin
+    X := Src^;
+    Inc(Src);
+
+    if (X > $7f) then
+    begin
+      case X of
+        $80..$7ff:
+        begin
+          // X := (X shr 6) + ((X and $3f) shl 8) + $80C0;
+          Y := X;
+          X := (X shr 6) + $80C0;
+          Y := (Y and $3f) shl 8;
+          Inc(X, Y);
+
+          PWord(Dest)^ := X;
+          Inc(Dest, 2);
+        end;
+        $800..$ffff:
+        begin
+          // X := (X shr 12) + ((X and $0fc0) shl 2) + ((X and $3f) shl 16) + $8080E0;
+          Y := X;
+          X := (X and $0fc0) shl 2;
+          Inc(X, (Y and $3f) shl 16);
+          Y := (Y shr 12);
+          Inc(X, $8080E0);
+          Inc(X, Y);
+
+          PWord(Dest)^ := X;
+          Inc(Dest, 2);
+          X := X shr 16;
+          PByte(Dest)^ := X;
+          Inc(Dest);
+        end;
+        $10000..MAXIMUM_CHARACTER:
+        begin
+          //X := (X shr 18) + ((X and $3f) shl 24) + ((X and $0fc0) shl 10) +
+          //     ((X shr 4) and $3f00) + Integer($808080F0);
+          Y := (X and $3f) shl 24;
+          Y := Y + ((X and $0fc0) shl 10);
+          Y := Y + (X shr 18);
+          X := (X shr 4) and $3f00;
+          Inc(Y, Integer($808080F0));
+          Inc(X, Y);
+
+          PCardinal(Dest)^ := X;
+          Inc(Dest, 4);
+        end;
+      else
+        PByte(Dest)^ := UNKNOWN_CHARACTER;
+        Inc(Dest);
+      end;
+    end else
+    begin
+      PByte(Dest)^ := X;
+      Inc(Dest);
+    end;
+  end;
+
+  Result := NativeUInt(Dest) - NativeUInt(StoredDest);
 end;
 
 procedure CachedUTF32String.ToUTF8String(var S: UTF8String);
+var
+  L: NativeUInt;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  if (not Self.Ascii) then
+  begin
+    Dest := AnsiStringAlloc(Pointer(S), L shl 2, CODEPAGE_UTF8 or (1 shl 31));
+    Pointer(S) := Dest;
+    Src := Self.Chars;
+    AnsiStringFinish(Pointer(S), Dest, utf8_from_utf32(Dest, Src, L));
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
+    Pointer(S) := Dest;
+    Src := Self.Chars;
+    ascii_from_utf32(Dest, Src, L)
+  end;
+end;
+
+function utf16_from_utf32(Dest: PWord; Src: PCardinal; Count: NativeUInt): NativeUInt;
+var
+  X, Y, i: NativeUInt;
+  StoredDest: PWord;
+begin
+  StoredDest := Dest;
+
+  for i := 1 to Count do
+  begin
+    X := Src^;
+    Inc(Src);
+
+    if (X <= $ffff) then
+    begin
+      if (X shr 11 = $1B) then Dest^ := $fffd
+      else Dest^ := X;
+
+      Inc(Dest);
+    end else
+    begin
+      Y := (X - $10000) shr 10 + $d800;
+      X := (X - $10000) and $3ff + $dc00;
+      X := (X shl 16) + Y;
+
+      PCardinal(Dest)^ := X;
+      Inc(Dest, 2);
+    end;
+  end;
+
+  Result := (NativeUInt(Dest) - NativeUInt(StoredDest)) shr 1;
 end;
 
 procedure CachedUTF32String.ToWideString(var S: WideString);
+var
+  L: NativeUInt;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+    {$ifNdef NEXTGEN}
+      AnsiStringClear(S);
+    {$else}
+      UnicodeStringClear(S);
+    {$endif}
+    Exit;
+  end;
+
+  if (not Self.Ascii) then
+  begin
+    Dest := WideStringAlloc(Pointer(S), L shl 1, -1);
+    Pointer(S) := Dest;
+    Src := Self.Chars;
+    WideStringFinish(Pointer(S), Dest, utf16_from_utf32(Dest, Src, L));
+  end else
+  begin
+    // Ascii chars
+    Dest := WideStringAlloc(Pointer(S), L, 0);
+    Pointer(S) := Dest;
+    Src := Self.Chars;
+    ascii_from_utf32(Dest, Src, -L)
+  end;
 end;
 
 procedure CachedUTF32String.ToUnicodeString(var S: UnicodeString);
 {$ifdef UNICODE}
+var
+  L: NativeUInt;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      WideStringClear(S);
+    Exit;
+  end;
+
+  if (not Self.Ascii) then
+  begin
+    Dest := UnicodeStringAlloc(Pointer(S), L shl 1, -1);
+    Pointer(S) := Dest;
+    Src := Self.Chars;
+    UnicodeStringFinish(Pointer(S), Dest, utf16_from_utf32(Dest, Src, L));
+  end else
+  begin
+    // Ascii chars
+    Dest := UnicodeStringAlloc(Pointer(S), L, 0);
+    Pointer(S) := Dest;
+    Src := Self.Chars;
+    ascii_from_utf32(Dest, Src, -L)
+  end;
 end;
 {$else .NONUNICODE_CPUX86}
 asm

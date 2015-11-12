@@ -2285,13 +2285,145 @@ begin
 end;
 
 procedure CachedByteString.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToLowerUTF8String(UTF8String(S));
+    Exit;
+  end;
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> SBCS
+      Index := Index shr 24;
+      if (Index = DestSBCS.Index) then
+      begin
+        Converter := DestSBCS.FLowerCase;
+        if (Converter = nil) then Converter := DestSBCS.FromSBCS(DestSBCS, ccLower);
+      end else
+      begin
+        Converter := DestSBCS.FromSBCS(Pointer(Index), ccLower);
+      end;
+
+      Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+      Pointer(S) := Dest;
+      sbcs_from_sbcs_lower(Dest, Src, L, Converter);
+    end else
+    begin
+      // UTF8 --> SBCS
+      Converter := DestSBCS.FVALUES;
+      if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+
+      Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+      AnsiStringFinish(Pointer(S), Dest, UniConv.sbcs_from_utf8_lower(Dest, Pointer(Src), L, Converter));
+    end;
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+    Pointer(S) := Dest;
+    {ascii}UniConv.utf8_from_utf8_lower(Dest, Src, L);
+  end;
 end;
 
 procedure CachedByteString.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToUpperUTF8String(UTF8String(S));
+    Exit;
+  end;
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> SBCS
+      Index := Index shr 24;
+      if (Index = DestSBCS.Index) then
+      begin
+        Converter := DestSBCS.FUpperCase;
+        if (Converter = nil) then Converter := DestSBCS.FromSBCS(DestSBCS, ccUpper);
+      end else
+      begin
+        Converter := DestSBCS.FromSBCS(Pointer(Index), ccUpper);
+      end;
+
+      Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+      Pointer(S) := Dest;
+      sbcs_from_sbcs_upper(Dest, Src, L, Converter);
+    end else
+    begin
+      // UTF8 --> SBCS
+      Converter := DestSBCS.FVALUES;
+      if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+
+      Dest := AnsiStringAlloc(Pointer(S), L, Integer(DestSBCS.CodePage) or (1 shl 31));
+      AnsiStringFinish(Pointer(S), Dest, UniConv.sbcs_from_utf8_upper(Dest, Pointer(Src), L, Converter));
+    end;
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
+    Pointer(S) := Dest;
+    {ascii}UniConv.utf8_from_utf8_upper(Dest, Src, L);
+  end;
 end;
 
 procedure CachedByteString.ToUTF8String(var S: UTF8String);
@@ -2325,7 +2457,7 @@ begin
     if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Original, ccOriginal);
 
     // conversion
-    Dest := AnsiStringAlloc(Pointer(S), Length, CODEPAGE_UTF8 or (1 shl 31));
+    Dest := AnsiStringAlloc(Pointer(S), L * 3, CODEPAGE_UTF8 or (1 shl 31));
     AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_sbcs(Dest, Pointer(Src), L, Converter));
   end else
   begin
@@ -2338,13 +2470,97 @@ begin
 end;
 
 procedure CachedByteString.ToLowerUTF8String(var S: UTF8String);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) < 0) then
+    begin
+      // UTF8 --> UTF8
+      Dest := AnsiStringAlloc(Pointer(S), (L * 3) shr 1, CODEPAGE_UTF8 or (1 shl 31));
+      AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_utf8_lower(Dest, Pointer(Src), L));
+    end else
+    begin
+      // SBCS --> UTF8
+      // converter
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUTF8.Lower;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Lower, ccLower);
+
+      // conversion
+      Dest := AnsiStringAlloc(Pointer(S), L * 3, CODEPAGE_UTF8 or (1 shl 31));
+      AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_sbcs_lower(Dest, Pointer(Src), L, Converter));
+    end;
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
+    Pointer(S) := Dest;
+    {ascii}UniConv.utf8_from_utf8_lower(Dest, Src, L);
+  end;
 end;
 
 procedure CachedByteString.ToUpperUTF8String(var S: UTF8String);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      AnsiStringClear(S);
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) < 0) then
+    begin
+      // UTF8 --> UTF8
+      Dest := AnsiStringAlloc(Pointer(S), (L * 3) shr 1, CODEPAGE_UTF8 or (1 shl 31));
+      AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_utf8_upper(Dest, Pointer(Src), L));
+    end else
+    begin
+      // SBCS --> UTF8
+      // converter
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUTF8.Upper;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Upper, ccUpper);
+
+      // conversion
+      Dest := AnsiStringAlloc(Pointer(S), L * 3, CODEPAGE_UTF8 or (1 shl 31));
+      AnsiStringFinish(Pointer(S), Dest, UniConv.utf8_from_sbcs_upper(Dest, Pointer(Src), L, Converter));
+    end;
+  end else
+  begin
+    // Ascii chars
+    Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
+    Pointer(S) := Dest;
+    {ascii}UniConv.utf8_from_utf8_upper(Dest, Src, L);
+  end;
 end;
 
 procedure CachedByteString.ToWideString(var S: WideString);
@@ -2381,7 +2597,7 @@ begin
 
     // UTF8 --> UTF16
     Dest := WideStringAlloc(Pointer(S), L, -1);
-    WideStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), Length));
+    WideStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), L));
   end else
   begin
     // Ascii chars
@@ -2394,13 +2610,95 @@ begin
 end;
 
 procedure CachedByteString.ToLowerWideString(var S: WideString);
+label
+  copy_samelength_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      WideStringClear(S);
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> UTF16
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUCS2.Lower;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUCS2(SrcSBCS.FUCS2.Lower, ccLower);
+      goto copy_samelength_characters;
+    end;
+
+    // UTF8 --> UTF16
+    Dest := WideStringAlloc(Pointer(S), L, -1);
+    WideStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8_lower(Dest, Pointer(Src), L));
+  end else
+  begin
+    // Ascii chars
+    Converter := nil;
+  copy_samelength_characters:
+    Dest := WideStringAlloc(Pointer(S), L, 0);
+    Pointer(S) := Dest;
+    utf16_from_sbcs_lower(Dest, Src, L, Converter);
+  end;
 end;
 
 procedure CachedByteString.ToUpperWideString(var S: WideString);
+label
+  copy_samelength_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+      WideStringClear(S);
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> UTF16
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUCS2.Upper;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUCS2(SrcSBCS.FUCS2.Upper, ccUpper);
+      goto copy_samelength_characters;
+    end;
+
+    // UTF8 --> UTF16
+    Dest := WideStringAlloc(Pointer(S), L, -1);
+    WideStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8_upper(Dest, Pointer(Src), L));
+  end else
+  begin
+    // Ascii chars
+    Converter := nil;
+  copy_samelength_characters:
+    Dest := WideStringAlloc(Pointer(S), L, 0);
+    Pointer(S) := Dest;
+    utf16_from_sbcs_upper(Dest, Src, L, Converter);
+  end;
 end;
 
 procedure CachedByteString.ToUnicodeString(var S: UnicodeString);
@@ -2442,7 +2740,7 @@ begin
 
     // UTF8 --> UTF16
     Dest := UnicodeStringAlloc(Pointer(S), L, -1);
-    UnicodeStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), Length));
+    UnicodeStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8(Dest, Pointer(Src), L));
   end else
   begin
     // Ascii chars
@@ -2461,8 +2759,53 @@ end;
 
 procedure CachedByteString.ToLowerUnicodeString(var S: UnicodeString);
 {$ifdef UNICODE}
+label
+  copy_samelength_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+    {$ifNdef NEXTGEN}
+      AnsiStringClear(S);
+    {$else}
+      UnicodeStringClear(S);
+    {$endif}
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> UTF16
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUCS2.Lower;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUCS2(SrcSBCS.FUCS2.Lower, ccLower);
+      goto copy_samelength_characters;
+    end;
+
+    // UTF8 --> UTF16
+    Dest := UnicodeStringAlloc(Pointer(S), L, -1);
+    UnicodeStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8_lower(Dest, Pointer(Src), L));
+  end else
+  begin
+    // Ascii chars
+    Converter := nil;
+  copy_samelength_characters:
+    Dest := UnicodeStringAlloc(Pointer(S), L, 0);
+    Pointer(S) := Dest;
+    utf16_from_sbcs_lower(Dest, Src, L, Converter);
+  end;
 end;
 {$else .NONUNICODE_CPUX86}
 asm
@@ -2472,8 +2815,53 @@ end;
 
 procedure CachedByteString.ToUpperUnicodeString(var S: UnicodeString);
 {$ifdef UNICODE}
+label
+  copy_samelength_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Converter: Pointer;
+  Dest, Src: Pointer;
 begin
-  // todo
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    if (Pointer(S) <> nil) then
+    {$ifNdef NEXTGEN}
+      AnsiStringClear(S);
+    {$else}
+      UnicodeStringClear(S);
+    {$endif}
+    Exit;
+  end;
+
+  Index := Self.Flags;
+  Src := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> UTF16
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUCS2.Upper;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUCS2(SrcSBCS.FUCS2.Upper, ccUpper);
+      goto copy_samelength_characters;
+    end;
+
+    // UTF8 --> UTF16
+    Dest := UnicodeStringAlloc(Pointer(S), L, -1);
+    UnicodeStringFinish(Pointer(S), Dest, UniConv.utf16_from_utf8_upper(Dest, Pointer(Src), L));
+  end else
+  begin
+    // Ascii chars
+    Converter := nil;
+  copy_samelength_characters:
+    Dest := UnicodeStringAlloc(Pointer(S), L, 0);
+    Pointer(S) := Dest;
+    utf16_from_sbcs_upper(Dest, Src, L, Converter);
+  end;
 end;
 {$else .NONUNICODE_CPUX86}
 asm

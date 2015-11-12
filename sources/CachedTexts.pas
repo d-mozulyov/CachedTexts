@@ -80,6 +80,9 @@ unit CachedTexts;
 {$ifdef KOL_MCK}
   {$define KOL}
 {$endif}
+{$ifdef INLINESUPPORT}
+  {$define OPERATORSUPPORT}
+{$endif}
 
 
 //   {$undef INLINESUPPORT}
@@ -230,7 +233,7 @@ var
   DEFAULT_UNICONV_SBCS_INDEX: NativeUInt;
 
 type
-  PCachedString = ^CachedString;
+  // CachedString types
   PCachedByteString = ^CachedByteString;
   PCachedUTF16String = ^CachedUTF16String;
   PCachedUTF32String = ^CachedUTF32String;
@@ -244,31 +247,19 @@ type
 
 
   //
-  CachedString = object
-  protected
+  CachedByteString = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
+  private
     FLength: NativeUInt;
     F: packed record
     case Integer of
       0: (Flags: Cardinal);
-      1: (B0, B1, B2, B3: Boolean);
-      2: (U0, U1, U2, U3: Byte);
-      3: (S0, S1, S2, S3: ShortInt);
-      4: (NativeFlags: NativeUInt);
+      1: (Ascii, References: Boolean; Reserved: Byte; SBCSIndex: ShortInt);
+      2: (NativeFlags: NativeUInt);
     end;
-    function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
-  public
-    property Length: NativeUInt read FLength write FLength;
-    property Empty: Boolean read GetEmpty write SetEmpty;
-    property Ascii: Boolean read F.B0 write F.B0;
-    property Flags: Cardinal read F.Flags write F.Flags;
-  end;
-
-  //
-  CachedByteString = object(CachedString)
-  protected
     FChars: PAnsiChar;
 
+    function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetSBCS: PUniConvSBCS; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetSBCS(Value: PUniConvSBCS); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetUTF8: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -316,8 +307,13 @@ type
     function _GetFloat(S: PByte; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
+    property Length: NativeUInt read FLength write FLength;
+    property Empty: Boolean read GetEmpty write SetEmpty;
+    property Ascii: Boolean read F.Ascii write F.Ascii;
+    property References: Boolean read F.References write F.References;
+    property Flags: Cardinal read F.Flags write F.Flags;
     property Chars: PAnsiChar read FChars write FChars;
-    property SBCSIndex: ShortInt read F.S3 write F.S3;
+    property SBCSIndex: ShortInt read F.SBCSIndex write F.SBCSIndex;
     property SBCS: PUniConvSBCS read GetSBCS write SetSBCS;
     property UTF8: Boolean read GetUTF8 write SetUTF8;
     property CodePage: Word read GetCodePage write SetCodePage;
@@ -428,10 +424,19 @@ type
   end;
 
   //
-  CachedUTF16String = object(CachedString)
-  protected
+  CachedUTF16String = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
+  private
+    FLength: NativeUInt;
+    F: packed record
+    case Integer of
+      0: (Flags: Cardinal);
+      1: (Ascii, References: Boolean; Reserved: Word);
+      2: (NativeFlags: NativeUInt);
+    end;
     FChars: PUnicodeChar;
 
+    function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
@@ -471,6 +476,10 @@ type
     function _GetFloat(S: PWord; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
+    property Length: NativeUInt read FLength write FLength;
+    property Empty: Boolean read GetEmpty write SetEmpty;
+    property Ascii: Boolean read F.Ascii write F.Ascii;
+    property References: Boolean read F.References write F.References;
     property Chars: PUnicodeChar read FChars write FChars;
   public
     { basic methods }
@@ -581,10 +590,19 @@ type
 
 
   //
-  CachedUTF32String = object(CachedString)
-  protected
+  CachedUTF32String = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
+  private
+    FLength: NativeUInt;
+    F: packed record
+    case Integer of
+      0: (Flags: Cardinal);
+      1: (Ascii, References: Boolean; Reserved: Word);
+      2: (NativeFlags: NativeUInt);
+    end;
     FChars: PUCS4Char;
 
+    function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
@@ -624,6 +642,10 @@ type
     function _GetFloat(S: PCardinal; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
+    property Length: NativeUInt read FLength write FLength;
+    property Empty: Boolean read GetEmpty write SetEmpty;
+    property Ascii: Boolean read F.Ascii write F.Ascii;
+    property References: Boolean read F.References write F.References;
     property Chars: PUCS4Char read FChars write FChars;
   public
     { basic methods }
@@ -2109,14 +2131,14 @@ begin
 end;
 
 
-{ CachedString }
+{ CachedByteString }
 
-function CachedString.GetEmpty: Boolean;
+function CachedByteString.GetEmpty: Boolean;
 begin
   Result := (Length <> 0);
 end;
 
-procedure CachedString.SetEmpty(Value: Boolean);
+procedure CachedByteString.SetEmpty(Value: Boolean);
 var
   V: NativeUInt;
 begin
@@ -2127,9 +2149,6 @@ begin
     F.NativeFlags := V;
   end;
 end;
-
-
-{ CachedByteString }
 
 function CachedByteString.GetSBCS: PUniConvSBCS;
 var
@@ -5335,6 +5354,23 @@ end;
 
 { CachedUTF16String }
 
+function CachedUTF16String.GetEmpty: Boolean;
+begin
+  Result := (Length <> 0);
+end;
+
+procedure CachedUTF16String.SetEmpty(Value: Boolean);
+var
+  V: NativeUInt;
+begin
+  if (Value) then
+  begin
+    V := 0;
+    FLength := V;
+    F.NativeFlags := V;
+  end;
+end;
+
 procedure CachedUTF16String.ToAnsiString(var S: AnsiString; const CP: Word);
 var
   L: NativeUInt;
@@ -7942,6 +7978,23 @@ end;
 
 
 { CachedUTF32String }
+
+function CachedUTF32String.GetEmpty: Boolean;
+begin
+  Result := (Length <> 0);
+end;
+
+procedure CachedUTF32String.SetEmpty(Value: Boolean);
+var
+  V: NativeUInt;
+begin
+  if (Value) then
+  begin
+    V := 0;
+    FLength := V;
+    F.NativeFlags := V;
+  end;
+end;
 
 procedure ascii_from_utf32(Dest: Pointer; Src: PCardinal; Count: NativeInt);
 var

@@ -277,10 +277,18 @@ type
     procedure SetCodePage(CodePageValue: Word);
 
     function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
     function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -348,16 +356,36 @@ type
     { note: To... methods is much faster than As... properties !!! }
 
     procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
     procedure ToUTF8String(var S: UTF8String);
+    procedure ToLowerUTF8String(var S: UTF8String);
+    procedure ToUpperUTF8String(var S: UTF8String);
     procedure ToWideString(var S: WideString);
+    procedure ToLowerWideString(var S: WideString);
+    procedure ToUpperWideString(var S: WideString);
     procedure ToUnicodeString(var S: UnicodeString);
+    procedure ToLowerUnicodeString(var S: UnicodeString);
+    procedure ToUpperUnicodeString(var S: UnicodeString);
     procedure ToString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToLowerString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToUpperString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
 
     property AsAnsiString: AnsiString read GetAnsiString;
+    property AsLowerAnsiString: AnsiString read GetLowerAnsiString;
+    property AsUpperAnsiString: AnsiString read GetUpperAnsiString;
     property AsUTF8String: UTF8String read GetUTF8String;
+    property AsLowerUTF8String: UTF8String read GetLowerUTF8String;
+    property AsUpperUTF8String: UTF8String read GetUpperUTF8String;
     property AsWideString: WideString read GetWideString;
+    property AsLowerWideString: WideString read GetLowerWideString;
+    property AsUpperWideString: WideString read GetUpperWideString;
     property AsUnicodeString: UnicodeString read {$ifdef UNICODE}GetUnicodeString{$else}GetWideString{$endif};
+    property AsLowerUnicodeString: UnicodeString read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerWideString{$endif};
+    property AsUpperUnicodeString: UnicodeString read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperWideString{$endif};
     property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
+    property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
+    property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
   public
     { numeric conversion }
 
@@ -405,10 +433,18 @@ type
     FChars: PUnicodeChar;
 
     function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
     function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -471,16 +507,36 @@ type
     { note: To... methods is much faster than As... properties !!! }
 
     procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
     procedure ToUTF8String(var S: UTF8String);
+    procedure ToLowerUTF8String(var S: UTF8String);
+    procedure ToUpperUTF8String(var S: UTF8String);
     procedure ToWideString(var S: WideString);
+    procedure ToLowerWideString(var S: WideString);
+    procedure ToUpperWideString(var S: WideString);
     procedure ToUnicodeString(var S: UnicodeString);
+    procedure ToLowerUnicodeString(var S: UnicodeString);
+    procedure ToUpperUnicodeString(var S: UnicodeString);
     procedure ToString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToLowerString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToUpperString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
 
     property AsAnsiString: AnsiString read GetAnsiString;
+    property AsLowerAnsiString: AnsiString read GetLowerAnsiString;
+    property AsUpperAnsiString: AnsiString read GetUpperAnsiString;
     property AsUTF8String: UTF8String read GetUTF8String;
+    property AsLowerUTF8String: UTF8String read GetLowerUTF8String;
+    property AsUpperUTF8String: UTF8String read GetUpperUTF8String;
     property AsWideString: WideString read GetWideString;
+    property AsLowerWideString: WideString read GetLowerWideString;
+    property AsUpperWideString: WideString read GetUpperWideString;
     property AsUnicodeString: UnicodeString read {$ifdef UNICODE}GetUnicodeString{$else}GetWideString{$endif};
+    property AsLowerUnicodeString: UnicodeString read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerWideString{$endif};
+    property AsUpperUnicodeString: UnicodeString read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperWideString{$endif};
     property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
+    property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
+    property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
   public
     { numeric conversion }
 
@@ -530,10 +586,18 @@ type
     FChars: PUCS4Char;
 
     function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
     function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
     function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetLowerUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    function GetUpperUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -593,16 +657,36 @@ type
     { note: To... methods is much faster than As... properties !!! }
 
     procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
     procedure ToUTF8String(var S: UTF8String);
+    procedure ToLowerUTF8String(var S: UTF8String);
+    procedure ToUpperUTF8String(var S: UTF8String);
     procedure ToWideString(var S: WideString);
+    procedure ToLowerWideString(var S: WideString);
+    procedure ToUpperWideString(var S: WideString);
     procedure ToUnicodeString(var S: UnicodeString);
+    procedure ToLowerUnicodeString(var S: UnicodeString);
+    procedure ToUpperUnicodeString(var S: UnicodeString);
     procedure ToString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToLowerString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToUpperString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
 
     property AsAnsiString: AnsiString read GetAnsiString;
+    property AsLowerAnsiString: AnsiString read GetLowerAnsiString;
+    property AsUpperAnsiString: AnsiString read GetUpperAnsiString;
     property AsUTF8String: UTF8String read GetUTF8String;
+    property AsLowerUTF8String: UTF8String read GetLowerUTF8String;
+    property AsUpperUTF8String: UTF8String read GetUpperUTF8String;
     property AsWideString: WideString read GetWideString;
+    property AsLowerWideString: WideString read GetLowerWideString;
+    property AsUpperWideString: WideString read GetUpperWideString;
     property AsUnicodeString: UnicodeString read {$ifdef UNICODE}GetUnicodeString{$else}GetWideString{$endif};
+    property AsLowerUnicodeString: UnicodeString read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerWideString{$endif};
+    property AsUpperUnicodeString: UnicodeString read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperWideString{$endif};
     property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
+    property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
+    property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
   public
     { numeric conversion }
 
@@ -2200,6 +2284,16 @@ begin
   end;
 end;
 
+procedure CachedByteString.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+begin
+  // todo
+end;
+
+procedure CachedByteString.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+begin
+  // todo
+end;
+
 procedure CachedByteString.ToUTF8String(var S: UTF8String);
 label
   copy_characters;
@@ -2241,6 +2335,16 @@ begin
     Pointer(S) := Dest;
     Move(Src^, Dest^, L);
   end;
+end;
+
+procedure CachedByteString.ToLowerUTF8String(var S: UTF8String);
+begin
+  // todo
+end;
+
+procedure CachedByteString.ToUpperUTF8String(var S: UTF8String);
+begin
+  // todo
 end;
 
 procedure CachedByteString.ToWideString(var S: WideString);
@@ -2287,6 +2391,16 @@ begin
     Pointer(S) := Dest;
     utf16_from_sbcs(Dest, Src, L, Converter);
   end;
+end;
+
+procedure CachedByteString.ToLowerWideString(var S: WideString);
+begin
+  // todo
+end;
+
+procedure CachedByteString.ToUpperWideString(var S: WideString);
+begin
+  // todo
 end;
 
 procedure CachedByteString.ToUnicodeString(var S: UnicodeString);
@@ -2345,6 +2459,28 @@ asm
 end;
 {$endif}
 
+procedure CachedByteString.ToLowerUnicodeString(var S: UnicodeString);
+{$ifdef UNICODE}
+begin
+  // todo
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  jmp ToLowerWideString
+end;
+{$endif}
+
+procedure CachedByteString.ToUpperUnicodeString(var S: UnicodeString);
+{$ifdef UNICODE}
+begin
+  // todo
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  jmp ToUpperWideString
+end;
+{$endif}
+
 procedure CachedByteString.ToString(var S: string);
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
@@ -2358,6 +2494,38 @@ end;
 asm
   xor ecx, ecx
   jmp ToAnsiString
+end;
+{$ifend}
+
+procedure CachedByteString.ToLowerString(var S: string);
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  {$ifdef UNICODE}
+     ToLowerUnicodeString(S);
+  {$else}
+     ToLowerAnsiString(S);
+  {$endif}
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  xor ecx, ecx
+  jmp ToLowerAnsiString
+end;
+{$ifend}
+
+procedure CachedByteString.ToUpperString(var S: string);
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  {$ifdef UNICODE}
+     ToUpperUnicodeString(S);
+  {$else}
+     ToUpperAnsiString(S);
+  {$endif}
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  xor ecx, ecx
+  jmp ToUpperAnsiString
 end;
 {$ifend}
 
@@ -2377,6 +2545,38 @@ asm
 end;
 {$endif}
 
+function CachedByteString.GetLowerAnsiString: AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToLowerAnsiString
+end;
+{$endif}
+
+function CachedByteString.GetUpperAnsiString: AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToUpperAnsiString
+end;
+{$endif}
+
 function CachedByteString.GetUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
@@ -2385,6 +2585,28 @@ end;
 {$else .CPUX86/CPUX64}
 asm
   jmp ToUTF8String
+end;
+{$endif}
+
+function CachedByteString.GetLowerUTF8String: UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerUTF8String
+end;
+{$endif}
+
+function CachedByteString.GetUpperUTF8String: UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperUTF8String
 end;
 {$endif}
 
@@ -2399,6 +2621,28 @@ asm
 end;
 {$endif}
 
+function CachedByteString.GetLowerWideString: WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerWideString
+end;
+{$endif}
+
+function CachedByteString.GetUpperWideString: WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperWideString
+end;
+{$endif}
+
 {$ifdef UNICODE}
 function CachedByteString.GetUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
@@ -2408,6 +2652,28 @@ end;
 {$else .CPUX86/CPUX64}
 asm
   jmp ToUnicodeString
+end;
+{$endif}
+
+function CachedByteString.GetLowerUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerUnicodeString
+end;
+{$endif}
+
+function CachedByteString.GetUpperUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperUnicodeString
 end;
 {$endif}
 {$endif}
@@ -4734,6 +5000,16 @@ begin
   end;
 end;
 
+procedure CachedUTF16String.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+begin
+  // todo
+end;
+
+procedure CachedUTF16String.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+begin
+  // todo
+end;
+
 procedure CachedUTF16String.ToUTF8String(var S: UTF8String);
 var
   L: NativeUInt;
@@ -4762,6 +5038,16 @@ begin
   end;
 end;
 
+procedure CachedUTF16String.ToLowerUTF8String(var S: UTF8String);
+begin
+  // todo
+end;
+
+procedure CachedUTF16String.ToUpperUTF8String(var S: UTF8String);
+begin
+  // todo
+end;
+
 procedure CachedUTF16String.ToWideString(var S: WideString);
 var
   L: NativeUInt;
@@ -4779,6 +5065,16 @@ begin
   Dest := WideStringAlloc(Pointer(S), L, 0);
   Pointer(S) := Dest;
   Move(Src^, Dest^, L + L);
+end;
+
+procedure CachedUTF16String.ToLowerWideString(var S: WideString);
+begin
+  // todo
+end;
+
+procedure CachedUTF16String.ToUpperWideString(var S: WideString);
+begin
+  // todo
 end;
 
 procedure CachedUTF16String.ToUnicodeString(var S: UnicodeString);
@@ -4810,6 +5106,28 @@ asm
 end;
 {$endif}
 
+procedure CachedUTF16String.ToLowerUnicodeString(var S: UnicodeString);
+{$ifdef UNICODE}
+begin
+  // todo
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  jmp ToLowerWideString
+end;
+{$endif}
+
+procedure CachedUTF16String.ToUpperUnicodeString(var S: UnicodeString);
+{$ifdef UNICODE}
+begin
+  // todo
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  jmp ToUpperWideString
+end;
+{$endif}
+
 procedure CachedUTF16String.ToString(var S: string);
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
@@ -4823,6 +5141,38 @@ end;
 asm
   xor ecx, ecx
   jmp ToAnsiString
+end;
+{$ifend}
+
+procedure CachedUTF16String.ToLowerString(var S: string);
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  {$ifdef UNICODE}
+     ToLowerUnicodeString(S);
+  {$else}
+     ToLowerAnsiString(S);
+  {$endif}
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  xor ecx, ecx
+  jmp ToLowerAnsiString
+end;
+{$ifend}
+
+procedure CachedUTF16String.ToUpperString(var S: string);
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  {$ifdef UNICODE}
+     ToUpperUnicodeString(S);
+  {$else}
+     ToUpperAnsiString(S);
+  {$endif}
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  xor ecx, ecx
+  jmp ToUpperAnsiString
 end;
 {$ifend}
 
@@ -4842,6 +5192,38 @@ asm
 end;
 {$endif}
 
+function CachedUTF16String.GetLowerAnsiString: AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToLowerAnsiString
+end;
+{$endif}
+
+function CachedUTF16String.GetUpperAnsiString: AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToUpperAnsiString
+end;
+{$endif}
+
 function CachedUTF16String.GetUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
@@ -4850,6 +5232,28 @@ end;
 {$else .CPUX86/CPUX64}
 asm
   jmp ToUTF8String
+end;
+{$endif}
+
+function CachedUTF16String.GetLowerUTF8String: UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerUTF8String
+end;
+{$endif}
+
+function CachedUTF16String.GetUpperUTF8String: UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperUTF8String
 end;
 {$endif}
 
@@ -4864,6 +5268,28 @@ asm
 end;
 {$endif}
 
+function CachedUTF16String.GetLowerWideString: WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerWideString
+end;
+{$endif}
+
+function CachedUTF16String.GetUpperWideString: WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperWideString
+end;
+{$endif}
+
 {$ifdef UNICODE}
 function CachedUTF16String.GetUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
@@ -4873,6 +5299,28 @@ end;
 {$else .CPUX86/CPUX64}
 asm
   jmp ToUnicodeString
+end;
+{$endif}
+
+function CachedUTF16String.GetLowerUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerUnicodeString
+end;
+{$endif}
+
+function CachedUTF16String.GetUpperUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperUnicodeString
 end;
 {$endif}
 {$endif}
@@ -6996,6 +7444,16 @@ begin
   end;
 end;
 
+procedure CachedUTF32String.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+begin
+  // todo
+end;
+
+procedure CachedUTF32String.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+begin
+  // todo
+end;
+
 function utf8_from_utf32(Dest: PByte; Src: PCardinal; Count: NativeUInt): NativeUInt;
 var
   X, Y, i: NativeUInt;
@@ -7095,6 +7553,16 @@ begin
   end;
 end;
 
+procedure CachedUTF32String.ToLowerUTF8String(var S: UTF8String);
+begin
+  // todo
+end;
+
+procedure CachedUTF32String.ToUpperUTF8String(var S: UTF8String);
+begin
+  // todo
+end;
+
 function utf16_from_utf32(Dest: PWord; Src: PCardinal; Count: NativeUInt): NativeUInt;
 var
   X, Y, i: NativeUInt;
@@ -7160,6 +7628,16 @@ begin
   end;
 end;
 
+procedure CachedUTF32String.ToLowerWideString(var S: WideString);
+begin
+  // todo
+end;
+
+procedure CachedUTF32String.ToUpperWideString(var S: WideString);
+begin
+  // todo
+end;
+
 procedure CachedUTF32String.ToUnicodeString(var S: UnicodeString);
 {$ifdef UNICODE}
 var
@@ -7195,6 +7673,28 @@ asm
 end;
 {$endif}
 
+procedure CachedUTF32String.ToLowerUnicodeString(var S: UnicodeString);
+{$ifdef UNICODE}
+begin
+  // todo
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  jmp ToLowerWideString
+end;
+{$endif}
+
+procedure CachedUTF32String.ToUpperUnicodeString(var S: UnicodeString);
+{$ifdef UNICODE}
+begin
+  // todo
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  jmp ToUpperWideString
+end;
+{$endif}
+
 procedure CachedUTF32String.ToString(var S: string);
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
@@ -7208,6 +7708,38 @@ end;
 asm
   xor ecx, ecx
   jmp ToAnsiString
+end;
+{$ifend}
+
+procedure CachedUTF32String.ToLowerString(var S: string);
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  {$ifdef UNICODE}
+     ToLowerUnicodeString(S);
+  {$else}
+     ToLowerAnsiString(S);
+  {$endif}
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  xor ecx, ecx
+  jmp ToLowerAnsiString
+end;
+{$ifend}
+
+procedure CachedUTF32String.ToUpperString(var S: string);
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  {$ifdef UNICODE}
+     ToUpperUnicodeString(S);
+  {$else}
+     ToUpperAnsiString(S);
+  {$endif}
+end;
+{$else .NONUNICODE_CPUX86}
+asm
+  xor ecx, ecx
+  jmp ToUpperAnsiString
 end;
 {$ifend}
 
@@ -7227,6 +7759,38 @@ asm
 end;
 {$endif}
 
+function CachedUTF32String.GetLowerAnsiString: AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToLowerAnsiString
+end;
+{$endif}
+
+function CachedUTF32String.GetUpperAnsiString: AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToUpperAnsiString
+end;
+{$endif}
+
 function CachedUTF32String.GetUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
@@ -7235,6 +7799,28 @@ end;
 {$else .CPUX86/CPUX64}
 asm
   jmp ToUTF8String
+end;
+{$endif}
+
+function CachedUTF32String.GetLowerUTF8String: UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerUTF8String
+end;
+{$endif}
+
+function CachedUTF32String.GetUpperUTF8String: UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperUTF8String
 end;
 {$endif}
 
@@ -7249,6 +7835,28 @@ asm
 end;
 {$endif}
 
+function CachedUTF32String.GetLowerWideString: WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerWideString
+end;
+{$endif}
+
+function CachedUTF32String.GetUpperWideString: WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperWideString
+end;
+{$endif}
+
 {$ifdef UNICODE}
 function CachedUTF32String.GetUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
@@ -7258,6 +7866,28 @@ end;
 {$else .CPUX86/CPUX64}
 asm
   jmp ToUnicodeString
+end;
+{$endif}
+
+function CachedUTF32String.GetLowerUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToLowerUnicodeString
+end;
+{$endif}
+
+function CachedUTF32String.GetUpperUnicodeString: UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUpperUnicodeString
 end;
 {$endif}
 {$endif}

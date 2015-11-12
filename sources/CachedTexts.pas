@@ -382,6 +382,15 @@ type
     property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
     property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
     property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
+
+    {$ifdef OPERATORSUPPORT}
+    class operator Implicit(const a: CachedByteString): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: CachedByteString): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: CachedByteString): WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    {$ifdef UNICODE}
+    class operator Implicit(const a: CachedByteString): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    {$endif}
+    {$endif}
   public
     { numeric conversion }
 
@@ -546,6 +555,15 @@ type
     property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
     property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
     property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
+
+    {$ifdef OPERATORSUPPORT}
+    class operator Implicit(const a: CachedUTF16String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: CachedUTF16String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: CachedUTF16String): WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    {$ifdef UNICODE}
+    class operator Implicit(const a: CachedUTF16String): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    {$endif}
+    {$endif}
   public
     { numeric conversion }
 
@@ -709,6 +727,15 @@ type
     property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
     property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
     property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
+
+    {$ifdef OPERATORSUPPORT}
+    class operator Implicit(const a: CachedUTF32String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: CachedUTF32String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: CachedUTF32String): WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    {$ifdef UNICODE}
+    class operator Implicit(const a: CachedUTF32String): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    {$endif}
+    {$endif}
   public
     { numeric conversion }
 
@@ -3082,6 +3109,60 @@ asm
 end;
 {$endif}
 {$endif}
+
+{$ifdef OPERATORSUPPORT}
+class operator CachedByteString.Implicit(const a: CachedByteString): AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToAnsiString
+end;
+{$endif}
+
+class operator CachedByteString.Implicit(const a: CachedByteString): UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUTF8String
+end;
+{$endif}
+
+class operator CachedByteString.Implicit(const a: CachedByteString): WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToWideString
+end;
+{$endif}
+
+{$ifdef UNICODE}
+class operator CachedByteString.Implicit(const a: CachedByteString): UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUnicodeString
+end;
+{$endif}
+{$endif}
+{$endif}
+
 
 procedure CachedByteString.Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word{$endif});
 var
@@ -5946,6 +6027,59 @@ end;
 asm
   jmp ToUpperUnicodeString
 end;
+{$endif}
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+class operator CachedUTF16String.Implicit(const a: CachedUTF16String): AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToAnsiString
+end;
+{$endif}
+
+class operator CachedUTF16String.Implicit(const a: CachedUTF16String): UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUTF8String
+end;
+{$endif}
+
+class operator CachedUTF16String.Implicit(const a: CachedUTF16String): WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToWideString
+end;
+{$endif}
+
+{$ifdef UNICODE}
+class operator CachedUTF16String.Implicit(const a: CachedUTF16String): UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUnicodeString
+end;
+{$endif}
 {$endif}
 {$endif}
 
@@ -9090,6 +9224,59 @@ end;
 asm
   jmp ToUpperUnicodeString
 end;
+{$endif}
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+class operator CachedUTF32String.Implicit(const a: CachedUTF32String): AnsiString;
+{$ifNdef CPUINTEL}
+begin
+  ToAnsiString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef CPUX86}
+  xor ecx, ecx
+  {$else .CPUX64}
+  xor r8, r8
+  {$endif}
+  jmp ToAnsiString
+end;
+{$endif}
+
+class operator CachedUTF32String.Implicit(const a: CachedUTF32String): UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  ToUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUTF8String
+end;
+{$endif}
+
+class operator CachedUTF32String.Implicit(const a: CachedUTF32String): WideString;
+{$ifNdef CPUINTEL}
+begin
+  ToWideString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToWideString
+end;
+{$endif}
+
+{$ifdef UNICODE}
+class operator CachedUTF32String.Implicit(const a: CachedUTF32String): UnicodeString;
+{$ifNdef CPUINTEL}
+begin
+  ToUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUnicodeString
+end;
+{$endif}
 {$endif}
 {$endif}
 

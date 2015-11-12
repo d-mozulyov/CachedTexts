@@ -354,9 +354,15 @@ type
     procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
     procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
     procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
+    procedure ToAnsiShortString(var S: ShortString; const CP: Word = 0);
+    procedure ToLowerAnsiShortString(var S: ShortString; const CP: Word = 0);
+    procedure ToUpperAnsiShortString(var S: ShortString; const CP: Word = 0);
     procedure ToUTF8String(var S: UTF8String);
     procedure ToLowerUTF8String(var S: UTF8String);
     procedure ToUpperUTF8String(var S: UTF8String);
+    procedure ToUTF8ShortString(var S: ShortString);
+    procedure ToLowerUTF8ShortString(var S: ShortString);
+    procedure ToUpperUTF8ShortString(var S: ShortString);
     procedure ToWideString(var S: WideString);
     procedure ToLowerWideString(var S: WideString);
     procedure ToUpperWideString(var S: WideString);
@@ -2305,6 +2311,7 @@ begin
       Index := Index shr 24;
       if (Index = DestSBCS.Index) then goto copy_characters;
 
+      Index := NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
       Converter := DestSBCS.FromSBCS(Pointer(Index));
       Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
       Pointer(S) := Dest;
@@ -2375,6 +2382,7 @@ begin
         if (Converter = nil) then Converter := DestSBCS.FromSBCS(DestSBCS, ccLower);
       end else
       begin
+        Index := NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
         Converter := DestSBCS.FromSBCS(Pointer(Index), ccLower);
       end;
 
@@ -2446,6 +2454,7 @@ begin
         if (Converter = nil) then Converter := DestSBCS.FromSBCS(DestSBCS, ccUpper);
       end else
       begin
+        Index := NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
         Converter := DestSBCS.FromSBCS(Pointer(Index), ccUpper);
       end;
 
@@ -2467,6 +2476,277 @@ begin
     Dest := AnsiStringAlloc(Pointer(S), L, DestSBCS.CodePage);
     Pointer(S) := Dest;
     {ascii}UniConv.utf8_from_utf8_upper(Dest, Src, L);
+  end;
+end;
+
+procedure CachedByteString.ToAnsiShortString(var S: ShortString; const CP: Word);
+label
+  copy_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Dest: PByte;
+  Converter: Pointer;
+  Context: TUniConvContextEx;
+begin
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToUTF8ShortString(S);
+    Exit;
+  end;
+  Context.Destination := @S[1];
+  Context.DestinationSize := NativeUInt(High(S));
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    Dest := Context.Destination;
+    Dec(Dest);
+    Dest^ := L;
+    Exit;
+  end;
+
+  Context.Source := Self.Chars;
+  Index := Self.Flags;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> SBCS
+      Index := Index shr 24;
+      if (Index = DestSBCS.Index) then goto copy_characters;
+
+      Index := NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
+      Converter := DestSBCS.FromSBCS(Pointer(Index));
+
+      Dest := Context.Destination;
+      if (L > Context.DestinationSize) then L := Context.DestinationSize;
+      Dec(Dest);
+      Dest^ := L;
+      Inc(Dest);
+      sbcs_from_sbcs(Pointer(Dest), Context.Source, L, Converter);
+    end else
+    begin
+      // UTF8 --> SBCS
+      // converter
+      Converter := DestSBCS.FVALUES;
+      if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+      Context.FCallbacks.Converter := Converter;
+
+      // conversion
+      Context.FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf8;
+      if (Context.convert_sbcs_from_utf8 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
+      begin
+        Inc(Context.FDestinationWritten);
+        Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      end;
+      Dest := Context.Destination;
+      Dec(Dest);
+      Dest^ := Context.DestinationWritten;
+    end;
+  end else
+  begin
+    // Ascii chars
+  copy_characters:
+    Dest := Context.Destination;
+    if (L > Context.DestinationSize) then L := Context.DestinationSize;
+    Dec(Dest);
+    Dest^ := L;
+    Inc(Dest);
+    Move(Context.Source^, Dest^, L);
+  end;
+end;
+
+procedure CachedByteString.ToLowerAnsiShortString(var S: ShortString; const CP: Word);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Dest: PByte;
+  Converter: Pointer;
+  Context: TUniConvContextEx;
+begin
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToLowerUTF8ShortString(S);
+    Exit;
+  end;
+  Context.Destination := @S[1];
+  Context.DestinationSize := NativeUInt(High(S));
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    Dest := Context.Destination;
+    Dec(Dest);
+    Dest^ := L;
+    Exit;
+  end;
+
+  Context.Source := Self.Chars;
+  Index := Self.Flags;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> SBCS
+      Index := Index shr 24;
+      if (Index = DestSBCS.Index) then
+      begin
+        Converter := DestSBCS.FLowerCase;
+        if (Converter = nil) then Converter := DestSBCS.FromSBCS(DestSBCS, ccLower);
+      end else
+      begin
+        Index := NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
+        Converter := DestSBCS.FromSBCS(Pointer(Index), ccLower);
+      end;
+
+      Dest := Context.Destination;
+      if (L > Context.DestinationSize) then L := Context.DestinationSize;
+      Dec(Dest);
+      Dest^ := L;
+      Inc(Dest);
+      sbcs_from_sbcs_lower(Pointer(Dest), Context.Source, L, Converter);
+    end else
+    begin
+      // UTF8 --> SBCS
+      // converter
+      Converter := DestSBCS.FVALUES;
+      if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+      Context.FCallbacks.Converter := Converter;
+
+      // conversion
+      Context.FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf8_lower;
+      if (Context.convert_sbcs_from_utf8 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
+      begin
+        Inc(Context.FDestinationWritten);
+        Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      end;
+      Dest := Context.Destination;
+      Dec(Dest);
+      Dest^ := Context.DestinationWritten;
+    end;
+  end else
+  begin
+    // Ascii chars
+    Dest := Context.Destination;
+    if (L > Context.DestinationSize) then L := Context.DestinationSize;
+    Dec(Dest);
+    Dest^ := L;
+    Inc(Dest);
+    {ascii}utf8_from_utf8_lower(Pointer(Dest), Context.Source, L);
+  end;
+end;
+
+procedure CachedByteString.ToUpperAnsiShortString(var S: ShortString; const CP: Word);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  Value: Integer;
+  DestSBCS: PUniConvSBCSEx;
+  Dest: PByte;
+  Converter: Pointer;
+  Context: TUniConvContextEx;
+begin
+  if (CP = CODEPAGE_UTF8) then
+  begin
+    ToUpperUTF8ShortString(S);
+    Exit;
+  end;
+  Context.Destination := @S[1];
+  Context.DestinationSize := NativeUInt(High(S));
+
+  Index := NativeUInt(CP);
+  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  repeat
+    if (Word(Value) = CP) or (Value < 0) then Break;
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+  until (False);
+  Index := Byte(Value shr 16);
+  DestSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    Dest := Context.Destination;
+    Dec(Dest);
+    Dest^ := L;
+    Exit;
+  end;
+
+  Context.Source := Self.Chars;
+  Index := Self.Flags;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) >= 0) then
+    begin
+      // SBCS --> SBCS
+      Index := Index shr 24;
+      if (Index = DestSBCS.Index) then
+      begin
+        Converter := DestSBCS.FLowerCase;
+        if (Converter = nil) then Converter := DestSBCS.FromSBCS(DestSBCS, ccUpper);
+      end else
+      begin
+        Index := NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
+        Converter := DestSBCS.FromSBCS(Pointer(Index), ccUpper);
+      end;
+
+      Dest := Context.Destination;
+      if (L > Context.DestinationSize) then L := Context.DestinationSize;
+      Dec(Dest);
+      Dest^ := L;
+      Inc(Dest);
+      sbcs_from_sbcs_upper(Pointer(Dest), Context.Source, L, Converter);
+    end else
+    begin
+      // UTF8 --> SBCS
+      // converter
+      Converter := DestSBCS.FVALUES;
+      if (Converter = nil) then Converter := DestSBCS.AllocFillVALUES(DestSBCS.FVALUES);
+      Context.FCallbacks.Converter := Converter;
+
+      // conversion
+      Context.FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf8_upper;
+      if (Context.convert_sbcs_from_utf8 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
+      begin
+        Inc(Context.FDestinationWritten);
+        Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      end;
+      Dest := Context.Destination;
+      Dec(Dest);
+      Dest^ := Context.DestinationWritten;
+    end;
+  end else
+  begin
+    // Ascii chars
+    Dest := Context.Destination;
+    if (L > Context.DestinationSize) then L := Context.DestinationSize;
+    Dec(Dest);
+    Dest^ := L;
+    Inc(Dest);
+    {ascii}utf8_from_utf8_upper(Pointer(Dest), Context.Source, L);
   end;
 end;
 
@@ -2604,6 +2884,170 @@ begin
     Dest := AnsiStringAlloc(Pointer(S), L, CODEPAGE_UTF8);
     Pointer(S) := Dest;
     {ascii}UniConv.utf8_from_utf8_upper(Dest, Src, L);
+  end;
+end;
+
+procedure CachedByteString.ToUTF8ShortString(var S: ShortString);
+label
+  copy_characters;
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Dest: PByte;
+  Converter: Pointer;
+  Context: TUniConvContextEx;
+begin
+  Context.DestinationSize := NativeUInt(High(S));
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    PByte(@S)^ := L;
+    Exit;
+  end;
+  Context.Destination := @S[1];
+
+  Index := Self.Flags;
+  Context.Source := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) < 0) then goto copy_characters;
+
+    // converter
+    Index := Index shr 24;
+    SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    Converter := SrcSBCS.FUTF8.Original;
+    if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Original, ccOriginal);
+    Context.FCallbacks.Converter := Converter;
+
+    // conversion
+    Context.FCallbacks.ReaderWriter := @UniConv.utf8_from_sbcs;
+    Context.convert_utf8_from_sbcs;
+    Dest := Context.Destination;
+    Dec(Dest);
+    Dest^ := Context.DestinationWritten;
+  end else
+  begin
+    // Ascii chars
+  copy_characters:
+    Dest := Context.Destination;
+    if (L > Context.DestinationSize) then L := Context.DestinationSize;
+    Dec(Dest);
+    Dest^ := L;
+    Inc(Dest);
+    Move(Context.Source^, Dest^, L);
+  end;
+end;
+
+procedure CachedByteString.ToLowerUTF8ShortString(var S: ShortString);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Dest: PByte;
+  Converter: Pointer;
+  Context: TUniConvContextEx;
+begin
+  Context.DestinationSize := NativeUInt(High(S));
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    PByte(@S)^ := L;
+    Exit;
+  end;
+  Context.Destination := @S[1];
+
+  Index := Self.Flags;
+  Context.Source := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) < 0) then
+    begin
+      // UTF8 --> UTF8
+      Context.FCallbacks.ReaderWriter := @UniConv.utf8_from_utf8_lower;
+      Context.convert_utf8_from_utf8;
+    end else
+    begin
+      // SBCS --> UTF8
+      // converter
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUTF8.Lower;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Lower, ccLower);
+      Context.FCallbacks.Converter := Converter;
+
+      // conversion
+      Context.FCallbacks.ReaderWriter := @UniConv.utf8_from_sbcs_lower;
+      Context.convert_utf8_from_sbcs;
+    end;
+    Dest := Context.Destination;
+    Dec(Dest);
+    Dest^ := Context.DestinationWritten;
+  end else
+  begin
+    // Ascii chars
+    Dest := Context.Destination;
+    if (L > Context.DestinationSize) then L := Context.DestinationSize;
+    Dec(Dest);
+    Dest^ := L;
+    Inc(Dest);
+    {ascii}utf8_from_utf8_lower(Pointer(Dest), Context.Source, L);
+  end;
+end;
+
+procedure CachedByteString.ToUpperUTF8ShortString(var S: ShortString);
+var
+  L: NativeUInt;
+  Index: NativeInt;
+  SrcSBCS: PUniConvSBCSEx;
+  Dest: PByte;
+  Converter: Pointer;
+  Context: TUniConvContextEx;
+begin
+  Context.DestinationSize := NativeUInt(High(S));
+  L := Self.Length;
+  if (L = 0) then
+  begin
+    PByte(@S)^ := L;
+    Exit;
+  end;
+  Context.Destination := @S[1];
+
+  Index := Self.Flags;
+  Context.Source := Self.Chars;
+  if (Index and 1 = 0{not Ascii}) then
+  begin
+    if (Integer(Index) < 0) then
+    begin
+      // UTF8 --> UTF8
+      Context.FCallbacks.ReaderWriter := @UniConv.utf8_from_utf8_upper;
+      Context.convert_utf8_from_utf8;
+    end else
+    begin
+      // SBCS --> UTF8
+      // converter
+      Index := Index shr 24;
+      SrcSBCS := Pointer(NativeUInt(Index) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := SrcSBCS.FUTF8.Upper;
+      if (Converter = nil) then Converter := SrcSBCS.AllocFillUTF8(SrcSBCS.FUTF8.Upper, ccUpper);
+      Context.FCallbacks.Converter := Converter;
+
+      // conversion
+      Context.FCallbacks.ReaderWriter := @UniConv.utf8_from_sbcs_upper;
+      Context.convert_utf8_from_sbcs;
+    end;
+    Dest := Context.Destination;
+    Dec(Dest);
+    Dest^ := Context.DestinationWritten;
+  end else
+  begin
+    // Ascii chars
+    Dest := Context.Destination;
+    if (L > Context.DestinationSize) then L := Context.DestinationSize;
+    Dec(Dest);
+    Dest^ := L;
+    Inc(Dest);
+    {ascii}utf8_from_utf8_upper(Pointer(Dest), Context.Source, L);
   end;
 end;
 

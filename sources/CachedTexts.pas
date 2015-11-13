@@ -233,6 +233,35 @@ var
   DEFAULT_UNICONV_SBCS_INDEX: NativeUInt;
 
 type
+  //
+  TUniConvReReader = class(TCachedReReader)
+  protected
+    FGap: record
+      Data: array[0..15] of Byte;
+      Size: NativeUInt;
+    end;
+    FContext: PUniConvContext;
+    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
+  public
+    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
+    property Context: PUniConvContext read FContext;
+  end;
+
+  //
+  TUniConvReWriter = class(TCachedReWriter)
+  protected
+    FGap: record
+      Data: array[0..15] of Byte;
+      Size: NativeUInt;
+    end;
+    FContext: PUniConvContext;
+    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
+  public
+    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
+    property Context: PUniConvContext read FContext;
+  end;
+
+type
   // CachedString types
   PCachedByteString = ^CachedByteString;
   PCachedUTF16String = ^CachedUTF16String;
@@ -244,7 +273,6 @@ type
     constructor Create(const ResStringRec: PResStringRec; const Value: PCachedUTF16String); overload;
     constructor Create(const ResStringRec: PResStringRec; const Value: PCachedUTF32String); overload;
   end;
-
 
   //
   CachedByteString = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
@@ -1003,6 +1031,132 @@ begin
   Move(UniConv.UNICONV_SUPPORTED_SBCS_HASH, UNICONV_SUPPORTED_SBCS_HASH, SizeOf(UNICONV_SUPPORTED_SBCS_HASH));
   Move(UniConv.UNICONV_UTF8_SIZE, UNICONV_UTF8_SIZE, SizeOf(UNICONV_UTF8_SIZE));
 end;
+
+type
+  TUniConvGap = record
+    Data: array[0..15] of Byte;
+    Size: NativeUInt;
+  end;
+  PUniConvGap = ^TUniConvGap;
+
+function UniConvGapClear(Data: PByte; Size: NativeUInt; var Gap: TUniConvGap): NativeUInt;
+begin
+  if (Size >= Gap.Size) then
+  begin
+    Result := Gap.Size;
+    Move(Gap.Data, Data^, Result);
+    Gap.Size := 0;
+  end else
+  // Size < Gap.Size
+  begin
+    Result := Size;
+    Move(Gap.Data, Data^, Result);
+
+    Move(Gap.Data[Result], Gap.Data, Gap.Size - Result);
+    Dec(Gap.Size, Result);
+  end;
+end;
+
+(*function CachedConvert(var Data: PByte; var Size: NativeUInt;
+  var Context: TUniConvContext; const CachedBuffer: TCachedBuffer): NativeInt;
+begin
+
+  Result := Context.Convert;
+  Inc(Data, Context.DestinationWritten);
+  Dec(Size, Context.DestinationWritten);
+  Inc(Source.Current, Context.SourceRead);
+end;*)
+
+{ TUniConvReReader }
+
+constructor TUniConvReReader.Create(const Context: PUniConvContext;
+  const Source: TCachedReader; const Owner: Boolean;
+  const BufferSize: NativeUInt);
+begin
+  FContext := Context;
+  inherited Create(InternalCallback, Source, Owner, BufferSize);
+end;
+
+function TUniConvReReader.InternalCallback(Sender: TCachedBuffer; Data: PByte;
+  Size: NativeUInt): NativeUInt;
+var
+  Source: TCachedReader;
+  Context: PUniConvContext;
+  R: NativeInt;
+begin
+  Source := Self.Source;
+  Context := Self.Context;
+
+  Result := UniConvGapClear(Data, Size, PUniConvGap(@FGap)^);
+  Inc(Data, Result);
+  Dec(Size, Result);
+
+  if (Size > 0) then
+  repeat
+    // conversion
+    Context.Destination := Data;
+    Context.DestinationSize := Size;
+    Context.ModeFinalize := Source.Finishing;
+    Context.Source := Source.Current;
+    Context.SourceSize := Source.Margin;
+    R := Context.Convert;
+
+    // increment
+    Inc(Data, Context.DestinationWritten);
+    Dec(Size, Context.DestinationWritten);
+    Inc(Result, Context.DestinationWritten);
+    Inc(Source.Current, Context.SourceRead);
+
+    // next iteration
+    if (R = 0) then Exit;
+    if (R < 0) then
+    begin
+      // source too small
+      if (Source.Finishing) then
+      begin
+        Source.EOF := True;
+        Exit;
+      end else
+      begin
+        Source.Flush;
+      end;
+    end else
+    // if (R > 0) then
+    begin
+      // destination too small
+      if (Size = 0) then Exit;
+
+
+    end;
+  until (False);
+end;
+
+
+{ TUniConvReWriter }
+
+constructor TUniConvReWriter.Create(const Context: PUniConvContext;
+  const Target: TCachedWriter; const Owner: Boolean;
+  const BufferSize: NativeUInt);
+begin
+  FContext := Context;
+  inherited Create(InternalCallback, Target, Owner, BufferSize);
+end;
+
+function TUniConvReWriter.InternalCallback(Sender: TCachedBuffer; Data: PByte;
+  Size: NativeUInt): NativeUInt;
+//var
+//  Target: TCachedWriter;
+begin
+ // Target := Self.Target;
+  Result := 0;
+
+//  repeat
+
+  //  Context.Convert;
+//  until (False);
+end;
+
+
 
 resourcestring
   SInvalidHex = '''%s'' is not a valid hex value';

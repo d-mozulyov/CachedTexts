@@ -233,7 +233,9 @@ var
   DEFAULT_UNICONV_SBCS_INDEX: NativeUInt;
 
 type
-  //
+
+{ TUniConvReReader class }
+
   TUniConvReReader = class(TCachedReReader)
   protected
     FGap: record
@@ -247,7 +249,9 @@ type
     property Context: PUniConvContext read FContext;
   end;
 
-  //
+
+{ TUniConvReWriter class }
+
   TUniConvReWriter = class(TCachedReWriter)
   protected
     FGap: record
@@ -262,7 +266,6 @@ type
   end;
 
 type
-  // CachedString types
   PCachedByteString = ^CachedByteString;
   PCachedUTF16String = ^CachedUTF16String;
   PCachedUTF32String = ^CachedUTF32String;
@@ -274,7 +277,9 @@ type
     constructor Create(const ResStringRec: PResStringRec; const Value: PCachedUTF32String); overload;
   end;
 
-  //
+
+{ CachedByteString record }
+
   CachedByteString = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
     FLength: NativeUInt;
@@ -292,36 +297,10 @@ type
     procedure SetSBCS(Value: PUniConvSBCS); {$ifdef INLINESUPPORT}inline;{$endif}
     function GetUTF8: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetUTF8(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetCodePage: Word; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure SetCodePage(CodePageValue: Word);
-
-    function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    {$ifdef UNICODE}
-    function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    {$endif}
-    function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetInteger: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetCardinal: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetInt64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetHex64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetUInt64: UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetFloat: Extended; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetDateTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function _LTrim(S: PByte; L: NativeUInt): Boolean;
-    function _RTrim(S: PByte; H: NativeUInt): Boolean;
+    function GetEncoding: Word; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetEncoding(CodePage: Word);
+    function _TrimLeft(S: PByte; L: NativeUInt): Boolean;
+    function _TrimRight(S: PByte; H: NativeUInt): Boolean;
     function _Trim(S: PByte; H: NativeUInt): Boolean;
     function _HashIgnoreCaseAscii: Cardinal;
     function _HashIgnoreCaseUTF8: Cardinal;
@@ -344,18 +323,16 @@ type
     property SBCSIndex: ShortInt read F.SBCSIndex write F.SBCSIndex;
     property SBCS: PUniConvSBCS read GetSBCS write SetSBCS;
     property UTF8: Boolean read GetUTF8 write SetUTF8;
-    property CodePage: Word read GetCodePage write SetCodePage;
-  public
-    { basic methods }
+    property Encoding: Word read GetEncoding write SetEncoding;
 
-    procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word = 0{$endif}); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: UTF8String); overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure Assign(const S: ShortString; const CP: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure Assign(const S: TBytes; const CP: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function DetectAscii: Boolean;
+    procedure Assign(const S: ShortString; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: TBytes; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function DetermineAscii: Boolean;
 
-    function LTrim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function RTrim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TrimLeft: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TrimRight: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Trim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const From, Count: NativeUInt): CachedByteString; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const Count: NativeUInt): CachedByteString; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -363,59 +340,86 @@ type
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal; {$ifNdef CPUINTEL}inline;{$endif}
 
-    function CharPos(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPos(const C: UCS4Char; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt = 0): NativeInt; overload;
-
+    function CharPos(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
+    function CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
     function Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
-    function Pos(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const S: UnicodeString; const From: NativeUInt = 0): NativeInt;
+    function Pos(const S: AnsiString; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const S: AnsiString; const From: NativeUInt = 0): NativeInt; overload;
   public
-    { compares }
-
-    // todo
+    function ToBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToBoolean(out Value: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHexDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToHex(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInteger: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToIntegerDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToInteger(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToCardinal: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToCardinalDef(const Default: Cardinal): Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToCardinal(out Value: Cardinal): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToHex64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInt64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInt64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToInt64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToUInt64: UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToUInt64Def(const Default: UInt64): UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToUInt64(out Value: UInt64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToFloat: Extended; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToDateTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
   public
-    { string types conversion }
-    { note: To... methods is much faster than As... properties !!! }
+    procedure ToAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToLowerAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToUpperAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToUTF8String(var S: UTF8String); overload;
+    procedure ToLowerUTF8String(var S: UTF8String); overload;
+    procedure ToUpperUTF8String(var S: UTF8String); overload;
+    procedure ToUTF8ShortString(var S: ShortString); overload;
+    procedure ToLowerUTF8ShortString(var S: ShortString); overload;
+    procedure ToUpperUTF8ShortString(var S: ShortString); overload;
+    procedure ToWideString(var S: WideString); overload;
+    procedure ToLowerWideString(var S: WideString); overload;
+    procedure ToUpperWideString(var S: WideString); overload;
+    procedure ToUnicodeString(var S: UnicodeString); overload;
+    procedure ToLowerUnicodeString(var S: UnicodeString); overload;
+    procedure ToUpperUnicodeString(var S: UnicodeString); overload;
+    procedure ToString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToLowerString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToUpperString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToLowerAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToUpperAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToUTF8String(var S: UTF8String);
-    procedure ToLowerUTF8String(var S: UTF8String);
-    procedure ToUpperUTF8String(var S: UTF8String);
-    procedure ToUTF8ShortString(var S: ShortString);
-    procedure ToLowerUTF8ShortString(var S: ShortString);
-    procedure ToUpperUTF8ShortString(var S: ShortString);
-    procedure ToWideString(var S: WideString);
-    procedure ToLowerWideString(var S: WideString);
-    procedure ToUpperWideString(var S: WideString);
-    procedure ToUnicodeString(var S: UnicodeString);
-    procedure ToLowerUnicodeString(var S: UnicodeString);
-    procedure ToUpperUnicodeString(var S: UnicodeString);
-    procedure ToString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure ToLowerString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure ToUpperString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-
-    property AsAnsiString: AnsiString read GetAnsiString;
-    property AsLowerAnsiString: AnsiString read GetLowerAnsiString;
-    property AsUpperAnsiString: AnsiString read GetUpperAnsiString;
-    property AsUTF8String: UTF8String read GetUTF8String;
-    property AsLowerUTF8String: UTF8String read GetLowerUTF8String;
-    property AsUpperUTF8String: UTF8String read GetUpperUTF8String;
-    property AsWideString: WideString read GetWideString;
-    property AsLowerWideString: WideString read GetLowerWideString;
-    property AsUpperWideString: WideString read GetUpperWideString;
-    property AsUnicodeString: UnicodeString read {$ifdef UNICODE}GetUnicodeString{$else}GetWideString{$endif};
-    property AsLowerUnicodeString: UnicodeString read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerWideString{$endif};
-    property AsUpperUnicodeString: UnicodeString read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperWideString{$endif};
-    property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
-    property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
-    property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
+    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
 
     {$ifdef OPERATORSUPPORT}
     class operator Implicit(const a: CachedByteString): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
@@ -426,47 +430,13 @@ type
     {$endif}
     {$endif}
   public
-    { numeric conversion }
-
-    function AsBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsBoolean(out Value: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsHexDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsHex(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsIntegerDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsInteger(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsCardinalDef(const Default: Cardinal): Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsCardinal(out Value: Cardinal): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsHex64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsHex64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsInt64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsInt64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsUInt64Def(const Default: UInt64): UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsUInt64(out Value: UInt64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsDateTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsDateTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-
-    property AsBoolean: Boolean read GetBoolean;
-    property AsHex: Integer read GetHex;
-    property AsInteger: Integer read GetInteger;
-    property AsCardinal: Cardinal read GetCardinal;
-    property AsHex64: Int64 read GetHex64;
-    property AsInt64: Int64 read GetInt64;
-    property AsUInt64: UInt64 read GetUInt64;
-    property AsFloat: Extended read GetFloat;
-    property AsDate: TDateTime read GetDate;
-    property AsTime: TDateTime read GetTime;
-    property AsDateTime: TDateTime read GetDateTime;
+    // compares
+    // todo
   end;
 
-  //
+
+{ CachedUTF16String record }
+
   CachedUTF16String = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
     FLength: NativeUInt;
@@ -480,33 +450,8 @@ type
 
     function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    {$ifdef UNICODE}
-    function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    {$endif}
-    function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetInteger: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetCardinal: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetInt64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetHex64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetUInt64: UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetFloat: Extended; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetDateTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function _LTrim(S: PWord; L: NativeUInt): Boolean;
-    function _RTrim(S: PWord; H: NativeUInt): Boolean;
+    function _TrimLeft(S: PWord; L: NativeUInt): Boolean;
+    function _TrimRight(S: PWord; H: NativeUInt): Boolean;
     function _Trim(S: PWord; H: NativeUInt): Boolean;
     function _HashIgnoreCaseAscii: Cardinal;
     function _HashIgnoreCase: Cardinal;
@@ -525,17 +470,15 @@ type
     property References: Boolean read F.References write F.References;
     property Flags: Cardinal read F.Flags write F.Flags;
     property Chars: PUnicodeChar read FChars write FChars;
-  public
-    { basic methods }
 
     procedure Assign(const S: WideString); {$ifdef UNICODE}overload;{$endif}{$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     procedure Assign(const S: UnicodeString); overload; inline;
     {$endif}
-    function DetectAscii: Boolean;
+    function DetermineAscii: Boolean;
 
-    function LTrim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function RTrim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TrimLeft: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TrimRight: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Trim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const From, Count: NativeUInt): CachedUTF16String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const Count: NativeUInt): CachedUTF16String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -543,59 +486,86 @@ type
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function CharPos(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPos(const C: UCS4Char; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt = 0): NativeInt; overload;
-
+    function CharPos(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt;
+    function CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt;
     function Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
     function Pos(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const S: UnicodeString; const From: NativeUInt = 0): NativeInt;
+    function PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload;
   public
-    { compares }
-
-    // todo
+    function ToBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToBoolean(out Value: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHexDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToHex(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInteger: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToIntegerDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToInteger(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToCardinal: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToCardinalDef(const Default: Cardinal): Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToCardinal(out Value: Cardinal): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToHex64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInt64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInt64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToInt64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToUInt64: UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToUInt64Def(const Default: UInt64): UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToUInt64(out Value: UInt64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToFloat: Extended; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToDateTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
   public
-    { string types conversion }
-    { note: To... methods is much faster than As... properties !!! }
+    procedure ToAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToLowerAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToUpperAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToUTF8String(var S: UTF8String); overload;
+    procedure ToLowerUTF8String(var S: UTF8String); overload;
+    procedure ToUpperUTF8String(var S: UTF8String); overload;
+    procedure ToUTF8ShortString(var S: ShortString); overload;
+    procedure ToLowerUTF8ShortString(var S: ShortString); overload;
+    procedure ToUpperUTF8ShortString(var S: ShortString); overload;
+    procedure ToWideString(var S: WideString); overload;
+    procedure ToLowerWideString(var S: WideString); overload;
+    procedure ToUpperWideString(var S: WideString); overload;
+    procedure ToUnicodeString(var S: UnicodeString); overload;
+    procedure ToLowerUnicodeString(var S: UnicodeString); overload;
+    procedure ToUpperUnicodeString(var S: UnicodeString); overload;
+    procedure ToString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToLowerString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToUpperString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToLowerAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToUpperAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToUTF8String(var S: UTF8String);
-    procedure ToLowerUTF8String(var S: UTF8String);
-    procedure ToUpperUTF8String(var S: UTF8String);
-    procedure ToUTF8ShortString(var S: ShortString);
-    procedure ToLowerUTF8ShortString(var S: ShortString);
-    procedure ToUpperUTF8ShortString(var S: ShortString);
-    procedure ToWideString(var S: WideString);
-    procedure ToLowerWideString(var S: WideString);
-    procedure ToUpperWideString(var S: WideString);
-    procedure ToUnicodeString(var S: UnicodeString);
-    procedure ToLowerUnicodeString(var S: UnicodeString);
-    procedure ToUpperUnicodeString(var S: UnicodeString);
-    procedure ToString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure ToLowerString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure ToUpperString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-
-    property AsAnsiString: AnsiString read GetAnsiString;
-    property AsLowerAnsiString: AnsiString read GetLowerAnsiString;
-    property AsUpperAnsiString: AnsiString read GetUpperAnsiString;
-    property AsUTF8String: UTF8String read GetUTF8String;
-    property AsLowerUTF8String: UTF8String read GetLowerUTF8String;
-    property AsUpperUTF8String: UTF8String read GetUpperUTF8String;
-    property AsWideString: WideString read GetWideString;
-    property AsLowerWideString: WideString read GetLowerWideString;
-    property AsUpperWideString: WideString read GetUpperWideString;
-    property AsUnicodeString: UnicodeString read {$ifdef UNICODE}GetUnicodeString{$else}GetWideString{$endif};
-    property AsLowerUnicodeString: UnicodeString read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerWideString{$endif};
-    property AsUpperUnicodeString: UnicodeString read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperWideString{$endif};
-    property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
-    property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
-    property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
+    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
 
     {$ifdef OPERATORSUPPORT}
     class operator Implicit(const a: CachedUTF16String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
@@ -606,49 +576,13 @@ type
     {$endif}
     {$endif}
   public
-    { numeric conversion }
-
-    function AsBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsBoolean(out Value: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsHexDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsHex(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsIntegerDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsInteger(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsCardinalDef(const Default: Cardinal): Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsCardinal(out Value: Cardinal): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsHex64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsHex64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsInt64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsInt64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsUInt64Def(const Default: UInt64): UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsUInt64(out Value: UInt64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsDateTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsDateTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-
-    property AsBoolean: Boolean read GetBoolean;
-    property AsHex: Integer read GetHex;
-    property AsInteger: Integer read GetInteger;
-    property AsCardinal: Cardinal read GetCardinal;
-    property AsHex64: Int64 read GetHex64;
-    property AsInt64: Int64 read GetInt64;
-    property AsUInt64: UInt64 read GetUInt64;
-    property AsFloat: Extended read GetFloat;
-    property AsDate: TDateTime read GetDate;
-    property AsTime: TDateTime read GetTime;
-    property AsDateTime: TDateTime read GetDateTime;
+    // compares
+    // todo
   end;
 
 
+{ CachedUTF32String record }
 
-  //
   CachedUTF32String = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
     FLength: NativeUInt;
@@ -662,33 +596,8 @@ type
 
     function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperAnsiString: AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperUTF8String: UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperWideString: WideString; {$ifNdef CPUINTEL}inline;{$endif}
-    {$ifdef UNICODE}
-    function GetUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetLowerUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    function GetUpperUnicodeString: UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
-    {$endif}
-    function GetBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetInteger: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetCardinal: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetInt64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetHex64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetUInt64: UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetFloat: Extended; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetDateTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function _LTrim(S: PCardinal; L: NativeUInt): Boolean;
-    function _RTrim(S: PCardinal; H: NativeUInt): Boolean;
+    function _TrimLeft(S: PCardinal; L: NativeUInt): Boolean;
+    function _TrimRight(S: PCardinal; H: NativeUInt): Boolean;
     function _Trim(S: PCardinal; H: NativeUInt): Boolean;
     function _HashIgnoreCaseAscii: Cardinal;
     function _HashIgnoreCase: Cardinal;
@@ -707,14 +616,12 @@ type
     property References: Boolean read F.References write F.References;
     property Flags: Cardinal read F.Flags write F.Flags;
     property Chars: PUCS4Char read FChars write FChars;
-  public
-    { basic methods }
 
     procedure Assign(const S: UCS4String; const NullTerminated: Boolean = True); {$ifdef INLINESUPPORT}inline;{$endif}
-    function DetectAscii: Boolean;
+    function DetermineAscii: Boolean;
 
-    function LTrim: Boolean;
-    function RTrim: Boolean;
+    function TrimLeft: Boolean;
+    function TrimRight: Boolean;
     function Trim: Boolean;
     function SubString(const From, Count: NativeUInt): CachedUTF32String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const Count: NativeUInt): CachedUTF32String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -722,59 +629,86 @@ type
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function CharPos(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPos(const C: UCS4Char; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt; overload;
-    function CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt = 0): NativeInt; overload;
-
+    function CharPos(const C: UCS4Char; const From: NativeUInt = 0): NativeInt;
+    function CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt = 0): NativeInt;
     function Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
-    function Pos(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const S: UnicodeString; const From: NativeUInt = 0): NativeInt;
+    function Pos(const S: UCS4String; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const S: UCS4String; const From: NativeUInt = 0): NativeInt; overload;
   public
-    { compares }
-
-    // todo
+    function ToBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToBoolean(out Value: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHexDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToHex(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInteger: Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToIntegerDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToInteger(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToCardinal: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToCardinalDef(const Default: Cardinal): Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToCardinal(out Value: Cardinal): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToHex64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToHex64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInt64: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToInt64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToInt64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToUInt64: UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToUInt64Def(const Default: UInt64): UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToUInt64(out Value: UInt64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToFloat: Extended; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateTime: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function ToDateTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToDateTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
   public
-    { string types conversion }
-    { note: To... methods is much faster than As... properties !!! }
+    procedure ToAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToLowerAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToUpperAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
+    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToUTF8String(var S: UTF8String); overload;
+    procedure ToLowerUTF8String(var S: UTF8String); overload;
+    procedure ToUpperUTF8String(var S: UTF8String); overload;
+    procedure ToUTF8ShortString(var S: ShortString); overload;
+    procedure ToLowerUTF8ShortString(var S: ShortString); overload;
+    procedure ToUpperUTF8ShortString(var S: ShortString); overload;
+    procedure ToWideString(var S: WideString); overload;
+    procedure ToLowerWideString(var S: WideString); overload;
+    procedure ToUpperWideString(var S: WideString); overload;
+    procedure ToUnicodeString(var S: UnicodeString); overload;
+    procedure ToLowerUnicodeString(var S: UnicodeString); overload;
+    procedure ToUpperUnicodeString(var S: UnicodeString); overload;
+    procedure ToString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToLowerString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ToUpperString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    procedure ToAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToLowerAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToUpperAnsiString(var S: AnsiString; const CP: Word = 0);
-    procedure ToAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToLowerAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToUpperAnsiShortString(var S: ShortString; const CP: Word = 0);
-    procedure ToUTF8String(var S: UTF8String);
-    procedure ToLowerUTF8String(var S: UTF8String);
-    procedure ToUpperUTF8String(var S: UTF8String);
-    procedure ToUTF8ShortString(var S: ShortString);
-    procedure ToLowerUTF8ShortString(var S: ShortString);
-    procedure ToUpperUTF8ShortString(var S: ShortString);
-    procedure ToWideString(var S: WideString);
-    procedure ToLowerWideString(var S: WideString);
-    procedure ToUpperWideString(var S: WideString);
-    procedure ToUnicodeString(var S: UnicodeString);
-    procedure ToLowerUnicodeString(var S: UnicodeString);
-    procedure ToUpperUnicodeString(var S: UnicodeString);
-    procedure ToString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure ToLowerString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure ToUpperString(var S: string); {$ifdef INLINESUPPORT}inline;{$endif}
-
-    property AsAnsiString: AnsiString read GetAnsiString;
-    property AsLowerAnsiString: AnsiString read GetLowerAnsiString;
-    property AsUpperAnsiString: AnsiString read GetUpperAnsiString;
-    property AsUTF8String: UTF8String read GetUTF8String;
-    property AsLowerUTF8String: UTF8String read GetLowerUTF8String;
-    property AsUpperUTF8String: UTF8String read GetUpperUTF8String;
-    property AsWideString: WideString read GetWideString;
-    property AsLowerWideString: WideString read GetLowerWideString;
-    property AsUpperWideString: WideString read GetUpperWideString;
-    property AsUnicodeString: UnicodeString read {$ifdef UNICODE}GetUnicodeString{$else}GetWideString{$endif};
-    property AsLowerUnicodeString: UnicodeString read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerWideString{$endif};
-    property AsUpperUnicodeString: UnicodeString read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperWideString{$endif};
-    property AsString: string read {$ifdef UNICODE}GetUnicodeString{$else}GetAnsiString{$endif};
-    property AsLowerString: string read {$ifdef UNICODE}GetLowerUnicodeString{$else}GetLowerAnsiString{$endif};
-    property AsUpperString: string read {$ifdef UNICODE}GetUpperUnicodeString{$else}GetUpperAnsiString{$endif};
+    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToLowerString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToUpperString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
 
     {$ifdef OPERATORSUPPORT}
     class operator Implicit(const a: CachedUTF32String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
@@ -785,46 +719,12 @@ type
     {$endif}
     {$endif}
   public
-    { numeric conversion }
-
-    function AsBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsBoolean(out Value: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsHexDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsHex(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsIntegerDef(const Default: Integer): Integer; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsInteger(out Value: Integer): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsCardinalDef(const Default: Cardinal): Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsCardinal(out Value: Cardinal): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsHex64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsHex64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsInt64Def(const Default: Int64): Int64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsInt64(out Value: Int64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsUInt64Def(const Default: UInt64): UInt64; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsUInt64(out Value: UInt64): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-    function AsDateTimeDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryAsDateTime(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
-
-    property AsBoolean: Boolean read GetBoolean;
-    property AsHex: Integer read GetHex;
-    property AsInteger: Integer read GetInteger;
-    property AsCardinal: Cardinal read GetCardinal;
-    property AsHex64: Int64 read GetHex64;
-    property AsInt64: Int64 read GetInt64;
-    property AsUInt64: UInt64 read GetUInt64;
-    property AsFloat: Extended read GetFloat;
-    property AsDate: TDateTime read GetDate;
-    property AsTime: TDateTime read GetTime;
-    property AsDateTime: TDateTime read GetDateTime;
+    // compares
+    // todo
   end;
 
+
+{ TCachedTextReader class }
 
   TCachedTextReader = class
   protected
@@ -863,6 +763,8 @@ type
   end;
 
 
+{ TByteTextReader class }
+
   TByteTextReader = class(TCachedTextReader)
   protected
     FSBCS: PUniConvSBCS;
@@ -881,6 +783,9 @@ type
     property SBCS: PUniConvSBCS read FSBCS;
   end;
 
+
+{ TUTF16TextReader class }
+
   TUTF16TextReader = class(TCachedTextReader)
   public
     constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
@@ -892,6 +797,8 @@ type
   end;
 
 
+{ TUTF32TextReader class }
+
   TUTF32TextReader = class(TCachedTextReader)
   public
     constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
@@ -901,6 +808,9 @@ type
 //    function Readln(var S: CachedUTF32String): Boolean;
     function ReadChar: UCS4Char;
   end;
+
+
+{ TCachedTextWriter class }
 
   TCachedTextWriter = class
   protected
@@ -936,6 +846,8 @@ type
   end;
 
 
+{ TByteTextWriter class }
+
   TByteTextWriter = class(TCachedTextWriter)
   protected
     FSBCS: PUniConvSBCS;
@@ -950,6 +862,8 @@ type
   end;
 
 
+{ TUTF16TextWriter class }
+
   TUTF16TextWriter = class(TCachedTextWriter)
   public
     constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
@@ -958,6 +872,8 @@ type
 
   end;
 
+
+{ TUTF32TextWriter class }
 
   TUTF32TextWriter = class(TCachedTextWriter)
   public
@@ -1054,8 +970,17 @@ end;
   {$ifend}
 
 type
-  PByteArray = ^TByteArray;
-  TByteArray = array[0..0] of Byte;
+  {$ifdef NEXTGEN}
+    PByteArray = PByte;
+  {$else}
+    PByteArray = PAnsiChar;
+  {$endif}
+
+  T4Bytes = array[0..3] of Byte;
+  P4Bytes = ^T4Bytes;
+
+  T8Bytes = array[0..7] of Byte;
+  P8Bytes = ^T8Bytes;
 
   PWordArray = ^TWordArray;
   TWordArray = array[0..0] of Word;
@@ -1250,7 +1175,6 @@ begin
     end;
   until (False);
 end;
-
 
 
 resourcestring
@@ -2491,7 +2415,7 @@ begin
   end;
 end;
 
-function CachedByteString.GetCodePage: Word;
+function CachedByteString.GetEncoding: Word;
 var
   Index: NativeInt;
 begin
@@ -2508,20 +2432,20 @@ begin
   end;
 end;
 
-procedure CachedByteString.SetCodePage(CodePageValue: Word);
+procedure CachedByteString.SetEncoding(CodePage: Word);
 var
   Index: NativeUInt;
   Value: Integer;
 begin
-  if (CodePageValue = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     SBCSIndex := -1;
   end else
   begin
-    Index := NativeUInt(CodePageValue);
+    Index := NativeUInt(CodePage);
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
     repeat
-      if (Word(Value) = CodePageValue) or (Value < 0) then Break;
+      if (Word(Value) = CodePage) or (Value < 0) then Break;
       Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
     until (False);
 
@@ -2529,7 +2453,2308 @@ begin
   end;
 end;
 
-procedure CachedByteString.ToAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedByteString.Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
+var
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
+  {$ifdef INTERNALCODEPAGE}
+  CodePage: Word;
+  {$endif}
+begin
+  P := Pointer(S);
+  Self.FChars := Pointer(P);
+  if (P = nil) then
+  begin
+    Self.FLength := NativeUInt(P){0};
+    Self.F.NativeFlags := NativeUInt(P){0};
+  end else
+  begin
+    Dec(P);
+    Self.FLength := P^;
+    {$ifdef INTERNALCODEPAGE}
+    Dec(P, 2);
+    CodePage := PWord(P)^;
+    {$endif}
+    if (CodePage = 0) or (CodePage = CODEPAGE_DEFAULT) then
+    begin
+      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+    end else
+    begin
+      Self.Flags := $ff000000;
+      if (CodePage <> CODEPAGE_UTF8) then SetEncoding(CodePage);
+    end;
+  end;
+end;
+
+procedure CachedByteString.Assign(const S: UTF8String);
+var
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
+begin
+  P := Pointer(S);
+  Self.FChars := Pointer(P);
+  if (P = nil) then
+  begin
+    Self.FLength := NativeUInt(P){0};
+    Self.F.NativeFlags := NativeUInt(P){0};
+  end else
+  begin
+    Dec(P);
+    Self.FLength := P^;
+    Self.Flags := $ff000000;
+  end;
+end;
+
+procedure CachedByteString.Assign(const S: ShortString; const CodePage: Word);
+var
+  L: NativeUInt;
+begin
+  L := PByte(@S)^;
+  Self.FLength := L;
+  if (L = 0) then
+  begin
+    Self.FChars := Pointer(L){nil};
+    Self.F.NativeFlags := L{0};
+  end else
+  begin
+    Self.FChars := Pointer(@S[1]);
+    if (CodePage = 0) or (CodePage = CODEPAGE_DEFAULT) then
+    begin
+      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+    end else
+    begin
+      Self.Flags := $ff000000;
+      if (CodePage <> CODEPAGE_UTF8) then SetEncoding(CodePage);
+    end;
+  end;
+end;
+
+procedure CachedByteString.Assign(const S: TBytes; const CodePage: Word);
+var
+  P: PNativeInt;
+begin
+  P := Pointer(S);
+  Self.FChars := Pointer(P);
+  if (P = nil) then
+  begin
+    Self.FLength := NativeUInt(P){0};
+    Self.F.NativeFlags := NativeUInt(P){0};
+  end else
+  begin
+    Dec(P);
+    Self.FLength := P^{$ifdef FPC}+1{$endif};
+    if (CodePage = 0) or (CodePage = CODEPAGE_DEFAULT) then
+    begin
+      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+    end else
+    begin
+      Self.Flags := $ff000000;
+      if (CodePage <> CODEPAGE_UTF8) then SetEncoding(CodePage);
+    end;
+  end;
+end;
+
+function CachedByteString.DetermineAscii: Boolean;
+label
+  fail;
+const
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Byte);  
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);  
+var
+  P: PByte;
+  L: NativeUInt;
+  {$ifdef CPUMANYREGS}
+  MASK: NativeUInt;
+  {$else}
+const
+  MASK = not NativeUInt($7f7f7f7f);
+  {$endif}  
+begin
+  P := Pointer(FChars);
+  L := FLength;
+  
+  {$ifdef CPUMANYREGS}
+  MASK := not NativeUInt({$ifdef LARGEINT}$7f7f7f7f7f7f7f7f{$else}$7f7f7f7f{$endif});
+  {$endif}    
+  
+  while (L >= CHARS_IN_NATIVE) do  
+  begin  
+    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;   
+    Dec(L, CHARS_IN_NATIVE);
+    Inc(P, CHARS_IN_NATIVE);
+  end;  
+  {$ifdef LARGEINT}
+  if (L >= CHARS_IN_CARDINAL) then
+  begin
+    if (PCardinal(P)^ and MASK <> 0) then goto fail; 
+    Dec(L, CHARS_IN_CARDINAL);
+    Inc(P, CHARS_IN_CARDINAL);    
+  end;
+  {$endif}
+  if (L >= 2) then
+  begin
+    if (PWord(P)^ and Word(not $7f7f) <> 0) then goto fail; 
+    // Dec(L, 2);
+    Inc(P, 2);      
+  end;
+  if (L and 1 <> 0) and (P^ > $7f) then goto fail;
+  
+  Ascii := True;
+  Result := True;  
+  Exit;
+fail:
+  Ascii := False;
+  Result := False;  
+end;
+
+function CachedByteString.TrimLeft: Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+var
+  L: NativeUInt;
+  S: PByte;
+begin
+  L := Length;
+  S := Pointer(FChars);
+  if (L = 0) then
+  begin
+    Result := False;
+    Exit;
+  end else
+  if (S^ > 32) then
+  begin
+    Result := True;
+    Exit;
+  end else
+  begin
+    Result := _TrimLeft(S, L);
+  end;
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  test ecx, ecx
+  jz @1
+  xor eax, eax
+  ret
+@1:
+  cmp byte ptr [edx], 32
+  jbe _TrimLeft
+  mov al, 1
+end;
+{$ifend}
+
+function CachedByteString._TrimLeft(S: PByte; L: NativeUInt): Boolean;
+label
+  fail;
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  TopS: PByte;
+begin  
+  TopS := @PCharArray(S)[L];
+
+  repeat
+    Inc(S);  
+    if (S = TopS) then goto fail;    
+  until (S^ > 32);
+  
+  FChars := Pointer(S);
+  Dec(NativeUInt(TopS), NativeUInt(S));   
+  FLength := NativeUInt(TopS); 
+  Result := True;
+  Exit;
+fail:
+  L := 0;
+  FLength := L{0};  
+  Result := False; 
+end;
+
+function CachedByteString.TrimRight: Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+  S: PByte;
+begin
+  L := Length;
+  S := Pointer(FChars);
+  if (L = 0) then
+  begin
+    Result := False;
+    Exit;
+  end else
+  begin
+    Dec(L);
+    if (PCharArray(S)[L] > 32) then
+    begin
+      Result := True;
+      Exit;
+    end else
+    begin
+      Result := _TrimRight(S, L);
+    end;
+  end;
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  sub ecx, 1
+  jge @1
+  xor eax, eax
+  ret
+@1:    
+  cmp byte ptr [edx + ecx], 32
+  jbe _TrimRight
+  mov al, 1
+end;
+{$ifend}
+
+function CachedByteString._TrimRight(S: PByte; H: NativeUInt): Boolean;
+label
+  fail;
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  TopS: PByte;
+begin  
+  TopS := @PCharArray(S)[H];
+  
+  Dec(S);
+  repeat
+    Dec(TopS);  
+    if (S = TopS) then goto fail;    
+  until (TopS^ > 32);
+
+  Dec(NativeUInt(TopS), NativeUInt(S));   
+  FLength := NativeUInt(TopS);
+  Result := True;
+  Exit;
+fail:
+  H := 0;
+  FLength := H{0};  
+  Result := False; 
+end;
+
+function CachedByteString.Trim: Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+  S: PByte;
+begin
+  L := Length;
+  S := Pointer(FChars);
+  if (L = 0) then
+  begin
+    Result := False;
+    Exit;
+  end else
+  begin
+    Dec(L);
+    if (PCharArray(S)[L] > 32) then
+    begin
+      // TrimLeft or True
+      if (S^ > 32) then
+      begin
+        Result := True;
+        Exit;
+      end else
+      begin
+        Result := _TrimLeft(S, L+1);
+        Exit;
+      end;
+    end else
+    begin
+      // TrimRight or Trim
+      if (S^ > 32) then
+      begin
+        Result := _TrimRight(S, L);
+        Exit;
+      end else
+      begin
+        Result := _Trim(S, L);
+      end;
+    end;
+  end;
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  sub ecx, 1
+  jge @1
+  xor eax, eax
+  ret
+@1:
+  cmp byte ptr [edx + ecx], 32
+  jbe @2
+  // TrimLeft or True
+  inc ecx
+  cmp byte ptr [edx], 32
+  jbe _TrimLeft
+  mov al, 1
+  ret
+@2:
+  // TrimRight or Trim
+  cmp byte ptr [edx], 32
+  ja _TrimRight
+  jmp _Trim
+end;
+{$ifend}
+
+function CachedByteString._Trim(S: PByte; H: NativeUInt): Boolean;
+label
+  fail;
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  TopS: PByte;
+begin  
+  if (H = 0) then goto fail;  
+  TopS := @PCharArray(S)[H];      
+
+  // TrimLeft
+  repeat
+    Inc(S);  
+    if (S = TopS) then goto fail;    
+  until (S^ > 32);  
+  FChars := Pointer(S);
+
+  // TrimRight
+  Dec(S);
+  repeat
+    Dec(TopS);  
+  until (TopS^ > 32);    
+  
+  // Result
+  Dec(NativeUInt(TopS), NativeUInt(S));   
+  FLength := NativeUInt(TopS); 
+  Result := True;
+  Exit;
+fail:
+  H := 0;
+  FLength := H{0};  
+  Result := False; 
+end;
+
+function CachedByteString.SubString(const From, Count: NativeUInt): CachedByteString;
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+begin
+  Result.F.NativeFlags := Self.F.NativeFlags;
+  Result.FChars := Pointer(@PCharArray(Self.FChars)[From]);
+
+  L := Self.FLength;
+  Dec(L, From);
+  if (NativeInt(L) <= 0) then
+  begin
+    Result.FLength := 0;
+    Exit;
+  end; 
+
+  if (L < Count) then
+  begin
+    Result.FLength := L;
+  end else
+  begin
+    Result.FLength := Count;
+  end;
+end;
+
+function CachedByteString.SubString(const Count: NativeUInt): CachedByteString;
+var
+  L: NativeUInt;
+begin
+  Result.FChars := Self.FChars;
+  Result.F.NativeFlags := Self.F.NativeFlags;
+  L := Self.FLength;
+  if (L < Count) then
+  begin
+    Result.FLength := L;
+  end else
+  begin
+    Result.FLength := Count;
+  end;
+end;
+
+function CachedByteString.Offset(const Count: NativeUInt): Boolean;
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+begin
+  L := FLength;
+  if (L <= Count) then
+  begin
+    FChars := Pointer(@PCharArray(FChars)[L]);
+    FLength := 0;
+    Result := False;
+  end else
+  begin
+    Dec(L, Count);
+    FLength := L;
+    FChars := Pointer(@PCharArray(FChars)[Count]);
+    Result := True;
+  end;
+end;
+
+function CachedByteString.Hash: Cardinal;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+var
+  L, L_High: NativeUInt;
+  P: PByte;
+  V: Cardinal;
+begin
+  L := FLength;
+  P := Pointer(FChars);
+
+  Result := L;
+  if (L = 0) then Exit;
+
+  L_High := (L shl (32-9));
+  if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
+  if (L >= CHARS_IN_CARDINAL) then
+  repeat
+    // Result := (Result shr 5) xor (P^ + Result);
+    // Dec(L);/Inc(P);
+    V := Result shr 5;
+    Dec(L, CHARS_IN_CARDINAL);
+    Inc(Result, PCardinal(P)^);
+    Inc(P, CHARS_IN_CARDINAL);
+    Result := Result xor V;
+  until (L < CHARS_IN_CARDINAL);
+
+  if (L and 2 <> 0) then
+  begin
+    Inc(Result, PWord(P)^);
+    V := Result shr 5;
+    Inc(P, 2);
+    Result := Result xor V;
+  end;
+
+  if (L and 1 <> 0) then
+  begin
+    V := Result shr 5;
+    Inc(Result, P^);
+    Result := Result xor V;
+  end;
+
+  Result := (Result and (-1 shr 9)) + (L_High);
+end;
+
+function CachedByteString.HashIgnoreCase: Cardinal;
+{$ifNdef CPUINTEL}
+var
+  NF: NativeUInt;
+begin
+  NF := F.NativeFlags;
+
+  if (NF and 1 <> 0) then Result := _HashIgnoreCaseAscii
+  else
+  if (NF < (1 shl 24)) then Result := _HashIgnoreCaseUTF8
+  else
+  Result := _HashIgnoreCase(NF);
+end;
+{$else}
+asm
+  {$ifdef CPUX86}
+  mov edx, [EAX].F.Flags
+  {$else .CPUX64}
+  mov edx, [RCX].F.Flags
+  {$endif}
+  test edx, 1
+  jnz _HashIgnoreCaseAscii
+  cmp edx, $01000000
+  jb _HashIgnoreCaseUTF8
+  jmp _HashIgnoreCase
+end;
+{$endif}
+
+function CachedByteString._HashIgnoreCaseAscii: Cardinal;
+label
+  include_x;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+var
+  L, L_High: NativeUInt;
+  P: PByte;
+  X, V: Cardinal;
+begin
+  L := FLength;
+  P := Pointer(FChars);
+
+  Result := L;
+  if (L = 0) then Exit;
+
+  L_High := (L shl (32-9));
+  if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
+  if (L >= CHARS_IN_CARDINAL) then
+  repeat
+    // Result := (Result shr 5) xor (Lower(P^) + Result);
+    // Dec(L);/Inc(P);
+    X := PCardinal(P)^;
+  include_x:
+    X := X or ((X and $40404040) shr 1);
+    Dec(L, CHARS_IN_CARDINAL);
+    V := Result shr 5;
+    Inc(Result, X);
+    Inc(P, CHARS_IN_CARDINAL);
+    Result := Result xor V;
+  until (L < CHARS_IN_CARDINAL);
+
+  if (L <> 0) then
+  begin
+    case L of
+      1:
+      begin
+        X := P^;
+        Inc(L, 3);
+        goto include_x;
+      end;
+      2:
+      begin
+        X := PWord(P)^;
+        Inc(L, 2);
+        goto include_x;
+      end;
+    else
+      X := PWord(P)^;
+      Inc(P, 2);
+      X := X or P^;
+      Inc(L);
+      goto include_x;
+    end;
+  end;
+
+  Result := (Result and (-1 shr 9)) + (L_High);
+end;
+
+function CachedByteString._HashIgnoreCaseUTF8: Cardinal;
+label
+  include_x;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+  MASKS: array[1..3] of Cardinal = ($ffffff, $ffff, $ff);
+var
+  L: NativeUInt;
+  P: PByte;
+  X, V: Cardinal;
+  N: NativeUInt;
+  {$ifdef CPUX86}
+  S: record
+    L_High: NativeUInt;
+  end;
+  {$else}
+  L_High: NativeUInt;
+  {$endif}
+  lookup_utf16_lower: PUniConvWW;
+begin
+  L := FLength;
+  P := Pointer(FChars);
+
+  Result := L;
+  if (L = 0) then Exit;
+
+  V := L shl (32-9);
+  if (L > 255) then V := NativeInt(V) or (1 shl 31);
+  {$ifdef CPUX86}S.{$endif}L_High := V;
+
+  lookup_utf16_lower := Pointer(@UNICONV_CHARCASE.LOWER);
+  Result := L;
+  if (L >= CHARS_IN_CARDINAL) then
+  repeat
+    // Result := (Result shr 5) xor (Lower(P^) + Result);
+    // Dec(L);/Inc(P);
+    X := PCardinal(P)^;
+  include_x:
+    Dec(L, CHARS_IN_CARDINAL);
+    Inc(P, CHARS_IN_CARDINAL);
+    if (X and $80 <> 0) then
+    begin
+      case UNICONV_UTF8_SIZE[Byte(X)] of
+        2: begin
+             // X := ((X and $1F) shl 6) or ((X shr 8) and $3F);
+             V := X;
+             X := X and $1F;
+             V := V shr 8;
+             X := X shl 6;
+             V := V and $3F;
+             Inc(L, 2);
+             Inc(X, V);
+             Dec(P, 2);
+             X := lookup_utf16_lower[X];
+           end;
+        3: begin
+             // X := ((X & 0x0f) << 12) | ((X & 0x3f00) >> 2) | ((X >> 16) & 0x3f);
+             V := (X and $0F) shl 12;
+             V := V + (X shr 16) and $3F;
+             X := (X and $3F00) shr 2;
+             Inc(L);
+             Inc(X, V);
+             Dec(P);
+             X := lookup_utf16_lower[X];
+           end;
+        4: begin
+             // X := (X&07)<<18 | (X&3f00)<<4 | (X>>10)&0fc0 | (X>>24)&3f;
+             V := (X and $07) shl 18;
+             V := V + (X and $3f00) shl 4;
+             V := V + (X shr 10) and $0fc0;
+             X := (X shr 24) and $3f;
+             Inc(X, V);
+           end;
+      else
+        // fail UTF8 character
+        Inc(L, 3);
+        Dec(P, 3);
+        X := Byte(X);
+      end;
+    end else
+    begin
+      if (X and Integer($80808080) <> 0) then
+      begin
+        N := (4-1) - (Byte(X and $8000 = 0) + Byte(X and $808000 = 0));
+
+        X := X and MASKS[N];
+        Inc(L, N);
+        Dec(P, N);
+      end;
+
+      X := X or ((X and $40404040) shr 1);
+    end;
+
+    V := Result shr 5;
+    Inc(Result, X);
+    Result := Result xor V;
+  until (NativeInt(L) < CHARS_IN_CARDINAL);
+
+  if (NativeInt(L) > 0) then
+  begin
+    case L of
+      1:
+      begin
+        X := P^;
+        goto include_x;
+      end;
+      2:
+      begin
+        X := PWord(P)^;
+        goto include_x;
+      end;
+    else
+      X := PWord(P)^;
+      Inc(P, 2);
+      X := X or P^;
+      goto include_x;
+    end;
+  end;
+
+  Result := (Result and (-1 shr 9)) + {$ifdef CPUX86}S.{$endif}L_High;
+end;
+
+
+function CachedByteString._HashIgnoreCase(NF: NativeUInt): Cardinal;
+label
+  include_x;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+  MASKS: array[1..3] of Cardinal = ($ffffff, $ffff, $ff);
+var
+  L: NativeUInt;
+  P: PByte;
+  X, V: Cardinal;
+  N: NativeUInt;
+  {$ifdef CPUX86}
+  S: record
+    L_High: NativeUInt;
+  end;
+  {$else}
+  L_High: NativeUInt;
+  {$endif}
+  SBCSLookup: PUniConvSBCSEx;
+  Lower: PUniConvWB;
+begin
+  L := FLength;
+  P := Pointer(FChars);
+  NF := NF shr 24;
+
+  if (L = 0) then
+  begin
+    Result := 0;
+    Exit;
+  end;
+
+  // SBCSLookup := Pointer(@uniconv_lookup_sbcs[NF]);
+  {$ifdef CPUX86}
+    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs);
+    Inc(SBCSLookup, NF-1);
+  {$else}
+    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs[NF]);
+  {$endif}
+  // Lower := inline SBCSLookup.GetLowerCaseUCS2;
+  Lower := Pointer(SBCSLookup.FUCS2.Lower);
+  if (Lower = nil) then Lower := Pointer(SBCSLookup.AllocFillUCS2(SBCSLookup.FUCS2.Lower, ccLower));
+
+  V := L shl (32-9);
+  if (L > 255) then V := NativeInt(V) or (1 shl 31);
+  {$ifdef CPUX86}S.{$endif}L_High := V;
+
+  Result := L;
+  if (L >= CHARS_IN_CARDINAL) then
+  repeat
+    // Result := (Result shr 5) xor (Lower(P^) + Result);
+    // Dec(L);/Inc(P);
+    X := PCardinal(P)^;
+  include_x:
+    Dec(L, CHARS_IN_CARDINAL);
+    Inc(P, CHARS_IN_CARDINAL);
+    if (X and $80 <> 0) then
+    begin
+      X := Lower[X];
+      Inc(L, CHARS_IN_CARDINAL-1);
+      Dec(P, CHARS_IN_CARDINAL-1);
+    end else
+    begin
+      if (X and Integer($80808080) <> 0) then
+      begin
+        N := (4-1) - (Byte(X and $8000 = 0) + Byte(X and $808000 = 0));
+
+        X := X and MASKS[N];
+        Inc(L, N);
+        Dec(P, N);
+      end;
+
+      X := X or ((X and $40404040) shr 1);
+    end;
+
+    V := Result shr 5;
+    Inc(Result, X);
+    Result := Result xor V;
+  until (NativeInt(L) < CHARS_IN_CARDINAL);
+
+  if (NativeInt(L) > 0) then
+  begin
+    case L of
+      1:
+      begin
+        X := P^;
+        goto include_x;
+      end;
+      2:
+      begin
+        X := PWord(P)^;
+        goto include_x;
+      end;
+    else
+      X := PWord(P)^;
+      Inc(P, 2);
+      X := X or P^;
+      goto include_x;
+    end;
+  end;
+
+  Result := (Result and (-1 shr 9)) + {$ifdef CPUX86}S.{$endif}L_High;
+end;
+
+function CachedByteString.CharPos(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function CachedByteString.CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function CachedByteString.Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function CachedByteString.Pos(const S: AnsiString; const From: NativeUInt = 0): NativeInt;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+type
+  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
+  PLength = ^TLength;
+begin
+  if (Pointer(S) = nil) then Result := -1
+  else
+  Result := Pos(Pointer(S), PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^, From);
+end;
+{$else}
+asm
+  test edx, edx
+  jz @1
+  push [esp]
+  mov [esp+4], ecx
+  mov ecx, [edx-4]
+  jmp Pos
+@1:
+  mov eax, -1
+  ret
+end;
+{$ifend}
+
+function CachedByteString.PosIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function CachedByteString.PosIgnoreCase(const S: AnsiString; const From: NativeUInt = 0): NativeInt;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+type
+  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
+  PLength = ^TLength;
+begin
+  if (Pointer(S) = nil) then Result := -1
+  else
+  Result := PosIgnoreCase(Pointer(S), PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^, From);
+end;
+{$else}
+asm
+  test edx, edx
+  jz @1
+  push [esp]
+  mov [esp+4], ecx
+  mov ecx, [edx-4]
+  jmp PosIgnoreCase
+@1:
+  mov eax, -1
+  ret
+end;
+{$ifend}
+
+function CachedByteString.TryToBoolean(out Value: Boolean): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  sub eax, esp
+  call _GetBool
+  pop edx
+  pop ecx
+  mov [ecx], al
+  xchg eax, edx
+end;
+{$ifend}
+
+function CachedByteString.ToBooleanDef(const Default: Boolean): Boolean;
+begin
+  Result := PCachedByteString(@Default)._GetBool(Pointer(Chars), Length);
+end;
+
+function CachedByteString.ToBoolean: Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetBool(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  jmp _GetBool
+end;
+{$ifend}
+
+function CachedByteString._GetBool(S: PByte; L: NativeUInt): Boolean;
+label
+  fail;
+type
+  TStrAsData = packed record
+  case Integer of
+    0: (Bytes: array[0..High(Integer) - 1] of Byte);
+    1: (Words: array[0..High(Integer) div 2 - 1] of Word);
+    2: (Dwords: array[0..High(Integer) div 4 - 1] of Cardinal);
+  end;
+var
+  Marker: NativeInt;
+  Buffer: CachedByteString;
+begin
+  Buffer.Chars := Pointer(S);
+  Buffer.Length := L;
+
+  with TStrAsData(Pointer(Buffer.Chars)^) do
+  case L of
+   1: case (Bytes[0]) of
+        $30:
+        begin
+          // "0"
+          Result := False;
+          Exit;
+        end;
+        $31:
+        begin
+          // "1"
+          Result := True;
+          Exit;
+        end;
+      end;
+   2: if (Words[0] or $2020 = $6F6E) then
+      begin
+        // "no"
+        Result := False;
+        Exit;
+      end;
+   3: if (Words[0] + Bytes[2] shl 16 or $202020 = $736579) then
+      begin
+        // "yes"
+        Result := True;
+        Exit;
+      end;
+   4: if (Dwords[0] or $20202020 = $65757274) then
+      begin
+        // "true"
+        Result := True;
+        Exit;
+      end;
+   5: if (Dwords[0] or $20202020 = $736C6166) and (Bytes[4] or $20 = $65) then
+      begin
+        // "false"
+        Result := False;
+        Exit;
+      end;
+  end;
+
+fail:
+  Marker := NativeInt(@Self);
+  if (Marker = 0) then
+  begin
+    Buffer.Flags := 0;
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidBoolean), @Buffer);
+  end else
+  if (Marker > 0) then
+  begin
+    Result := PBoolean(Marker)^;
+  end else
+  begin
+    PBoolean(-Marker)^ := False;
+    Result := False;
+  end;
+end;
+
+function CachedByteString.TryToHex(out Value: Integer): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  sub eax, esp
+  call _GetHex
+  pop edx
+  pop ecx
+  mov [ecx], eax
+  xchg eax, edx
+end;
+{$ifend}
+
+function CachedByteString.ToHexDef(const Default: Integer): Integer;
+begin
+  Result := PCachedByteString(@Default)._GetHex(Pointer(Chars), Length);
+end;
+
+function CachedByteString.ToHex: Integer;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetHex(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  jmp _GetHex
+end;
+{$ifend}
+
+function CachedByteString._GetHex(S: PByte; L: NativeInt): Integer;
+label
+  fail, zero;
+var
+  Buffer: CachedByteString;
+  X: NativeUInt;
+  Marker: NativeInt;
+begin
+  Buffer.F.NativeFlags := NativeUInt(@Self);
+  Buffer.Chars := Pointer(S);
+
+  X := S^;
+  if (X = Ord('0')) then
+  repeat
+    Inc(S);
+    if (L = 1) then goto zero;
+    X := S^;
+    Dec(L);
+  until (X <> Ord('0'));
+
+  if (L > 2*SizeOf(Result)) then goto fail;
+  Result := 0;
+
+  repeat
+    X := S^;
+    Dec(L);
+    Inc(S);
+    if (X >= Ord('A')) then
+    begin
+      X := X or $20;
+      Dec(X, Ord('a') - 10);
+      Result := Result shl 4;
+      if (X >= 16) then goto fail;
+    end else
+    begin
+      Dec(X, Ord('0'));
+      Result := Result shl 4;
+      if (X >= 10) then goto fail;
+    end;
+
+    Inc(Result, X);
+  until (L = 0);
+
+  Exit;
+fail:
+  Marker := Buffer.F.NativeFlags;
+  if (Marker = 0) then
+  begin
+    //Buffer.Flags := 0;
+    raise ECachedString.Create(Pointer(@SInvalidHex), @Buffer);
+  end else
+  if (Marker > 0) then
+  begin
+    Result := PInteger(Marker)^;
+  end else
+  begin
+    PBoolean(-Marker)^ := False;
+  zero:
+    Result := 0;
+  end;
+end;
+
+function CachedByteString.TryToCardinal(out Value: Cardinal): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  sub eax, esp
+  call _GetInt
+  pop edx
+  pop ecx
+  mov [ecx], eax
+  xchg eax, edx
+end;
+{$ifend}
+
+function CachedByteString.ToCardinalDef(const Default: Cardinal): Cardinal;
+begin
+  Result := PCachedByteString(@Default)._GetInt(Pointer(Chars), Length);
+end;
+
+function CachedByteString.ToCardinal: Cardinal;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetInt(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  jmp _GetInt
+end;
+{$ifend}
+
+function CachedByteString.TryToInteger(out Value: Integer): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  neg ecx
+  sub eax, esp
+  call _GetInt
+  pop edx
+  pop ecx
+  mov [ecx], eax
+  xchg eax, edx
+end;
+{$ifend}
+
+function CachedByteString.ToIntegerDef(const Default: Integer): Integer;
+begin
+  Result := PCachedByteString(@Default)._GetInt(Pointer(Chars), -Length);
+end;
+
+function CachedByteString.ToInteger: Integer;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetInt(Pointer(Chars), -Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  neg ecx
+  xor eax, eax
+  jmp _GetInt
+end;
+{$ifend}
+
+function CachedByteString._GetInt(S: PByte; L: NativeInt): Integer;
+label
+  skipsign, hex, fail, zero;
+var
+  Buffer: CachedByteString;
+  HexRet: record
+    Value: Integer;
+  end;    
+  X: NativeUInt;
+  Marker: NativeInt;
+begin
+  Buffer.F.NativeFlags := NativeUInt(@Self);
+  Buffer.Chars := Pointer(S);
+  Marker := 0;
+  if (L >= 0) then
+  begin
+    if (L = 0) then goto fail;
+  end else
+  begin
+    L := -L;
+    Inc(Marker);
+  end;
+
+  X := S^;
+  Buffer.Length := L;
+  if (X <= Ord('-')) then
+  case X of
+    Ord('-'):
+    begin
+      Marker := Marker or 4;
+      goto skipsign;
+    end;
+    Ord('+'):
+    begin
+    skipsign:
+      Inc(S);
+      if (L = 1) then goto fail;
+      X := S^;
+      Dec(L);
+    end;
+  end;
+
+  case X of
+    Ord('0'):
+    begin
+      Inc(S);
+      if (L = 1) then goto zero;
+      X := S^;
+      Dec(L);
+      if (X or $20 = Ord('x')) then goto hex;
+
+      if (X = Ord('0')) then
+      repeat
+        Inc(S);
+        if (L = 1) then goto zero;
+        X := S^;
+        Dec(L);
+      until (X <> Ord('0'));
+    end;
+    Ord('$'):
+    begin
+    hex:
+      Inc(S);
+      if (L = 1) then goto fail;
+      Dec(L);
+
+      HexRet.Value := 1;
+      if (Marker and 4 = 0) then
+      begin
+        Result := PCachedByteString(-NativeInt(@HexRet))._GetHex(S, L);
+        if (HexRet.Value = 0) then goto fail;
+      end else
+      begin
+        Result := -PCachedByteString(-NativeInt(@HexRet))._GetHex(S, L);
+        if (HexRet.Value = 0) then goto fail;
+      end;
+
+      Exit;
+    end;
+  end;
+
+  if (Marker and (4 + 1) = 4) then goto fail;
+
+  if (L >= 10{high(Result)}) then
+  begin
+    Dec(L);
+    Marker := Marker or 2;
+    if (L > 10-1) then goto fail;
+  end;
+  Result := 0;
+
+  repeat
+    X := NativeUInt(S^) - Ord('0');
+    Result := Result * 10;
+    Dec(L);
+    Inc(Result, X);
+    Inc(S);
+    if (X >= 10) then goto fail;
+  until (L = 0);
+
+  if (Marker > 1) then
+  begin
+    if (Marker and 2 <> 0) then
+    begin
+      X := NativeUInt(S^) - Ord('0');
+      if (X >= 10) then goto fail;
+
+      if (Marker and 1 = 0) then
+      begin
+        case Cardinal(Result) of
+          0..High(Cardinal) div 10 - 1: ;
+          High(Cardinal) div 10:
+          begin
+            if (X > High(Cardinal) mod 10) then goto fail;
+          end;
+        else
+          goto fail;
+        end;
+      end else
+      begin
+        case Cardinal(Result) of
+          0..High(Integer) div 10 - 1: ;
+          High(Integer) div 10:
+          begin
+            if (X > (NativeUInt(Marker) shr 2) + High(Integer) mod 10) then goto fail;
+          end;
+        else
+          goto fail;
+        end;
+      end;
+
+      Result := Result * 10;
+      Inc(Result, X);
+    end;
+
+    if (Marker and 4 <> 0) then Result := -Result;
+  end;
+  Exit;
+fail:
+  Marker := Buffer.F.NativeFlags;
+  if (Marker = 0) then
+  begin
+    //Buffer.Flags := 0;
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidInteger), @Buffer);
+  end else
+  if (Marker > 0) then
+  begin
+    Result := PInteger(Marker)^;
+  end else
+  begin
+    PBoolean(-Marker)^ := False;
+  zero:
+    Result := 0;
+  end;
+end;
+
+function CachedByteString.TryToHex64(out Value: Int64): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  sub eax, esp
+  call _GetHex64
+  mov ecx, [esp+4]
+  mov [ecx], eax
+  mov [ecx+4], edx
+  mov eax, [esp]
+  add esp, 8
+end;
+{$ifend}
+
+function CachedByteString.ToHex64Def(const Default: Int64): Int64;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(@Default)._GetHex64(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  lea eax, Default
+  call _GetHex64
+end;
+{$ifend}
+
+function CachedByteString.ToHex64: Int64;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetHex64(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  jmp _GetHex64
+end;
+{$ifend}
+
+function CachedByteString._GetHex64(S: PByte; L: NativeInt): Int64;
+label
+  fail, zero;
+var
+  Buffer: CachedByteString;
+  X: NativeUInt;
+  R1, R2: NativeUInt;
+  Marker: NativeInt;
+begin
+  Buffer.F.NativeFlags := NativeUInt(@Self);
+  Buffer.Chars := Pointer(S);
+
+  X := S^;
+  if (X = Ord('0')) then
+  repeat
+    Inc(S);
+    if (L = 1) then goto zero;
+    X := S^;
+    Dec(L);
+  until (X <> Ord('0'));
+
+  if (L > 2*SizeOf(Result)) then goto fail;
+
+  R1 := 0;
+  R2 := 0;
+
+  if (L > 8) then
+  repeat
+    X := S^;
+    Dec(L);
+    Inc(S);
+    if (X >= Ord('A')) then
+    begin
+      X := X or $20;
+      Dec(X, Ord('a') - 10);
+      R2 := R2 shl 4;
+      if (X >= 16) then goto fail;
+    end else
+    begin
+      Dec(X, Ord('0'));
+      R2 := R2 shl 4;
+      if (X >= 10) then goto fail;
+    end;
+
+    Inc(R2, X);
+  until (L = 8);
+
+  repeat
+    X := S^;
+    Dec(L);
+    Inc(S);
+    if (X >= Ord('A')) then
+    begin
+      X := X or $20;
+      Dec(X, Ord('a') - 10);
+      R1 := R1 shl 4;
+      if (X >= 16) then goto fail;
+    end else
+    begin
+      Dec(X, Ord('0'));
+      R1 := R1 shl 4;
+      if (X >= 10) then goto fail;
+    end;
+
+    Inc(R1, X);
+  until (L = 0);
+
+  {$ifdef SMALLINT}
+  with PPoint(@Result)^ do
+  begin
+    X := R1;
+    Y := R2;
+  end;
+  {$else .LARGEINT}
+  Result := (R2 shl 32) + R1;
+  {$endif}
+  Exit;
+fail:
+  Marker := Buffer.F.NativeFlags;
+  if (Marker = 0) then
+  begin
+    //Buffer.Flags := 0;
+    raise ECachedString.Create(Pointer(@SInvalidHex), @Buffer);
+  end else
+  if (Marker > 0) then
+  begin
+    Result := PInt64(Marker)^;
+  end else
+  begin
+    PBoolean(-Marker)^ := False;
+  zero:
+    Result := 0;
+  end;
+end;
+
+function CachedByteString.TryToUInt64(out Value: UInt64): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  sub eax, esp
+  call _GetInt64
+  mov ecx, [esp+4]
+  mov [ecx], eax
+  mov [ecx+4], edx
+  mov eax, [esp]
+  add esp, 8
+end;
+{$ifend}
+
+function CachedByteString.ToUInt64Def(const Default: UInt64): UInt64;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(@Default)._GetInt64(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  lea eax, Default
+  call _GetInt64
+end;
+{$ifend}
+
+function CachedByteString.ToUInt64: UInt64;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetInt64(Pointer(Chars), Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  jmp _GetInt64
+end;
+{$ifend}
+
+function CachedByteString.TryToInt64(out Value: Int64): Boolean;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
+end;
+{$else .CPUX86}
+asm
+  push edx
+  push 1
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  xor eax, eax
+  neg ecx
+  sub eax, esp
+  call _GetInt64
+  mov ecx, [esp+4]
+  mov [ecx], eax
+  mov [ecx+4], edx
+  mov eax, [esp]
+  add esp, 8
+end;
+{$ifend}
+
+function CachedByteString.ToInt64Def(const Default: Int64): Int64;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(@Default)._GetInt64(Pointer(Chars), -Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  neg ecx
+  lea eax, Default
+  call _GetInt64
+end;
+{$ifend}
+
+function CachedByteString.ToInt64: Int64;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := PCachedByteString(0)._GetInt64(Pointer(Chars), -Length);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, [EAX].FLength
+  mov edx, [EAX].FChars
+  neg ecx
+  xor eax, eax
+  jmp _GetInt64
+end;
+{$ifend}
+
+function CachedByteString._GetInt64(S: PByte; L: NativeInt): Int64;
+label
+  skipsign, hex, fail, zero;
+var
+  Buffer: CachedByteString;
+  HexRet: record
+    Value: Integer;
+  end;  
+  X: NativeUInt;
+  Marker: NativeInt;
+  R1, R2: Integer;
+begin
+  Buffer.F.NativeFlags := NativeUInt(@Self);
+  Buffer.Chars := Pointer(S);
+  Marker := 0;
+  if (L >= 0) then
+  begin
+    if (L = 0) then goto fail;
+  end else
+  begin
+    L := -L;
+    Inc(Marker);
+  end;
+
+  X := S^;
+  Buffer.Length := L;
+  if (X <= Ord('-')) then
+  case X of
+    Ord('-'):
+    begin
+      Marker := Marker or 4;
+      goto skipsign;
+    end;
+    Ord('+'):
+    begin
+    skipsign:
+      Inc(S);
+      if (L = 1) then goto fail;
+      X := S^;
+      Dec(L);
+    end;
+  end;
+
+  case X of
+    Ord('0'):
+    begin
+      Inc(S);
+      if (L = 1) then goto zero;
+      X := S^;
+      Dec(L);
+      if (X or $20 = Ord('x')) then goto hex;
+
+      if (X = Ord('0')) then
+      repeat
+        Inc(S);
+        if (L = 1) then goto zero;
+        X := S^;
+        Dec(L);
+      until (X <> Ord('0'));
+    end;
+    Ord('$'):
+    begin
+    hex:
+      Inc(S);
+      if (L = 1) then goto fail;
+      Dec(L);
+
+      HexRet.Value := 1;
+      if (Marker and 4 = 0) then
+      begin
+        Result := PCachedByteString(-NativeInt(@HexRet))._GetHex64(S, L);
+        if (HexRet.Value = 0) then goto fail;
+      end else
+      begin
+        Result := -PCachedByteString(-NativeInt(@HexRet))._GetHex64(S, L);
+        if (HexRet.Value = 0) then goto fail;
+      end;
+
+      Exit;
+    end;
+  end;
+
+  if (Marker and (4 + 1) = 4) then goto fail;
+
+  if (L <= 9) then
+  begin
+    R1 := PCachedByteString(nil)._GetInt_19(S, L);
+    if (R1 < 0) then goto fail;
+
+    if (Marker and 4 <> 0) then R1 := -R1;
+    Result := R1;
+    Exit;
+  end else
+  if (L >= 19) then
+  begin
+    if (L = 19) then
+    begin
+      Marker := Marker or 2;
+      Dec(L);
+    end else
+    if (L = 20) and (Marker and 1 = 0) then
+    begin
+      Marker := Marker or (2 or 4{TEN_BB});
+      if (S^ <> $31{Ord('1')}) then goto fail;
+      Dec(L, 2);
+      Inc(S);
+    end else
+    goto fail;
+  end;
+
+  Dec(L, 9);
+  R2 := PCachedByteString(nil)._GetInt_19(S, L);
+  Inc(S, L);
+  if (R2 < 0) then goto fail;
+
+  R1 := PCachedByteString(nil)._GetInt_19(S, 9);
+  Inc(S, 9);
+  if (R1 < 0) then goto fail;
+
+  Result := Decimal64R21(R2, R1);
+
+  if (Marker > 1) then
+  begin
+    if (Marker and 2 <> 0) then
+    begin
+      X := NativeUInt(S^) - Ord('0');
+      if (X >= 10) then goto fail;
+
+      if (Marker and 1 = 0) then
+      begin
+        // UInt64
+        if (Marker and 4 = 0) then
+        begin
+          Result := Decimal64VX(Result, X);
+        end else
+        begin
+          if (Result >= _HIGHU64 div 10) then
+          begin
+            if (Result = _HIGHU64 div 10) then
+            begin
+              if (X > NativeUInt(_HIGHU64 mod 10)) then goto fail;
+            end else
+            begin
+              goto fail;
+            end;
+          end;
+
+          Result := Decimal64VX(Result, X);
+          Inc(Result, TEN_BB);
+        end;
+
+        Exit;
+      end else
+      begin
+        // Int64
+        if (Result >= High(Int64) div 10) then
+        begin
+          if (Result = High(Int64) div 10) then
+          begin
+            if (X > (NativeUInt(Marker) shr 2) + NativeUInt(High(Int64) mod 10)) then goto fail;
+          end else
+          begin
+            goto fail;
+          end;
+        end;
+
+        Result := Decimal64VX(Result, X);
+      end;
+    end;
+
+    if (Marker and 4 <> 0) then Result := -Result;
+  end;
+  Exit;
+fail:
+  Marker := Buffer.F.NativeFlags;
+  if (Marker = 0) then
+  begin
+    //Buffer.Flags := 0;
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidInteger), @Buffer);
+  end else
+  if (Marker > 0) then
+  begin
+    Result := PInt64(Marker)^;
+  end else
+  begin
+    PBoolean(-Marker)^ := False;
+  zero:
+    Result := 0;
+  end;
+end;
+
+function CachedByteString._GetInt_19(S: PByte; L: NativeUInt): NativeInt;
+label
+  fail, _1, _2, _3, _4, _5, _6, _7, _8, _9;
+var
+  {$ifdef CPUX86}
+  Store: record
+    _R: PNativeInt;
+    _S: PByte;
+  end;
+  {$else}
+  _S: PByte;
+  {$endif}
+  _R: PNativeInt;
+begin
+  {$ifdef CPUX86}Store.{$endif}_R := Pointer(@Self);
+  {$ifdef CPUX86}Store.{$endif}_S := S;
+
+  Result := 0;
+  case L of
+    9:
+    begin
+    _9:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      if (L >= 10) then goto fail;
+      Inc(Result, L);
+      goto _8;
+    end;
+    8:
+    begin
+    _8:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _7;
+    end;
+    7:
+    begin
+    _7:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _6;
+    end;
+    6:
+    begin
+    _6:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _5;
+    end;
+    5:
+    begin
+    _5:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _4;
+    end;
+    4:
+    begin
+    _4:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _3;
+    end;
+    3:
+    begin
+    _3:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _2;
+    end;
+    2:
+    begin
+    _2:
+      L := NativeUInt(S^) - Ord('0');
+      Inc(S);
+      Result := Result * 2;
+      if (L >= 10) then goto fail;
+      Result := Result * 5;
+      Inc(Result, L);
+      goto _1;
+    end
+  else
+  _1:
+    L := NativeUInt(S^) - Ord('0');
+    Inc(S);
+    Result := Result * 2;
+    if (L >= 10) then goto fail;
+    Result := Result * 5;
+    Inc(Result, L);
+    Exit;
+  end;
+
+fail:
+  {$ifdef CPUX86}
+  _R := Store._R;
+  {$endif}
+  Result := Result shr 1;
+  if (_R <> nil) then _R^ := Result;
+
+  Result := NativeInt({$ifdef CPUX86}Store.{$endif}_S);
+  Dec(Result, NativeInt(S));
+end;
+
+function CachedByteString.TryToFloat(out Value: Single): Boolean;
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+end;
+
+function CachedByteString.TryToFloat(out Value: Double): Boolean;
+begin
+  Result := True;
+  Value := PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+end;
+
+function CachedByteString.TryToFloat(out Value: TExtended80Rec): Boolean;
+begin
+  Result := True;
+  {$if SizeOf(Extended) = 10}
+    PExtended(@Value)^ := PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+  {$else}
+    Value := TExtended80Rec(PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
+  {$ifend}
+end;
+
+function CachedByteString.ToFloatDef(const Default: Extended): Extended;
+begin
+  Result := PCachedByteString(@Default)._GetFloat(Pointer(Chars), Length);
+end;
+
+function CachedByteString.ToFloat: Extended;
+begin
+  Result := PCachedByteString(0)._GetFloat(Pointer(Chars), Length);
+end;
+
+function CachedByteString._GetFloat(S: PByte; L: NativeUInt): Extended;
+label
+  skipsign, frac, exp, skipexpsign, done, fail, zero;
+var
+  Buffer: CachedByteString;
+  Store: record
+    V: NativeInt;
+    Sign: Byte;
+  end;
+  X: NativeUInt;
+  Marker: NativeInt;
+
+  V: NativeInt;
+  Base: Double;
+  TenPowers: PTenPowers;
+begin
+  Buffer.F.NativeFlags := NativeUInt(@Self);
+  Buffer.Chars := Pointer(S);
+  if (L = 0) then goto fail;
+
+  X := S^;
+  Buffer.Length := L;
+  Store.Sign := 0;
+  if (X <= Ord('-')) then
+  case X of
+    Ord('-'):
+    begin
+      Store.Sign := $80;
+      goto skipsign;
+    end;
+    Ord('+'):
+    begin
+    skipsign:
+      Inc(S);
+      if (L = 1) then goto fail;
+      X := S^;
+      Dec(L);
+    end;
+  end;
+
+  if (X = Ord('0')) then
+  repeat
+    Inc(S);
+    if (L = 1) then goto zero;
+    X := S^;
+    Dec(L);
+  until (X <> Ord('0'));
+
+  // integer part
+  begin
+    if (L > 9) then
+    begin
+      V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+      X := 9;
+    end else
+    begin
+      V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+      X := L;
+    end;
+
+    if (V < 0) then
+    begin
+      V := not V;
+      Result := Integer(Store.V);
+      Dec(L, V);
+      Inc(S, V);
+    end else
+    begin
+      Result := Integer(V);
+      if (X = L) then goto done;
+      Dec(L, X);
+      Inc(S, X);
+
+      repeat
+        if (L > 9) then
+        begin
+          V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+          X := 9;
+        end else
+        begin
+          V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+          X := L;
+        end;
+
+        if (V < 0) then
+        begin
+          X := not V;
+          Result := Result * TEN_POWERS[True][X] + Integer(Store.V);
+          Dec(L, X);
+          Inc(S, X);
+          break;
+        end else
+        begin
+          Result := Result * TEN_POWERS[True][X] + Integer(V);
+          if (X = L) then goto done;
+          Dec(L, X);
+          Inc(S, X);
+        end;
+      until (False);
+    end;
+  end;
+
+  case S^ of
+    Ord('.'), Ord(','): goto frac;
+    Ord('e'), Ord('E'):
+    begin
+      if (S <> Pointer(Buffer.Chars)) then goto exp;
+      goto fail;
+    end
+  else
+    goto fail;
+  end;
+
+frac:
+  if (L = 1) then goto done;
+  Inc(S);
+  Dec(L);
+
+  // frac part
+  begin
+    if (L > 9) then
+    begin
+      V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+      X := 9;
+    end else
+    begin
+      V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+      X := L;
+    end;
+
+    if (V < 0) then
+    begin
+      X := not V;
+      Result := Result + TEN_POWERS[False][X] * Integer(Store.V);
+      Dec(L, X);
+      Inc(S, X);
+    end else
+    begin
+      Result := Result + TEN_POWERS[False][X] * Integer(V);
+      if (X = L) then goto done;
+      Dec(L, X);
+      Inc(S, X);
+
+      Base := TEN_POWERS[False][9];
+      repeat
+        if (L > 9) then
+        begin
+          V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+          X := 9;
+        end else
+        begin
+          V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+          X := L;
+        end;
+
+        if (V < 0) then
+        begin
+          X := not V;
+          Result := Result + Base * TEN_POWERS[False][X] * Integer(Store.V);
+          Dec(L, X);
+          Inc(S, X);
+          break;
+        end else
+        begin
+          Base := Base * TEN_POWERS[False][X];
+          Result := Result + Base * Integer(V);
+          if (X = L) then goto done;
+          Dec(L, X);
+          Inc(S, X);
+        end;
+      until (False);
+    end;
+  end;
+
+  if (S^ or $20 <> $65{Ord('e')}) then goto fail;
+exp:
+  if (L = 1) then goto done;
+  Inc(S);
+  Dec(L);
+
+  // exponent part
+  X := S^;
+  TenPowers := @TEN_POWERS[True];
+
+  if (X <= Ord('-')) then
+  case X of
+    Ord('-'):
+    begin
+      TenPowers := @TEN_POWERS[False];
+      goto skipexpsign;
+    end;
+    Ord('+'):
+    begin
+    skipexpsign:
+      Inc(S);
+      if (L = 1) then goto done;
+      X := S^;
+      Dec(L);
+    end;
+  end;
+
+  if (X = Ord('0')) then
+  repeat
+    Inc(S);
+    if (L = 1) then goto done;
+    X := S^;
+    Dec(L);
+  until (X <> Ord('0'));
+
+  if (L > 3) then goto fail;
+  if (L = 1) then
+  begin
+    X := NativeUInt(S^) - Ord('0');
+    if (X >= 10) then goto fail;
+    Result := Result * TenPowers[X];
+  end else
+  begin
+    V := PCachedByteString(nil)._GetInt_19(S, L);
+    if (V < 0) or (V > 300) then goto fail;
+    Result := Result * TenPower(TenPowers, V);
+  end;
+done:
+  {$ifdef CPUX86}
+    Inc(PExtendedBytes(@Result)[High(TExtendedBytes)], Store.Sign);
+  {$else}
+    if (Store.Sign <> 0) then Result := -Result;
+  {$endif}
+  Exit;
+fail:
+  Marker := Buffer.F.NativeFlags;
+  if (Marker = 0) then
+  begin
+    //Buffer.Flags := 0;
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidFloat), @Buffer);
+  end else
+  if (Marker > 0) then
+  begin
+    Result := PExtended(Marker)^;
+  end else
+  begin
+    PBoolean(-Marker)^ := False;
+  zero:
+    Result := 0;
+  end;
+end;
+
+function CachedByteString.ToDateDef(const Default: TDateTime): TDateTime;
+begin
+  if (not _GetDateTime(Result, 1{Date})) then
+    Result := Default;
+end;
+
+function CachedByteString.ToDate: TDateTime;
+begin
+  if (not _GetDateTime(Result, 1{Date})) then
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
+end;
+
+function CachedByteString.TryToDate(out Value: TDateTime): Boolean;
+const
+  DT = 1{Date};
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := _GetDateTime(Value, DT);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, DT
+  jmp _GetDateTime
+end;
+{$ifend}
+
+function CachedByteString.ToTimeDef(const Default: TDateTime): TDateTime;
+begin
+  if (not _GetDateTime(Result, 2{Time})) then
+    Result := Default;
+end;
+
+function CachedByteString.ToTime: TDateTime;
+begin
+  if (not _GetDateTime(Result, 2{Time})) then
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
+end;
+
+function CachedByteString.TryToTime(out Value: TDateTime): Boolean;
+const
+  DT = 2{Time};
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := _GetDateTime(Value, DT);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, DT
+  jmp _GetDateTime
+end;
+{$ifend}
+
+function CachedByteString.ToDateTimeDef(const Default: TDateTime): TDateTime;
+begin
+  if (not _GetDateTime(Result, 3{DateTime})) then
+    Result := Default;
+end;
+
+function CachedByteString.ToDateTime: TDateTime;
+begin
+  if (not _GetDateTime(Result, 3{DateTime})) then
+    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
+end;
+
+function CachedByteString.TryToDateTime(out Value: TDateTime): Boolean;
+const
+  DT = 3{DateTime};
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  Result := _GetDateTime(Value, DT);
+end;
+{$else .CPUX86}
+asm
+  mov ecx, DT
+  jmp _GetDateTime
+end;
+{$ifend}
+
+function CachedByteString._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+label
+  fail;
+var
+  L, X: NativeUInt;
+  Dest: PByte;
+  Src: PByte;
+  Buffer: TDateTimeBuffer;
+begin
+  Buffer.Value := @Value;
+  L := Self.Length;
+  Buffer.Length := L;
+  Buffer.DT := DT;
+  if (L < DT_LEN_MIN[DT]) or (L > DT_LEN_MAX[DT]) then
+  begin
+  fail:
+    Result := False;
+    Exit;
+  end;
+
+  Src := Pointer(FChars);
+  Dest := Pointer(@Buffer.Bytes);
+  repeat
+    X := Src^;
+    Inc(Src);
+    if (X > High(DT_BYTES)) then goto fail;
+    Dest^ := DT_BYTES[X];
+    Dec(L);
+    Inc(Dest);
+  until (L = 0);
+
+  Result := CachedTexts._GetDateTime(Buffer);
+end;
+
+procedure CachedByteString.ToAnsiString(var S: AnsiString; const CodePage: Word);
 label
   copy_characters;
 var
@@ -2540,16 +4765,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -2598,7 +4823,7 @@ begin
   end;
 end;
 
-procedure CachedByteString.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedByteString.ToLowerAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -2607,16 +4832,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToLowerUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -2670,7 +4895,7 @@ begin
   end;
 end;
 
-procedure CachedByteString.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedByteString.ToUpperAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -2679,16 +4904,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUpperUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -2742,7 +4967,7 @@ begin
   end;
 end;
 
-procedure CachedByteString.ToAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedByteString.ToAnsiShortString(var S: ShortString; const CodePage: Word);
 label
   copy_characters;
 var
@@ -2754,7 +4979,7 @@ var
   Converter: Pointer;
   Context: TUniConvContextEx;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8ShortString(S);
     Exit;
@@ -2762,10 +4987,10 @@ begin
   Context.Destination := @S[1];
   Context.DestinationSize := NativeUInt(High(S));
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -2831,7 +5056,7 @@ begin
   end;
 end;
 
-procedure CachedByteString.ToLowerAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedByteString.ToLowerAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -2841,7 +5066,7 @@ var
   Converter: Pointer;
   Context: TUniConvContextEx;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToLowerUTF8ShortString(S);
     Exit;
@@ -2849,10 +5074,10 @@ begin
   Context.Destination := @S[1];
   Context.DestinationSize := NativeUInt(High(S));
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -2922,7 +5147,7 @@ begin
   end;
 end;
 
-procedure CachedByteString.ToUpperAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedByteString.ToUpperAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -2932,7 +5157,7 @@ var
   Converter: Pointer;
   Context: TUniConvContextEx;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUpperUTF8ShortString(S);
     Exit;
@@ -2940,10 +5165,10 @@ begin
   Context.Destination := @S[1];
   Context.DestinationSize := NativeUInt(High(S));
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -3668,7 +5893,7 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.GetAnsiString: AnsiString;
+function CachedByteString.ToAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToAnsiString(Result);
@@ -3684,7 +5909,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetLowerAnsiString: AnsiString;
+function CachedByteString.ToLowerAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerAnsiString(Result);
@@ -3700,7 +5925,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetUpperAnsiString: AnsiString;
+function CachedByteString.ToUpperAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperAnsiString(Result);
@@ -3716,7 +5941,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetUTF8String: UTF8String;
+function CachedByteString.ToUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToUTF8String(Result);
@@ -3727,7 +5952,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetLowerUTF8String: UTF8String;
+function CachedByteString.ToLowerUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToLowerUTF8String(Result);
@@ -3738,7 +5963,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetUpperUTF8String: UTF8String;
+function CachedByteString.ToUpperUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToUpperUTF8String(Result);
@@ -3749,7 +5974,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetWideString: WideString;
+function CachedByteString.ToWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToWideString(Result);
@@ -3760,7 +5985,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetLowerWideString: WideString;
+function CachedByteString.ToLowerWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerWideString(Result);
@@ -3771,7 +5996,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetUpperWideString: WideString;
+function CachedByteString.ToUpperWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperWideString(Result);
@@ -3783,7 +6008,7 @@ end;
 {$endif}
 
 {$ifdef UNICODE}
-function CachedByteString.GetUnicodeString: UnicodeString;
+function CachedByteString.ToUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToUnicodeString(Result);
@@ -3794,7 +6019,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetLowerUnicodeString: UnicodeString;
+function CachedByteString.ToLowerUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerUnicodeString(Result);
@@ -3805,7 +6030,7 @@ asm
 end;
 {$endif}
 
-function CachedByteString.GetUpperUnicodeString: UnicodeString;
+function CachedByteString.ToUpperUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperUnicodeString(Result);
@@ -3815,6 +6040,54 @@ asm
   jmp ToUpperUnicodeString
 end;
 {$endif}
+{$endif}
+
+function CachedByteString.ToString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToAnsiString
+  {$endif}
+end;
+{$endif}
+
+function CachedByteString.ToLowerString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToLowerUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToLowerAnsiString
+  {$endif}
+end;
+{$endif}
+
+function CachedByteString.ToUpperString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToUpperUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToUpperAnsiString
+  {$endif}
+end;
 {$endif}
 
 {$ifdef OPERATORSUPPORT}
@@ -3871,126 +6144,82 @@ end;
 {$endif}
 
 
-procedure CachedByteString.Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CP: Word{$endif});
-var
-  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
-  {$ifdef INTERNALCODEPAGE}
-  CP: Word;
-  {$endif}
+{ CachedUTF16String }
+
+function CachedUTF16String.GetEmpty: Boolean;
 begin
-  P := Pointer(S);
-  Self.FChars := Pointer(P);
-  if (P = nil) then
+  Result := (Length <> 0);
+end;
+
+procedure CachedUTF16String.SetEmpty(Value: Boolean);
+var
+  V: NativeUInt;
+begin
+  if (Value) then
   begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
-  end else
-  begin
-    Dec(P);
-    Self.FLength := P^;
-    {$ifdef INTERNALCODEPAGE}
-    Dec(P, 2);
-    CP := PWord(P)^;
-    {$endif}
-    if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
-    begin
-      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
-    end else
-    begin
-      Self.Flags := $ff000000;
-      if (CP <> CODEPAGE_UTF8) then SetCodePage(CP);
-    end;
+    V := 0;
+    FLength := V;
+    F.NativeFlags := V;
   end;
 end;
 
-procedure CachedByteString.Assign(const S: UTF8String);
+procedure CachedUTF16String.Assign(const S: WideString);
 var
   P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
 begin
   P := Pointer(S);
   Self.FChars := Pointer(P);
+  Self.F.NativeFlags := 0;
   if (P = nil) then
   begin
     Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
+  end else
+  begin
+    Dec(P);
+    Self.FLength := P^{$ifdef WIDE_STR_SHIFT} shr 1{$endif};
+  end;
+end;
+
+{$ifdef UNICODE}
+procedure CachedUTF16String.Assign(const S: UnicodeString);
+var
+  P: PInteger;
+begin
+  P := Pointer(S);
+  Self.FChars := Pointer(P);
+  Self.F.NativeFlags := 0;
+  if (P = nil) then
+  begin
+    Self.FLength := NativeUInt(P){0};
   end else
   begin
     Dec(P);
     Self.FLength := P^;
-    Self.Flags := $ff000000;
   end;
 end;
+{$endif}
 
-procedure CachedByteString.Assign(const S: ShortString; const CP: Word);
-var
-  L: NativeUInt;
-begin
-  L := PByte(@S)^;
-  Self.FLength := L;
-  if (L = 0) then
-  begin
-    Self.FChars := Pointer(L){nil};
-    Self.F.NativeFlags := L{0};
-  end else
-  begin
-    Self.FChars := Pointer(@S[1]);
-    if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
-    begin
-      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
-    end else
-    begin
-      Self.Flags := $ff000000;
-      if (CP <> CODEPAGE_UTF8) then SetCodePage(CP);
-    end;
-  end;
-end;
-
-procedure CachedByteString.Assign(const S: TBytes; const CP: Word);
-var
-  P: PNativeInt;
-begin
-  P := Pointer(S);
-  Self.FChars := Pointer(P);
-  if (P = nil) then
-  begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
-  end else
-  begin
-    Dec(P);
-    Self.FLength := P^{$ifdef FPC}+1{$endif};
-    if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
-    begin
-      Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
-    end else
-    begin
-      Self.Flags := $ff000000;
-      if (CP <> CODEPAGE_UTF8) then SetCodePage(CP);
-    end;
-  end;
-end;
-
-function CachedByteString.DetectAscii: Boolean;
+function CachedUTF16String.DetermineAscii: Boolean;
 label
   fail;
 const
-  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Byte);  
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);  
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Word);  
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);  
 var
-  P: PByte;
+  P: PWord;
   L: NativeUInt;
   {$ifdef CPUMANYREGS}
   MASK: NativeUInt;
   {$else}
 const
-  MASK = not NativeUInt($7f7f7f7f);
+  MASK = not NativeUInt($007f007f);
   {$endif}  
 begin
   P := Pointer(FChars);
   L := FLength;
-  
+         
   {$ifdef CPUMANYREGS}
-  MASK := not NativeUInt({$ifdef LARGEINT}$7f7f7f7f7f7f7f7f{$else}$7f7f7f7f{$endif});
+  MASK := not NativeUInt({$ifdef LARGEINT}$007f007f007f007f{$else}$007f007f{$endif});
   {$endif}    
   
   while (L >= CHARS_IN_NATIVE) do  
@@ -4003,16 +6232,10 @@ begin
   if (L >= CHARS_IN_CARDINAL) then
   begin
     if (PCardinal(P)^ and MASK <> 0) then goto fail; 
-    Dec(L, CHARS_IN_CARDINAL);
+    // Dec(L, CHARS_IN_CARDINAL);
     Inc(P, CHARS_IN_CARDINAL);    
   end;
   {$endif}
-  if (L >= 2) then
-  begin
-    if (PWord(P)^ and Word(not $7f7f) <> 0) then goto fail; 
-    // Dec(L, 2);
-    Inc(P, 2);      
-  end;
   if (L and 1 <> 0) and (P^ > $7f) then goto fail;
   
   Ascii := True;
@@ -4023,11 +6246,11 @@ fail:
   Result := False;  
 end;
 
-function CachedByteString.LTrim: Boolean;
+function CachedUTF16String.TrimLeft: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 var
   L: NativeUInt;
-  S: PByte;
+  S: PWord;
 begin
   L := Length;
   S := Pointer(FChars);
@@ -4042,7 +6265,7 @@ begin
     Exit;
   end else
   begin
-    Result := _LTrim(S, L);
+    Result := _TrimLeft(S, L);
   end;
 end;
 {$else .CPUX86}
@@ -4054,20 +6277,20 @@ asm
   xor eax, eax
   ret
 @1:
-  cmp byte ptr [edx], 32
-  jbe _LTrim
+  cmp word ptr [edx], 32
+  jbe _TrimLeft
   mov al, 1
 end;
 {$ifend}
 
-function CachedByteString._LTrim(S: PByte; L: NativeUInt): Boolean;
+function CachedUTF16String._TrimLeft(S: PWord; L: NativeUInt): Boolean;
 label
   fail;
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
-  TopS: PByte;
+  TopS: PWord;
 begin  
   TopS := @PCharArray(S)[L];
 
@@ -4078,7 +6301,7 @@ begin
   
   FChars := Pointer(S);
   Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS); 
+  FLength := NativeUInt(TopS) shr 1; 
   Result := True;
   Exit;
 fail:
@@ -4087,14 +6310,14 @@ fail:
   Result := False; 
 end;
 
-function CachedByteString.RTrim: Boolean;
+function CachedUTF16String.TrimRight: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PByte;
+  S: PWord;
 begin
   L := Length;
   S := Pointer(FChars);
@@ -4111,7 +6334,7 @@ begin
       Exit;
     end else
     begin
-      Result := _RTrim(S, L);
+      Result := _TrimRight(S, L);
     end;
   end;
 end;
@@ -4124,20 +6347,20 @@ asm
   xor eax, eax
   ret
 @1:    
-  cmp byte ptr [edx + ecx], 32
-  jbe _RTrim
+  cmp word ptr [edx + ecx*2], 32
+  jbe _TrimRight
   mov al, 1
 end;
 {$ifend}
 
-function CachedByteString._RTrim(S: PByte; H: NativeUInt): Boolean;
+function CachedUTF16String._TrimRight(S: PWord; H: NativeUInt): Boolean;
 label
   fail;
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
-  TopS: PByte;
+  TopS: PWord;
 begin  
   TopS := @PCharArray(S)[H];
   
@@ -4148,7 +6371,7 @@ begin
   until (TopS^ > 32);
 
   Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS);
+  FLength := NativeUInt(TopS) shr 1;
   Result := True;
   Exit;
 fail:
@@ -4157,14 +6380,14 @@ fail:
   Result := False; 
 end;
 
-function CachedByteString.Trim: Boolean;
+function CachedUTF16String.Trim: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PByte;
+  S: PWord;
 begin
   L := Length;
   S := Pointer(FChars);
@@ -4177,22 +6400,22 @@ begin
     Dec(L);
     if (PCharArray(S)[L] > 32) then
     begin
-      // LTrim or True
+      // TrimLeft or True
       if (S^ > 32) then
       begin
         Result := True;
         Exit;
       end else
       begin
-        Result := _LTrim(S, L+1);
+        Result := _TrimLeft(S, L+1);
         Exit;
       end;
     end else
     begin
-      // RTrim or Trim
+      // TrimRight or Trim
       if (S^ > 32) then
       begin
-        Result := _RTrim(S, L);
+        Result := _TrimRight(S, L);
         Exit;
       end else
       begin
@@ -4210,42 +6433,42 @@ asm
   xor eax, eax
   ret
 @1:
-  cmp byte ptr [edx + ecx], 32
+  cmp word ptr [edx + ecx*2], 32
   jbe @2
-  // LTrim or True
+  // TrimLeft or True
   inc ecx
-  cmp byte ptr [edx], 32
-  jbe _LTrim
+  cmp word ptr [edx], 32
+  jbe _TrimLeft
   mov al, 1
   ret
 @2:
-  // RTrim or Trim
-  cmp byte ptr [edx], 32
-  ja _RTrim
+  // TrimRight or Trim
+  cmp word ptr [edx], 32
+  ja _TrimRight
   jmp _Trim
 end;
 {$ifend}
 
-function CachedByteString._Trim(S: PByte; H: NativeUInt): Boolean;
+function CachedUTF16String._Trim(S: PWord; H: NativeUInt): Boolean;
 label
   fail;
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
-  TopS: PByte;
+  TopS: PWord;
 begin  
   if (H = 0) then goto fail;  
   TopS := @PCharArray(S)[H];      
 
-  // LTrim
+  // TrimLeft
   repeat
     Inc(S);  
     if (S = TopS) then goto fail;    
   until (S^ > 32);  
   FChars := Pointer(S);
 
-  // RTrim
+  // TrimRight
   Dec(S);
   repeat
     Dec(TopS);  
@@ -4253,7 +6476,7 @@ begin
   
   // Result
   Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS); 
+  FLength := NativeUInt(TopS) shr 1; 
   Result := True;
   Exit;
 fail:
@@ -4262,9 +6485,9 @@ fail:
   Result := False; 
 end;
 
-function CachedByteString.SubString(const From, Count: NativeUInt): CachedByteString;
+function CachedUTF16String.SubString(const From, Count: NativeUInt): CachedUTF16String;
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
@@ -4278,7 +6501,7 @@ begin
   begin
     Result.FLength := 0;
     Exit;
-  end; 
+  end;
 
   if (L < Count) then
   begin
@@ -4289,7 +6512,7 @@ begin
   end;
 end;
 
-function CachedByteString.SubString(const Count: NativeUInt): CachedByteString;
+function CachedUTF16String.SubString(const Count: NativeUInt): CachedUTF16String;
 var
   L: NativeUInt;
 begin
@@ -4305,9 +6528,9 @@ begin
   end;
 end;
 
-function CachedByteString.Offset(const Count: NativeUInt): Boolean;
+function CachedUTF16String.Offset(const Count: NativeUInt): Boolean;
 type
-  TCharArray = array[0..0] of Byte;
+  TCharArray = array[0..0] of Word;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
@@ -4327,12 +6550,12 @@ begin
   end;
 end;
 
-function CachedByteString.Hash: Cardinal;
+function CachedUTF16String.Hash: Cardinal;
 const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
 var
   L, L_High: NativeUInt;
-  P: PByte;
+  P: PWord;
   V: Cardinal;
 begin
   L := FLength;
@@ -4341,7 +6564,7 @@ begin
   Result := L;
   if (L = 0) then Exit;
 
-  L_High := (L shl (32-9));
+  L_High := L shl (32-9);
   if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
   if (L >= CHARS_IN_CARDINAL) then
   repeat
@@ -4354,14 +6577,6 @@ begin
     Result := Result xor V;
   until (L < CHARS_IN_CARDINAL);
 
-  if (L and 2 <> 0) then
-  begin
-    Inc(Result, PWord(P)^);
-    V := Result shr 5;
-    Inc(P, 2);
-    Result := Result xor V;
-  end;
-
   if (L and 1 <> 0) then
   begin
     V := Result shr 5;
@@ -4372,42 +6587,28 @@ begin
   Result := (Result and (-1 shr 9)) + (L_High);
 end;
 
-function CachedByteString.HashIgnoreCase: Cardinal;
-{$ifNdef CPUINTEL}
-var
-  NF: NativeUInt;
+function CachedUTF16String.HashIgnoreCase: Cardinal;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  NF := F.NativeFlags;
-
-  if (NF and 1 <> 0) then Result := _HashIgnoreCaseAscii
-  else
-  if (NF < (1 shl 24)) then Result := _HashIgnoreCaseUTF8
-  else
-  Result := _HashIgnoreCase(NF);
+  if (Self.Ascii) then Result := _HashIgnoreCaseAscii
+  else Result := _HashIgnoreCase;
 end;
-{$else}
+{$else .CPUX86}
 asm
-  {$ifdef CPUX86}
-  mov edx, [EAX].F.Flags
-  {$else .CPUX64}
-  mov edx, [RCX].F.Flags
-  {$endif}
-  test edx, 1
+  cmp byte ptr [EAX].F.B0, 0
   jnz _HashIgnoreCaseAscii
-  cmp edx, $01000000
-  jb _HashIgnoreCaseUTF8
   jmp _HashIgnoreCase
 end;
-{$endif}
+{$ifend}
 
-function CachedByteString._HashIgnoreCaseAscii: Cardinal;
+function CachedUTF16String._HashIgnoreCaseAscii: Cardinal;
 label
   include_x;
 const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
 var
   L, L_High: NativeUInt;
-  P: PByte;
+  P: PWord;
   X, V: Cardinal;
 begin
   L := FLength;
@@ -4416,7 +6617,7 @@ begin
   Result := L;
   if (L = 0) then Exit;
 
-  L_High := (L shl (32-9));
+  L_High := L shl (32-9);
   if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
   if (L >= CHARS_IN_CARDINAL) then
   repeat
@@ -4424,7 +6625,7 @@ begin
     // Dec(L);/Inc(P);
     X := PCardinal(P)^;
   include_x:
-    X := X or ((X and $40404040) shr 1);
+    X := X or ((X and $00400040) shr 1);
     Dec(L, CHARS_IN_CARDINAL);
     V := Result shr 5;
     Inc(Result, X);
@@ -4432,44 +6633,27 @@ begin
     Result := Result xor V;
   until (L < CHARS_IN_CARDINAL);
 
-  if (L <> 0) then
+  if (L and 1 <> 0) then
   begin
-    case L of
-      1:
-      begin
-        X := P^;
-        Inc(L, 3);
-        goto include_x;
-      end;
-      2:
-      begin
-        X := PWord(P)^;
-        Inc(L, 2);
-        goto include_x;
-      end;
-    else
-      X := PWord(P)^;
-      Inc(P, 2);
-      X := X or P^;
-      Inc(L);
-      goto include_x;
-    end;
+    X := P^;
+    Inc(L);
+    goto include_x;
   end;
 
   Result := (Result and (-1 shr 9)) + (L_High);
 end;
 
-function CachedByteString._HashIgnoreCaseUTF8: Cardinal;
+function CachedUTF16String._HashIgnoreCase: Cardinal;
 label
-  include_x;
+  include_ascii, x_calculated;
 const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
-  MASKS: array[1..3] of Cardinal = ($ffffff, $ffff, $ff);
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
+  MASK = not Cardinal($007f007f);
+  MASK_FIRST = not Cardinal($ffff007f);
 var
   L: NativeUInt;
-  P: PByte;
+  P: PWord;
   X, V: Cardinal;
-  N: NativeUInt;
   {$ifdef CPUX86}
   S: record
     L_High: NativeUInt;
@@ -4490,241 +6674,142 @@ begin
   {$ifdef CPUX86}S.{$endif}L_High := V;
 
   lookup_utf16_lower := Pointer(@UNICONV_CHARCASE.LOWER);
-  Result := L;
   if (L >= CHARS_IN_CARDINAL) then
   repeat
     // Result := (Result shr 5) xor (Lower(P^) + Result);
     // Dec(L);/Inc(P);
     X := PCardinal(P)^;
-  include_x:
-    Dec(L, CHARS_IN_CARDINAL);
-    Inc(P, CHARS_IN_CARDINAL);
-    if (X and $80 <> 0) then
+    Dec(L);
+    Inc(P);
+    if (X and MASK <> 0) then
     begin
-      case UNICONV_UTF8_SIZE[Byte(X)] of
-        2: begin
-             // X := ((X and $1F) shl 6) or ((X shr 8) and $3F);
-             V := X;
-             X := X and $1F;
-             V := V shr 8;
-             X := X shl 6;
-             V := V and $3F;
-             Inc(L, 2);
-             Inc(X, V);
-             Dec(P, 2);
-             X := lookup_utf16_lower[X];
-           end;
-        3: begin
-             // X := ((X & 0x0f) << 12) | ((X & 0x3f00) >> 2) | ((X >> 16) & 0x3f);
-             V := (X and $0F) shl 12;
-             V := V + (X shr 16) and $3F;
-             X := (X and $3F00) shr 2;
-             Inc(L);
-             Inc(X, V);
-             Dec(P);
-             X := lookup_utf16_lower[X];
-           end;
-        4: begin
-             // X := (X&07)<<18 | (X&3f00)<<4 | (X>>10)&0fc0 | (X>>24)&3f;
-             V := (X and $07) shl 18;
-             V := V + (X and $3f00) shl 4;
-             V := V + (X shr 10) and $0fc0;
-             X := (X shr 24) and $3f;
-             Inc(X, V);
-           end;
-      else
-        // fail UTF8 character
-        Inc(L, 3);
-        Dec(P, 3);
-        X := Byte(X);
+      if (X and MASK_FIRST = 0) then
+      begin
+        X := Word(X);
+        goto include_ascii;
+      end else
+      begin
+        X := Word(X);
+        if (X >= $d800) and (X < $dc00) then
+        begin
+          Dec(L);
+          Inc(P);
+          goto x_calculated;
+        end;
+
+        X := lookup_utf16_lower[X];
+        goto x_calculated;
       end;
     end else
     begin
-      if (X and Integer($80808080) <> 0) then
-      begin
-        N := (4-1) - (Byte(X and $8000 = 0) + Byte(X and $808000 = 0));
-
-        X := X and MASKS[N];
-        Inc(L, N);
-        Dec(P, N);
-      end;
-
-      X := X or ((X and $40404040) shr 1);
+      Dec(L);
+      Inc(P);
+    include_ascii:
+      X := X or ((X and $00400040) shr 1);
     end;
 
+  x_calculated:
     V := Result shr 5;
     Inc(Result, X);
+
     Result := Result xor V;
   until (NativeInt(L) < CHARS_IN_CARDINAL);
 
   if (NativeInt(L) > 0) then
   begin
-    case L of
-      1:
-      begin
-        X := P^;
-        goto include_x;
-      end;
-      2:
-      begin
-        X := PWord(P)^;
-        goto include_x;
-      end;
-    else
-      X := PWord(P)^;
-      Inc(P, 2);
-      X := X or P^;
-      goto include_x;
-    end;
-  end;
-
-  Result := (Result and (-1 shr 9)) + {$ifdef CPUX86}S.{$endif}L_High;
-end;
-
-
-function CachedByteString._HashIgnoreCase(NF: NativeUInt): Cardinal;
-label
-  include_x;
-const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
-  MASKS: array[1..3] of Cardinal = ($ffffff, $ffff, $ff);
-var
-  L: NativeUInt;
-  P: PByte;
-  X, V: Cardinal;
-  N: NativeUInt;
-  {$ifdef CPUX86}
-  S: record
-    L_High: NativeUInt;
-  end;
-  {$else}
-  L_High: NativeUInt;
-  {$endif}
-  SBCSLookup: PUniConvSBCSEx;
-  Lower: PUniConvWB;
-begin
-  L := FLength;
-  P := Pointer(FChars);
-  NF := NF shr 24;
-
-  if (L = 0) then
-  begin
-    Result := 0;
-    Exit;
-  end;
-
-  // SBCSLookup := Pointer(@uniconv_lookup_sbcs[NF]);
-  {$ifdef CPUX86}
-    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs);
-    Inc(SBCSLookup, NF-1);
-  {$else}
-    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs[NF]);
-  {$endif}
-  // Lower := inline SBCSLookup.GetLowerCaseUCS2;
-  Lower := Pointer(SBCSLookup.FUCS2.Lower);
-  if (Lower = nil) then Lower := Pointer(SBCSLookup.AllocFillUCS2(SBCSLookup.FUCS2.Lower, ccLower));
-
-  V := L shl (32-9);
-  if (L > 255) then V := NativeInt(V) or (1 shl 31);
-  {$ifdef CPUX86}S.{$endif}L_High := V;
-
-  Result := L;
-  if (L >= CHARS_IN_CARDINAL) then
-  repeat
-    // Result := (Result shr 5) xor (Lower(P^) + Result);
-    // Dec(L);/Inc(P);
-    X := PCardinal(P)^;
-  include_x:
-    Dec(L, CHARS_IN_CARDINAL);
-    Inc(P, CHARS_IN_CARDINAL);
-    if (X and $80 <> 0) then
+    X := P^;
+    if (X > $7f) then
     begin
-      X := Lower[X];
-      Inc(L, CHARS_IN_CARDINAL-1);
-      Dec(P, CHARS_IN_CARDINAL-1);
+      X := lookup_utf16_lower[X];
     end else
     begin
-      if (X and Integer($80808080) <> 0) then
-      begin
-        N := (4-1) - (Byte(X and $8000 = 0) + Byte(X and $808000 = 0));
-
-        X := X and MASKS[N];
-        Inc(L, N);
-        Dec(P, N);
-      end;
-
-      X := X or ((X and $40404040) shr 1);
+      X := X or ((X and $0040) shr 1);
     end;
-
     V := Result shr 5;
     Inc(Result, X);
     Result := Result xor V;
-  until (NativeInt(L) < CHARS_IN_CARDINAL);
-
-  if (NativeInt(L) > 0) then
-  begin
-    case L of
-      1:
-      begin
-        X := P^;
-        goto include_x;
-      end;
-      2:
-      begin
-        X := PWord(P)^;
-        goto include_x;
-      end;
-    else
-      X := PWord(P)^;
-      Inc(P, 2);
-      X := X or P^;
-      goto include_x;
-    end;
   end;
 
-  Result := (Result and (-1 shr 9)) + {$ifdef CPUX86}S.{$endif}L_High;
+  Result := (Result and (-1 shr 9)) + ({$ifdef CPUX86}S.{$endif}L_High);
 end;
 
-function CachedByteString.CharPos(const C: UnicodeChar; const From: NativeUInt): NativeInt;
+function CachedUTF16String.CharPos(const C: UnicodeChar; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedByteString.CharPos(const C: UCS4Char; const From: NativeUInt): NativeInt;
+function CachedUTF16String.CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedByteString.CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt): NativeInt;
+function CachedUTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedByteString.CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt): NativeInt;
+function CachedUTF16String.Pos(const S: UnicodeString; const From: NativeUInt): NativeInt;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+begin
+  if (Pointer(S) = nil) then Result := -1
+  else
+  Result := Pos(Pointer(S),
+    PInteger(PByteArray(Pointer(S)) - SizeOf(Integer))^ {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}shr 1{$ifend},
+    From);
+end;
+{$else}
+asm
+  test edx, edx
+  jz @1
+  push [esp]
+  mov [esp+4], ecx
+  mov ecx, [edx-4]
+  {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}
+  shr ecx, 1
+  {$ifend}
+  jmp Pos
+@1:
+  mov eax, -1
+  ret
+end;
+{$ifend}
+
+function CachedUTF16String.PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedByteString.Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+function CachedUTF16String.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
+{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := -1{todo};
+  if (Pointer(S) = nil) then Result := -1
+  else
+  Result := PosIgnoreCase(Pointer(S),
+    PInteger(PByteArray(Pointer(S)) - SizeOf(Integer))^ {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}shr 1{$ifend},
+    From);
 end;
-
-function CachedByteString.Pos(const S: UnicodeString; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
+{$else}
+asm
+  test edx, edx
+  jz @1
+  push [esp]
+  mov [esp+4], ecx
+  mov ecx, [edx-4]
+  {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}
+  shr ecx, 1
+  {$ifend}
+  jmp PosIgnoreCase
+@1:
+  mov eax, -1
+  ret
 end;
+{$ifend}
 
-function CachedByteString.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedByteString.TryAsBoolean(out Value: Boolean): Boolean;
+function CachedUTF16String.TryToBoolean(out Value: Boolean): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -4742,15 +6827,15 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsBooleanDef(const Default: Boolean): Boolean;
+function CachedUTF16String.ToBooleanDef(const Default: Boolean): Boolean;
 begin
-  Result := PCachedByteString(@Default)._GetBool(Pointer(Chars), Length);
+  Result := PCachedUTF16String(@Default)._GetBool(Pointer(Chars), Length);
 end;
 
-function CachedByteString.GetBoolean: Boolean;
+function CachedUTF16String.ToBoolean: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetBool(Pointer(Chars), Length);
+  Result := PCachedUTF16String(0)._GetBool(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -4761,15 +6846,14 @@ asm
 end;
 {$ifend}
 
-function CachedByteString._GetBool(S: PByte; L: NativeUInt): Boolean;
+function CachedUTF16String._GetBool(S: PWord; L: NativeUInt): Boolean;
 label
   fail;
 type
   TStrAsData = packed record
   case Integer of
-    0: (Bytes: array[0..High(Integer) - 1] of Byte);
-    1: (Words: array[0..High(Integer) div 2 - 1] of Word);
-    2: (Dwords: array[0..High(Integer) div 4 - 1] of Cardinal);
+    0: (Words: array[0..High(Integer) div 2 - 1] of Word);
+    1: (Dwords: array[0..High(Integer) div 4 - 1] of Cardinal);
   end;
 var
   Marker: NativeInt;
@@ -4780,39 +6864,42 @@ begin
 
   with TStrAsData(Pointer(Buffer.Chars)^) do
   case L of
-   1: case (Bytes[0]) of
-        $30:
+   1: case (Words[0]) of
+        $0030:
         begin
           // "0"
           Result := False;
           Exit;
         end;
-        $31:
+        $0031:
         begin
           // "1"
           Result := True;
           Exit;
         end;
       end;
-   2: if (Words[0] or $2020 = $6F6E) then
+   2: if (Dwords[0] or $00200020 = $006F006E) then
       begin
         // "no"
         Result := False;
         Exit;
       end;
-   3: if (Words[0] + Bytes[2] shl 16 or $202020 = $736579) then
+   3: if (Dwords[0] or $00200020 = $00650079) and (Words[2] or $0020 = $0073) then
       begin
         // "yes"
         Result := True;
         Exit;
       end;
-   4: if (Dwords[0] or $20202020 = $65757274) then
+   4: if (Dwords[0] or $00200020 = $00720074) and
+         (Dwords[1] or $00200020 = $00650075) then
       begin
         // "true"
         Result := True;
         Exit;
       end;
-   5: if (Dwords[0] or $20202020 = $736C6166) and (Bytes[4] or $20 = $65) then
+   5: if (Dwords[0] or $00200020 = $00610066) and
+         (Dwords[1] or $00200020 = $0073006C) and
+         (Words[4] or $0020 = $0065) then
       begin
         // "false"
         Result := False;
@@ -4837,11 +6924,11 @@ fail:
   end;
 end;
 
-function CachedByteString.TryAsHex(out Value: Integer): Boolean;
+function CachedUTF16String.TryToHex(out Value: Integer): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -4859,15 +6946,15 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsHexDef(const Default: Integer): Integer;
+function CachedUTF16String.ToHexDef(const Default: Integer): Integer;
 begin
-  Result := PCachedByteString(@Default)._GetHex(Pointer(Chars), Length);
+  Result := PCachedUTF16String(@Default)._GetHex(Pointer(Chars), Length);
 end;
 
-function CachedByteString.GetHex: Integer;
+function CachedUTF16String.ToHex: Integer;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetHex(Pointer(Chars), Length);
+  Result := PCachedUTF16String(0)._GetHex(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -4878,11 +6965,11 @@ asm
 end;
 {$ifend}
 
-function CachedByteString._GetHex(S: PByte; L: NativeInt): Integer;
+function CachedUTF16String._GetHex(S: PWord; L: NativeInt): Integer;
 label
   fail, zero;
 var
-  Buffer: CachedByteString;
+  Buffer: CachedUTF16String;
   X: NativeUInt;
   Marker: NativeInt;
 begin
@@ -4940,11 +7027,11 @@ fail:
   end;
 end;
 
-function CachedByteString.TryAsCardinal(out Value: Cardinal): Boolean;
+function CachedUTF16String.TryToCardinal(out Value: Cardinal): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -4962,15 +7049,15 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsCardinalDef(const Default: Cardinal): Cardinal;
+function CachedUTF16String.ToCardinalDef(const Default: Cardinal): Cardinal;
 begin
-  Result := PCachedByteString(@Default)._GetInt(Pointer(Chars), Length);
+  Result := PCachedUTF16String(@Default)._GetInt(Pointer(Chars), Length);
 end;
 
-function CachedByteString.GetCardinal: Cardinal;
+function CachedUTF16String.ToCardinal: Cardinal;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetInt(Pointer(Chars), Length);
+  Result := PCachedUTF16String(0)._GetInt(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -4981,11 +7068,11 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.TryAsInteger(out Value: Integer): Boolean;
+function CachedUTF16String.TryToInteger(out Value: Integer): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -5004,15 +7091,15 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsIntegerDef(const Default: Integer): Integer;
+function CachedUTF16String.ToIntegerDef(const Default: Integer): Integer;
 begin
-  Result := PCachedByteString(@Default)._GetInt(Pointer(Chars), -Length);
+  Result := PCachedUTF16String(@Default)._GetInt(Pointer(Chars), -Length);
 end;
 
-function CachedByteString.GetInteger: Integer;
+function CachedUTF16String.ToInteger: Integer;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetInt(Pointer(Chars), -Length);
+  Result := PCachedUTF16String(0)._GetInt(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -5024,14 +7111,14 @@ asm
 end;
 {$ifend}
 
-function CachedByteString._GetInt(S: PByte; L: NativeInt): Integer;
+function CachedUTF16String._GetInt(S: PWord; L: NativeInt): Integer;
 label
   skipsign, hex, fail, zero;
 var
-  Buffer: CachedByteString;
+  Buffer: CachedUTF16String;
   HexRet: record
     Value: Integer;
-  end;    
+  end;
   X: NativeUInt;
   Marker: NativeInt;
 begin
@@ -5093,11 +7180,11 @@ begin
       HexRet.Value := 1;
       if (Marker and 4 = 0) then
       begin
-        Result := PCachedByteString(-NativeInt(@HexRet))._GetHex(S, L);
+        Result := PCachedUTF16String(-NativeInt(@HexRet))._GetHex(S, L);
         if (HexRet.Value = 0) then goto fail;
       end else
       begin
-        Result := -PCachedByteString(-NativeInt(@HexRet))._GetHex(S, L);
+        Result := -PCachedUTF16String(-NativeInt(@HexRet))._GetHex(S, L);
         if (HexRet.Value = 0) then goto fail;
       end;
 
@@ -5180,11 +7267,11 @@ fail:
   end;
 end;
 
-function CachedByteString.TryAsHex64(out Value: Int64): Boolean;
+function CachedUTF16String.TryToHex64(out Value: Int64): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -5203,10 +7290,10 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsHex64Def(const Default: Int64): Int64;
+function CachedUTF16String.ToHex64Def(const Default: Int64): Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(@Default)._GetHex64(Pointer(Chars), Length);
+  Result := PCachedUTF16String(@Default)._GetHex64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -5217,10 +7304,10 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.GetHex64: Int64;
+function CachedUTF16String.ToHex64: Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetHex64(Pointer(Chars), Length);
+  Result := PCachedUTF16String(0)._GetHex64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -5231,11 +7318,11 @@ asm
 end;
 {$ifend}
 
-function CachedByteString._GetHex64(S: PByte; L: NativeInt): Int64;
+function CachedUTF16String._GetHex64(S: PWord; L: NativeInt): Int64;
 label
   fail, zero;
 var
-  Buffer: CachedByteString;
+  Buffer: CachedUTF16String;
   X: NativeUInt;
   R1, R2: NativeUInt;
   Marker: NativeInt;
@@ -5326,11 +7413,11 @@ fail:
   end;
 end;
 
-function CachedByteString.TryAsUInt64(out Value: UInt64): Boolean;
+function CachedUTF16String.TryToUInt64(out Value: UInt64): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -5349,10 +7436,10 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsUInt64Def(const Default: UInt64): UInt64;
+function CachedUTF16String.ToUInt64Def(const Default: UInt64): UInt64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(@Default)._GetInt64(Pointer(Chars), Length);
+  Result := PCachedUTF16String(@Default)._GetInt64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -5363,10 +7450,10 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.GetUInt64: UInt64;
+function CachedUTF16String.ToUInt64: UInt64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetInt64(Pointer(Chars), Length);
+  Result := PCachedUTF16String(0)._GetInt64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -5377,11 +7464,11 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.TryAsInt64(out Value: Int64): Boolean;
+function CachedUTF16String.TryToInt64(out Value: Int64): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -5401,10 +7488,10 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsInt64Def(const Default: Int64): Int64;
+function CachedUTF16String.ToInt64Def(const Default: Int64): Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(@Default)._GetInt64(Pointer(Chars), -Length);
+  Result := PCachedUTF16String(@Default)._GetInt64(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -5416,10 +7503,10 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.GetInt64: Int64;
+function CachedUTF16String.ToInt64: Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedByteString(0)._GetInt64(Pointer(Chars), -Length);
+  Result := PCachedUTF16String(0)._GetInt64(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -5431,11 +7518,11 @@ asm
 end;
 {$ifend}
 
-function CachedByteString._GetInt64(S: PByte; L: NativeInt): Int64;
+function CachedUTF16String._GetInt64(S: PWord; L: NativeInt): Int64;
 label
   skipsign, hex, fail, zero;
 var
-  Buffer: CachedByteString;
+  Buffer: CachedUTF16String;
   HexRet: record
     Value: Integer;
   end;  
@@ -5501,11 +7588,11 @@ begin
       HexRet.Value := 1;
       if (Marker and 4 = 0) then
       begin
-        Result := PCachedByteString(-NativeInt(@HexRet))._GetHex64(S, L);
+        Result := PCachedUTF16String(-NativeInt(@HexRet))._GetHex64(S, L);
         if (HexRet.Value = 0) then goto fail;
       end else
       begin
-        Result := -PCachedByteString(-NativeInt(@HexRet))._GetHex64(S, L);
+        Result := -PCachedUTF16String(-NativeInt(@HexRet))._GetHex64(S, L);
         if (HexRet.Value = 0) then goto fail;
       end;
 
@@ -5517,7 +7604,7 @@ begin
 
   if (L <= 9) then
   begin
-    R1 := PCachedByteString(nil)._GetInt_19(S, L);
+    R1 := PCachedUTF16String(nil)._GetInt_19(S, L);
     if (R1 < 0) then goto fail;
 
     if (Marker and 4 <> 0) then R1 := -R1;
@@ -5542,11 +7629,11 @@ begin
   end;
 
   Dec(L, 9);
-  R2 := PCachedByteString(nil)._GetInt_19(S, L);
+  R2 := PCachedUTF16String(nil)._GetInt_19(S, L);
   Inc(S, L);
   if (R2 < 0) then goto fail;
 
-  R1 := PCachedByteString(nil)._GetInt_19(S, 9);
+  R1 := PCachedUTF16String(nil)._GetInt_19(S, 9);
   Inc(S, 9);
   if (R1 < 0) then goto fail;
 
@@ -5622,17 +7709,17 @@ fail:
   end;
 end;
 
-function CachedByteString._GetInt_19(S: PByte; L: NativeUInt): NativeInt;
+function CachedUTF16String._GetInt_19(S: PWord; L: NativeUInt): NativeInt;
 label
   fail, _1, _2, _3, _4, _5, _6, _7, _8, _9;
 var
   {$ifdef CPUX86}
   Store: record
     _R: PNativeInt;
-    _S: PByte;
+    _S: PWord;
   end;
   {$else}
-  _S: PByte;
+  _S: PWord;
   {$endif}
   _R: PNativeInt;
 begin
@@ -5747,45 +7834,46 @@ fail:
 
   Result := NativeInt({$ifdef CPUX86}Store.{$endif}_S);
   Dec(Result, NativeInt(S));
+  Result := (Result shr 1) or Low(NativeInt);
 end;
 
-function CachedByteString.TryAsFloat(out Value: Single): Boolean;
+function CachedUTF16String.TryToFloat(out Value: Single): Boolean;
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedByteString.TryAsFloat(out Value: Double): Boolean;
+function CachedUTF16String.TryToFloat(out Value: Double): Boolean;
 begin
   Result := True;
-  Value := PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+  Value := PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedByteString.TryAsFloat(out Value: TExtended80Rec): Boolean;
+function CachedUTF16String.TryToFloat(out Value: TExtended80Rec): Boolean;
 begin
   Result := True;
   {$if SizeOf(Extended) = 10}
-    PExtended(@Value)^ := PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+    PExtended(@Value)^ := PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
   {$else}
-    Value := TExtended80Rec(PCachedByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
+    Value := TExtended80Rec(PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
   {$ifend}
 end;
 
-function CachedByteString.AsFloatDef(const Default: Extended): Extended;
+function CachedUTF16String.ToFloatDef(const Default: Extended): Extended;
 begin
-  Result := PCachedByteString(@Default)._GetFloat(Pointer(Chars), Length);
+  Result := PCachedUTF16String(@Default)._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedByteString.GetFloat: Extended;
+function CachedUTF16String.ToFloat: Extended;
 begin
-  Result := PCachedByteString(0)._GetFloat(Pointer(Chars), Length);
+  Result := PCachedUTF16String(0)._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedByteString._GetFloat(S: PByte; L: NativeUInt): Extended;
+function CachedUTF16String._GetFloat(S: PWord; L: NativeUInt): Extended;
 label
   skipsign, frac, exp, skipexpsign, done, fail, zero;
 var
-  Buffer: CachedByteString;
+  Buffer: CachedUTF16String;
   Store: record
     V: NativeInt;
     Sign: Byte;
@@ -5833,11 +7921,11 @@ begin
   begin
     if (L > 9) then
     begin
-      V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+      V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
       X := 9;
     end else
     begin
-      V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+      V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
       X := L;
     end;
 
@@ -5857,11 +7945,11 @@ begin
       repeat
         if (L > 9) then
         begin
-          V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+          V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
           X := 9;
         end else
         begin
-          V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+          V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
           X := L;
         end;
 
@@ -5903,11 +7991,11 @@ frac:
   begin
     if (L > 9) then
     begin
-      V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+      V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
       X := 9;
     end else
     begin
-      V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+      V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
       X := L;
     end;
 
@@ -5928,11 +8016,11 @@ frac:
       repeat
         if (L > 9) then
         begin
-          V := PCachedByteString(@Store.V)._GetInt_19(S, 9);
+          V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
           X := 9;
         end else
         begin
-          V := PCachedByteString(@Store.V)._GetInt_19(S, L);
+          V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
           X := L;
         end;
 
@@ -5998,7 +8086,7 @@ exp:
     Result := Result * TenPowers[X];
   end else
   begin
-    V := PCachedByteString(nil)._GetInt_19(S, L);
+    V := PCachedUTF16String(nil)._GetInt_19(S, L);
     if (V < 0) or (V > 300) then goto fail;
     Result := Result * TenPower(TenPowers, V);
   end;
@@ -6027,19 +8115,19 @@ fail:
   end;
 end;
 
-function CachedByteString.AsDateDef(const Default: TDateTime): TDateTime;
+function CachedUTF16String.ToDateDef(const Default: TDateTime): TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
     Result := Default;
 end;
 
-function CachedByteString.GetDate: TDateTime;
+function CachedUTF16String.ToDate: TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
     raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
 end;
 
-function CachedByteString.TryAsDate(out Value: TDateTime): Boolean;
+function CachedUTF16String.TryToDate(out Value: TDateTime): Boolean;
 const
   DT = 1{Date};
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -6053,19 +8141,19 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsTimeDef(const Default: TDateTime): TDateTime;
+function CachedUTF16String.ToTimeDef(const Default: TDateTime): TDateTime;
 begin
   if (not _GetDateTime(Result, 2{Time})) then
     Result := Default;
 end;
 
-function CachedByteString.GetTime: TDateTime;
+function CachedUTF16String.ToTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 2{Time})) then
     raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
 end;
 
-function CachedByteString.TryAsTime(out Value: TDateTime): Boolean;
+function CachedUTF16String.TryToTime(out Value: TDateTime): Boolean;
 const
   DT = 2{Time};
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -6079,19 +8167,19 @@ asm
 end;
 {$ifend}
 
-function CachedByteString.AsDateTimeDef(const Default: TDateTime): TDateTime;
+function CachedUTF16String.ToDateTimeDef(const Default: TDateTime): TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
     Result := Default;
 end;
 
-function CachedByteString.GetDateTime: TDateTime;
+function CachedUTF16String.ToDateTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
     raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
 end;
 
-function CachedByteString.TryAsDateTime(out Value: TDateTime): Boolean;
+function CachedUTF16String.TryToDateTime(out Value: TDateTime): Boolean;
 const
   DT = 3{DateTime};
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -6105,13 +8193,13 @@ asm
 end;
 {$ifend}
 
-function CachedByteString._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+function CachedUTF16String._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
 label
   fail;
 var
   L, X: NativeUInt;
   Dest: PByte;
-  Src: PByte;
+  Src: PWord;
   Buffer: TDateTimeBuffer;
 begin
   Buffer.Value := @Value;
@@ -6139,27 +8227,7 @@ begin
   Result := CachedTexts._GetDateTime(Buffer);
 end;
 
-
-{ CachedUTF16String }
-
-function CachedUTF16String.GetEmpty: Boolean;
-begin
-  Result := (Length <> 0);
-end;
-
-procedure CachedUTF16String.SetEmpty(Value: Boolean);
-var
-  V: NativeUInt;
-begin
-  if (Value) then
-  begin
-    V := 0;
-    FLength := V;
-    F.NativeFlags := V;
-  end;
-end;
-
-procedure CachedUTF16String.ToAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedUTF16String.ToAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -6168,16 +8236,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -6210,7 +8278,7 @@ begin
   end;
 end;
 
-procedure CachedUTF16String.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedUTF16String.ToLowerAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -6219,16 +8287,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToLowerUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -6261,7 +8329,7 @@ begin
   end;
 end;
 
-procedure CachedUTF16String.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedUTF16String.ToUpperAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -6270,16 +8338,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUpperUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -6312,7 +8380,7 @@ begin
   end;
 end;
 
-procedure CachedUTF16String.ToAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedUTF16String.ToAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -6322,7 +8390,7 @@ var
   Converter: Pointer;
   Context: TUniConvContextEx;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8ShortString(S);
     Exit;
@@ -6330,10 +8398,10 @@ begin
   Context.Destination := @S[1];
   Context.DestinationSize := NativeUInt(High(S));
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -6378,7 +8446,7 @@ begin
   end;
 end;
 
-procedure CachedUTF16String.ToLowerAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedUTF16String.ToLowerAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -6388,7 +8456,7 @@ var
   Converter: Pointer;
   Context: TUniConvContextEx;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToLowerUTF8ShortString(S);
     Exit;
@@ -6396,10 +8464,10 @@ begin
   Context.Destination := @S[1];
   Context.DestinationSize := NativeUInt(High(S));
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -6444,7 +8512,7 @@ begin
   end;
 end;
 
-procedure CachedUTF16String.ToUpperAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedUTF16String.ToUpperAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Index: NativeInt;
@@ -6454,7 +8522,7 @@ var
   Converter: Pointer;
   Context: TUniConvContextEx;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUpperUTF8ShortString(S);
     Exit;
@@ -6462,10 +8530,10 @@ begin
   Context.Destination := @S[1];
   Context.DestinationSize := NativeUInt(High(S));
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -6915,7 +8983,7 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.GetAnsiString: AnsiString;
+function CachedUTF16String.ToAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToAnsiString(Result);
@@ -6931,7 +8999,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetLowerAnsiString: AnsiString;
+function CachedUTF16String.ToLowerAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerAnsiString(Result);
@@ -6947,7 +9015,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetUpperAnsiString: AnsiString;
+function CachedUTF16String.ToUpperAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperAnsiString(Result);
@@ -6963,7 +9031,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetUTF8String: UTF8String;
+function CachedUTF16String.ToUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToUTF8String(Result);
@@ -6974,7 +9042,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetLowerUTF8String: UTF8String;
+function CachedUTF16String.ToLowerUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToLowerUTF8String(Result);
@@ -6985,7 +9053,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetUpperUTF8String: UTF8String;
+function CachedUTF16String.ToUpperUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToUpperUTF8String(Result);
@@ -6996,7 +9064,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetWideString: WideString;
+function CachedUTF16String.ToWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToWideString(Result);
@@ -7007,7 +9075,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetLowerWideString: WideString;
+function CachedUTF16String.ToLowerWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerWideString(Result);
@@ -7018,7 +9086,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetUpperWideString: WideString;
+function CachedUTF16String.ToUpperWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperWideString(Result);
@@ -7030,7 +9098,7 @@ end;
 {$endif}
 
 {$ifdef UNICODE}
-function CachedUTF16String.GetUnicodeString: UnicodeString;
+function CachedUTF16String.ToUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToUnicodeString(Result);
@@ -7041,7 +9109,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetLowerUnicodeString: UnicodeString;
+function CachedUTF16String.ToLowerUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerUnicodeString(Result);
@@ -7052,7 +9120,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF16String.GetUpperUnicodeString: UnicodeString;
+function CachedUTF16String.ToUpperUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperUnicodeString(Result);
@@ -7062,6 +9130,54 @@ asm
   jmp ToUpperUnicodeString
 end;
 {$endif}
+{$endif}
+
+function CachedUTF16String.ToString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToAnsiString
+  {$endif}
+end;
+{$endif}
+
+function CachedUTF16String.ToLowerString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToLowerUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToLowerAnsiString
+  {$endif}
+end;
+{$endif}
+
+function CachedUTF16String.ToUpperString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToUpperUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToUpperAnsiString
+  {$endif}
+end;
 {$endif}
 
 {$ifdef OPERATORSUPPORT}
@@ -7117,80 +9233,73 @@ end;
 {$endif}
 {$endif}
 
-procedure CachedUTF16String.Assign(const S: WideString);
-var
-  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
+
+{ CachedUTF32String }
+
+function CachedUTF32String.GetEmpty: Boolean;
 begin
-  P := Pointer(S);
-  Self.FChars := Pointer(P);
-  Self.F.NativeFlags := 0;
-  if (P = nil) then
+  Result := (Length <> 0);
+end;
+
+procedure CachedUTF32String.SetEmpty(Value: Boolean);
+var
+  V: NativeUInt;
+begin
+  if (Value) then
   begin
-    Self.FLength := NativeUInt(P){0};
-  end else
-  begin
-    Dec(P);
-    Self.FLength := P^{$ifdef WIDE_STR_SHIFT} shr 1{$endif};
+    V := 0;
+    FLength := V;
+    F.NativeFlags := V;
   end;
 end;
 
-{$ifdef UNICODE}
-procedure CachedUTF16String.Assign(const S: UnicodeString);
+procedure CachedUTF32String.Assign(const S: UCS4String; const NullTerminated: Boolean);
 var
-  P: PInteger;
+  P: PNativeInt;
 begin
   P := Pointer(S);
   Self.FChars := Pointer(P);
-  Self.F.NativeFlags := 0;
   if (P = nil) then
   begin
     Self.FLength := NativeUInt(P){0};
+    Self.F.NativeFlags := NativeUInt(P){0};
   end else
   begin
     Dec(P);
-    Self.FLength := P^;
+    Self.FLength := P^ - Ord(NullTerminated){$ifdef FPC}+1{$endif};
+    Self.F.NativeFlags := 0;
   end;
 end;
-{$endif}
 
-function CachedUTF16String.DetectAscii: Boolean;
+function CachedUTF32String.DetermineAscii: Boolean;
 label
   fail;
-const
-  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Word);  
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);  
 var
-  P: PWord;
+  P: PCardinal;
   L: NativeUInt;
-  {$ifdef CPUMANYREGS}
+  {$ifdef LARGEINT}
   MASK: NativeUInt;
-  {$else}
-const
-  MASK = not NativeUInt($007f007f);
   {$endif}  
 begin
   P := Pointer(FChars);
+
+  {$ifdef LARGEINT}
+  MASK := not NativeUInt($7f0000007f);
   L := FLength;
-         
-  {$ifdef CPUMANYREGS}
-  MASK := not NativeUInt({$ifdef LARGEINT}$007f007f007f007f{$else}$007f007f{$endif});
-  {$endif}    
-  
-  while (L >= CHARS_IN_NATIVE) do  
+  while (L > 1) do  
   begin  
     if (PNativeUInt(P)^ and MASK <> 0) then goto fail;   
-    Dec(L, CHARS_IN_NATIVE);
-    Inc(P, CHARS_IN_NATIVE);
+    Dec(L, 2);
+    Inc(P, 2);
   end;  
-  {$ifdef LARGEINT}
-  if (L >= CHARS_IN_CARDINAL) then
-  begin
-    if (PCardinal(P)^ and MASK <> 0) then goto fail; 
-    // Dec(L, CHARS_IN_CARDINAL);
-    Inc(P, CHARS_IN_CARDINAL);    
-  end;
-  {$endif}
   if (L and 1 <> 0) and (P^ > $7f) then goto fail;
+  {$else}
+  for L := 1 to FLength do
+  begin
+    if (P^ > $7f) then goto fail;   
+    Inc(P);
+  end;      
+  {$endif}    
   
   Ascii := True;
   Result := True;  
@@ -7200,11 +9309,11 @@ fail:
   Result := False;  
 end;
 
-function CachedUTF16String.LTrim: Boolean;
+function CachedUTF32String.TrimLeft: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 var
   L: NativeUInt;
-  S: PWord;
+  S: PCardinal;
 begin
   L := Length;
   S := Pointer(FChars);
@@ -7219,7 +9328,7 @@ begin
     Exit;
   end else
   begin
-    Result := _LTrim(S, L);
+    Result := _TrimLeft(S, L);
   end;
 end;
 {$else .CPUX86}
@@ -7231,20 +9340,20 @@ asm
   xor eax, eax
   ret
 @1:
-  cmp word ptr [edx], 32
-  jbe _LTrim
+  cmp dword ptr [edx], 32
+  jbe _TrimLeft
   mov al, 1
 end;
 {$ifend}
 
-function CachedUTF16String._LTrim(S: PWord; L: NativeUInt): Boolean;
+function CachedUTF32String._TrimLeft(S: PCardinal; L: NativeUInt): Boolean;
 label
   fail;
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
-  TopS: PWord;
+  TopS: PCardinal;
 begin  
   TopS := @PCharArray(S)[L];
 
@@ -7255,7 +9364,7 @@ begin
   
   FChars := Pointer(S);
   Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 1; 
+  FLength := NativeUInt(TopS) shr 2; 
   Result := True;
   Exit;
 fail:
@@ -7264,14 +9373,14 @@ fail:
   Result := False; 
 end;
 
-function CachedUTF16String.RTrim: Boolean;
+function CachedUTF32String.TrimRight: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PWord;
+  S: PCardinal;
 begin
   L := Length;
   S := Pointer(FChars);
@@ -7288,7 +9397,7 @@ begin
       Exit;
     end else
     begin
-      Result := _RTrim(S, L);
+      Result := _TrimRight(S, L);
     end;
   end;
 end;
@@ -7301,20 +9410,20 @@ asm
   xor eax, eax
   ret
 @1:    
-  cmp word ptr [edx + ecx*2], 32
-  jbe _RTrim
+  cmp dword ptr [edx + ecx*4], 32
+  jbe _TrimRight
   mov al, 1
 end;
 {$ifend}
 
-function CachedUTF16String._RTrim(S: PWord; H: NativeUInt): Boolean;
+function CachedUTF32String._TrimRight(S: PCardinal; H: NativeUInt): Boolean;
 label
   fail;
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
-  TopS: PWord;
+  TopS: PCardinal;
 begin  
   TopS := @PCharArray(S)[H];
   
@@ -7325,7 +9434,7 @@ begin
   until (TopS^ > 32);
 
   Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 1;
+  FLength := NativeUInt(TopS) shr 2;
   Result := True;
   Exit;
 fail:
@@ -7334,14 +9443,14 @@ fail:
   Result := False; 
 end;
 
-function CachedUTF16String.Trim: Boolean;
+function CachedUTF32String.Trim: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PWord;
+  S: PCardinal;
 begin
   L := Length;
   S := Pointer(FChars);
@@ -7354,22 +9463,22 @@ begin
     Dec(L);
     if (PCharArray(S)[L] > 32) then
     begin
-      // LTrim or True
+      // TrimLeft or True
       if (S^ > 32) then
       begin
         Result := True;
         Exit;
       end else
       begin
-        Result := _LTrim(S, L+1);
+        Result := _TrimLeft(S, L+1);
         Exit;
       end;
     end else
     begin
-      // RTrim or Trim
+      // TrimRight or Trim
       if (S^ > 32) then
       begin
-        Result := _RTrim(S, L);
+        Result := _TrimRight(S, L);
         Exit;
       end else
       begin
@@ -7387,42 +9496,42 @@ asm
   xor eax, eax
   ret
 @1:
-  cmp word ptr [edx + ecx*2], 32
+  cmp dword ptr [edx + ecx*4], 32
   jbe @2
-  // LTrim or True
+  // TrimLeft or True
   inc ecx
-  cmp word ptr [edx], 32
-  jbe _LTrim
+  cmp dword ptr [edx], 32
+  jbe _TrimLeft
   mov al, 1
   ret
 @2:
-  // RTrim or Trim
-  cmp word ptr [edx], 32
-  ja _RTrim
+  // TrimRight or Trim
+  cmp dword ptr [edx], 32
+  ja _TrimRight
   jmp _Trim
 end;
 {$ifend}
 
-function CachedUTF16String._Trim(S: PWord; H: NativeUInt): Boolean;
+function CachedUTF32String._Trim(S: PCardinal; H: NativeUInt): Boolean;
 label
   fail;
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
-  TopS: PWord;
+  TopS: PCardinal;
 begin  
   if (H = 0) then goto fail;  
   TopS := @PCharArray(S)[H];      
 
-  // LTrim
+  // TrimLeft
   repeat
     Inc(S);  
     if (S = TopS) then goto fail;    
   until (S^ > 32);  
   FChars := Pointer(S);
 
-  // RTrim
+  // TrimRight
   Dec(S);
   repeat
     Dec(TopS);  
@@ -7430,7 +9539,7 @@ begin
   
   // Result
   Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 1; 
+  FLength := NativeUInt(TopS) shr 2; 
   Result := True;
   Exit;
 fail:
@@ -7439,9 +9548,9 @@ fail:
   Result := False; 
 end;
 
-function CachedUTF16String.SubString(const From, Count: NativeUInt): CachedUTF16String;
+function CachedUTF32String.SubString(const From, Count: NativeUInt): CachedUTF32String;
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
@@ -7466,7 +9575,7 @@ begin
   end;
 end;
 
-function CachedUTF16String.SubString(const Count: NativeUInt): CachedUTF16String;
+function CachedUTF32String.SubString(const Count: NativeUInt): CachedUTF32String;
 var
   L: NativeUInt;
 begin
@@ -7482,9 +9591,9 @@ begin
   end;
 end;
 
-function CachedUTF16String.Offset(const Count: NativeUInt): Boolean;
+function CachedUTF32String.Offset(const Count: NativeUInt): Boolean;
 type
-  TCharArray = array[0..0] of Word;
+  TCharArray = array[0..0] of Cardinal;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
@@ -7504,12 +9613,10 @@ begin
   end;
 end;
 
-function CachedUTF16String.Hash: Cardinal;
-const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
+function CachedUTF32String.Hash: Cardinal;
 var
   L, L_High: NativeUInt;
-  P: PWord;
+  P: PCardinal;
   V: Cardinal;
 begin
   L := FLength;
@@ -7520,28 +9627,20 @@ begin
 
   L_High := L shl (32-9);
   if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
-  if (L >= CHARS_IN_CARDINAL) then
   repeat
     // Result := (Result shr 5) xor (P^ + Result);
     // Dec(L);/Inc(P);
     V := Result shr 5;
-    Dec(L, CHARS_IN_CARDINAL);
-    Inc(Result, PCardinal(P)^);
-    Inc(P, CHARS_IN_CARDINAL);
-    Result := Result xor V;
-  until (L < CHARS_IN_CARDINAL);
-
-  if (L and 1 <> 0) then
-  begin
-    V := Result shr 5;
+    Dec(L);
     Inc(Result, P^);
+    Inc(P);
     Result := Result xor V;
-  end;
+  until (L = 0);
 
   Result := (Result and (-1 shr 9)) + (L_High);
 end;
 
-function CachedUTF16String.HashIgnoreCase: Cardinal;
+function CachedUTF32String.HashIgnoreCase: Cardinal;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   if (Self.Ascii) then Result := _HashIgnoreCaseAscii
@@ -7551,18 +9650,15 @@ end;
 asm
   cmp byte ptr [EAX].F.B0, 0
   jnz _HashIgnoreCaseAscii
+  // todo
   jmp _HashIgnoreCase
 end;
 {$ifend}
 
-function CachedUTF16String._HashIgnoreCaseAscii: Cardinal;
-label
-  include_x;
-const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
+function CachedUTF32String._HashIgnoreCaseAscii: Cardinal;
 var
   L, L_High: NativeUInt;
-  P: PWord;
+  P: PCardinal;
   X, V: Cardinal;
 begin
   L := FLength;
@@ -7573,40 +9669,25 @@ begin
 
   L_High := L shl (32-9);
   if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
-  if (L >= CHARS_IN_CARDINAL) then
   repeat
     // Result := (Result shr 5) xor (Lower(P^) + Result);
     // Dec(L);/Inc(P);
-    X := PCardinal(P)^;
-  include_x:
-    X := X or ((X and $00400040) shr 1);
-    Dec(L, CHARS_IN_CARDINAL);
+    X := P^;
+    X := X or ((X and $40) shr 1);
+    Dec(L);
     V := Result shr 5;
     Inc(Result, X);
-    Inc(P, CHARS_IN_CARDINAL);
+    Inc(P);
     Result := Result xor V;
-  until (L < CHARS_IN_CARDINAL);
-
-  if (L and 1 <> 0) then
-  begin
-    X := P^;
-    Inc(L);
-    goto include_x;
-  end;
+  until (L = 0);
 
   Result := (Result and (-1 shr 9)) + (L_High);
 end;
 
-function CachedUTF16String._HashIgnoreCase: Cardinal;
-label
-  include_ascii, x_calculated;
-const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
-  MASK = not Cardinal($007f007f);
-  MASK_FIRST = not Cardinal($ffff007f);
+function CachedUTF32String._HashIgnoreCase: Cardinal;
 var
   L: NativeUInt;
-  P: PWord;
+  P: PCardinal;
   X, V: Cardinal;
   {$ifdef CPUX86}
   S: record
@@ -7628,105 +9709,92 @@ begin
   {$ifdef CPUX86}S.{$endif}L_High := V;
 
   lookup_utf16_lower := Pointer(@UNICONV_CHARCASE.LOWER);
-  if (L >= CHARS_IN_CARDINAL) then
   repeat
     // Result := (Result shr 5) xor (Lower(P^) + Result);
     // Dec(L);/Inc(P);
-    X := PCardinal(P)^;
-    Dec(L);
-    Inc(P);
-    if (X and MASK <> 0) then
-    begin
-      if (X and MASK_FIRST = 0) then
-      begin
-        X := Word(X);
-        goto include_ascii;
-      end else
-      begin
-        X := Word(X);
-        if (X >= $d800) and (X < $dc00) then
-        begin
-          Dec(L);
-          Inc(P);
-          goto x_calculated;
-        end;
-
-        X := lookup_utf16_lower[X];
-        goto x_calculated;
-      end;
-    end else
-    begin
-      Dec(L);
-      Inc(P);
-    include_ascii:
-      X := X or ((X and $00400040) shr 1);
-    end;
-
-  x_calculated:
-    V := Result shr 5;
-    Inc(Result, X);
-
-    Result := Result xor V;
-  until (NativeInt(L) < CHARS_IN_CARDINAL);
-
-  if (NativeInt(L) > 0) then
-  begin
     X := P^;
+    Dec(L);
     if (X > $7f) then
     begin
-      X := lookup_utf16_lower[X];
+      if (X <= High(Word)) then
+        X := lookup_utf16_lower[X];
     end else
     begin
-      X := X or ((X and $0040) shr 1);
+      X := X or ((X and $40) shr 1);
     end;
+
     V := Result shr 5;
     Inc(Result, X);
+    Inc(P);
     Result := Result xor V;
-  end;
+  until (L = 0);
 
   Result := (Result and (-1 shr 9)) + ({$ifdef CPUX86}S.{$endif}L_High);
 end;
 
-function CachedUTF16String.CharPos(const C: UnicodeChar; const From: NativeUInt): NativeInt;
+function CachedUTF32String.CharPos(const C: UCS4Char; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedUTF16String.CharPos(const C: UCS4Char; const From: NativeUInt): NativeInt;
+function CachedUTF32String.CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedUTF16String.CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt): NativeInt;
+function CachedUTF32String.Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedUTF16String.CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt): NativeInt;
+function CachedUTF32String.Pos(const S: UCS4String; const From: NativeUInt): NativeInt;
+type
+  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
+  PLength = ^TLength;
+var
+  L: NativeUInt;
+begin
+  if (Pointer(S) = nil) then
+  begin
+    Result := -1;
+  end else
+  begin
+    L := PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^;
+    Dec(L);
+    Inc(L, Byte(S[L] <> 0));
+    Result := Pos(Pointer(S), L, From);
+  end;
+end;
+
+function CachedUTF32String.PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedUTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+function CachedUTF32String.PosIgnoreCase(const S: UCS4String; const From: NativeUInt): NativeInt;
+type
+  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
+  PLength = ^TLength;
+var
+  L: NativeUInt;
 begin
-  Result := -1{todo};
+  if (Pointer(S) = nil) then
+  begin
+    Result := -1;
+  end else
+  begin
+    L := PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^;
+    Dec(L);
+    Inc(L, Byte(S[L] <> 0));
+    Result := PosIgnoreCase(Pointer(S), L, From);
+  end;
 end;
 
-function CachedUTF16String.Pos(const S: UnicodeString; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF16String.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF16String.TryAsBoolean(out Value: Boolean): Boolean;
+function CachedUTF32String.TryToBoolean(out Value: Boolean): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -7744,15 +9812,15 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsBooleanDef(const Default: Boolean): Boolean;
+function CachedUTF32String.ToBooleanDef(const Default: Boolean): Boolean;
 begin
-  Result := PCachedUTF16String(@Default)._GetBool(Pointer(Chars), Length);
+  Result := PCachedUTF32String(@Default)._GetBool(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String.GetBoolean: Boolean;
+function CachedUTF32String.ToBoolean: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetBool(Pointer(Chars), Length);
+  Result := PCachedUTF32String(0)._GetBool(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -7763,14 +9831,12 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String._GetBool(S: PWord; L: NativeUInt): Boolean;
+function CachedUTF32String._GetBool(S: PCardinal; L: NativeUInt): Boolean;
 label
   fail;
 type
   TStrAsData = packed record
-  case Integer of
-    0: (Words: array[0..High(Integer) div 2 - 1] of Word);
-    1: (Dwords: array[0..High(Integer) div 4 - 1] of Cardinal);
+    Dwords: array[0..High(Integer) div 4 - 1] of Cardinal;
   end;
 var
   Marker: NativeInt;
@@ -7781,42 +9847,43 @@ begin
 
   with TStrAsData(Pointer(Buffer.Chars)^) do
   case L of
-   1: case (Words[0]) of
-        $0030:
+   1: case (Dwords[0]) of
+        Ord('0'):
         begin
           // "0"
           Result := False;
           Exit;
         end;
-        $0031:
+        Ord('1'):
         begin
           // "1"
           Result := True;
           Exit;
         end;
       end;
-   2: if (Dwords[0] or $00200020 = $006F006E) then
+   2: if (Dwords[0] or $20 = Ord('n')) and (Dwords[1] or $20 = Ord('o')) then
       begin
         // "no"
         Result := False;
         Exit;
       end;
-   3: if (Dwords[0] or $00200020 = $00650079) and (Words[2] or $0020 = $0073) then
+   3: if (Dwords[0] or $20 = Ord('y')) and (Dwords[1] or $20 = Ord('e')) and
+         (Dwords[2] or $20 = Ord('s')) then
       begin
         // "yes"
         Result := True;
         Exit;
       end;
-   4: if (Dwords[0] or $00200020 = $00720074) and
-         (Dwords[1] or $00200020 = $00650075) then
+   4: if (Dwords[0] or $20 = Ord('t')) and (Dwords[1] or $20 = Ord('r')) and
+         (Dwords[2] or $20 = Ord('u')) and (Dwords[3] or $20 = Ord('e')) then
       begin
         // "true"
         Result := True;
         Exit;
       end;
-   5: if (Dwords[0] or $00200020 = $00610066) and
-         (Dwords[1] or $00200020 = $0073006C) and
-         (Words[4] or $0020 = $0065) then
+   5: if (Dwords[0] or $20 = Ord('f')) and (Dwords[1] or $20 = Ord('a')) and
+         (Dwords[2] or $20 = Ord('l')) and (Dwords[3] or $20 = Ord('s')) and
+         (Dwords[4] or $20 = Ord('e')) then
       begin
         // "false"
         Result := False;
@@ -7841,11 +9908,11 @@ fail:
   end;
 end;
 
-function CachedUTF16String.TryAsHex(out Value: Integer): Boolean;
+function CachedUTF32String.TryToHex(out Value: Integer): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -7863,15 +9930,15 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsHexDef(const Default: Integer): Integer;
+function CachedUTF32String.ToHexDef(const Default: Integer): Integer;
 begin
-  Result := PCachedUTF16String(@Default)._GetHex(Pointer(Chars), Length);
+  Result := PCachedUTF32String(@Default)._GetHex(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String.GetHex: Integer;
+function CachedUTF32String.ToHex: Integer;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetHex(Pointer(Chars), Length);
+  Result := PCachedUTF32String(0)._GetHex(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -7882,11 +9949,11 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String._GetHex(S: PWord; L: NativeInt): Integer;
+function CachedUTF32String._GetHex(S: PCardinal; L: NativeInt): Integer;
 label
   fail, zero;
 var
-  Buffer: CachedUTF16String;
+  Buffer: CachedUTF32String;
   X: NativeUInt;
   Marker: NativeInt;
 begin
@@ -7944,11 +10011,11 @@ fail:
   end;
 end;
 
-function CachedUTF16String.TryAsCardinal(out Value: Cardinal): Boolean;
+function CachedUTF32String.TryToCardinal(out Value: Cardinal): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -7966,15 +10033,15 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsCardinalDef(const Default: Cardinal): Cardinal;
+function CachedUTF32String.ToCardinalDef(const Default: Cardinal): Cardinal;
 begin
-  Result := PCachedUTF16String(@Default)._GetInt(Pointer(Chars), Length);
+  Result := PCachedUTF32String(@Default)._GetInt(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String.GetCardinal: Cardinal;
+function CachedUTF32String.ToCardinal: Cardinal;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetInt(Pointer(Chars), Length);
+  Result := PCachedUTF32String(0)._GetInt(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -7985,11 +10052,11 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.TryAsInteger(out Value: Integer): Boolean;
+function CachedUTF32String.TryToInteger(out Value: Integer): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -8008,15 +10075,15 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsIntegerDef(const Default: Integer): Integer;
+function CachedUTF32String.ToIntegerDef(const Default: Integer): Integer;
 begin
-  Result := PCachedUTF16String(@Default)._GetInt(Pointer(Chars), -Length);
+  Result := PCachedUTF32String(@Default)._GetInt(Pointer(Chars), -Length);
 end;
 
-function CachedUTF16String.GetInteger: Integer;
+function CachedUTF32String.ToInteger: Integer;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetInt(Pointer(Chars), -Length);
+  Result := PCachedUTF32String(0)._GetInt(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -8028,14 +10095,14 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String._GetInt(S: PWord; L: NativeInt): Integer;
+function CachedUTF32String._GetInt(S: PCardinal; L: NativeInt): Integer;
 label
   skipsign, hex, fail, zero;
 var
-  Buffer: CachedUTF16String;
+  Buffer: CachedUTF32String;
   HexRet: record
     Value: Integer;
-  end;
+  end;  
   X: NativeUInt;
   Marker: NativeInt;
 begin
@@ -8097,11 +10164,11 @@ begin
       HexRet.Value := 1;
       if (Marker and 4 = 0) then
       begin
-        Result := PCachedUTF16String(-NativeInt(@HexRet))._GetHex(S, L);
+        Result := PCachedUTF32String(-NativeInt(@HexRet))._GetHex(S, L);
         if (HexRet.Value = 0) then goto fail;
       end else
       begin
-        Result := -PCachedUTF16String(-NativeInt(@HexRet))._GetHex(S, L);
+        Result := -PCachedUTF32String(-NativeInt(@HexRet))._GetHex(S, L);
         if (HexRet.Value = 0) then goto fail;
       end;
 
@@ -8184,11 +10251,11 @@ fail:
   end;
 end;
 
-function CachedUTF16String.TryAsHex64(out Value: Int64): Boolean;
+function CachedUTF32String.TryToHex64(out Value: Int64): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -8207,10 +10274,10 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsHex64Def(const Default: Int64): Int64;
+function CachedUTF32String.ToHex64Def(const Default: Int64): Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(@Default)._GetHex64(Pointer(Chars), Length);
+  Result := PCachedUTF32String(@Default)._GetHex64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -8221,10 +10288,10 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.GetHex64: Int64;
+function CachedUTF32String.ToHex64: Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetHex64(Pointer(Chars), Length);
+  Result := PCachedUTF32String(0)._GetHex64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -8235,11 +10302,11 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String._GetHex64(S: PWord; L: NativeInt): Int64;
+function CachedUTF32String._GetHex64(S: PCardinal; L: NativeInt): Int64;
 label
   fail, zero;
 var
-  Buffer: CachedUTF16String;
+  Buffer: CachedUTF32String;
   X: NativeUInt;
   R1, R2: NativeUInt;
   Marker: NativeInt;
@@ -8330,11 +10397,11 @@ fail:
   end;
 end;
 
-function CachedUTF16String.TryAsUInt64(out Value: UInt64): Boolean;
+function CachedUTF32String.TryToUInt64(out Value: UInt64): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -8353,10 +10420,10 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsUInt64Def(const Default: UInt64): UInt64;
+function CachedUTF32String.ToUInt64Def(const Default: UInt64): UInt64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(@Default)._GetInt64(Pointer(Chars), Length);
+  Result := PCachedUTF32String(@Default)._GetInt64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -8367,10 +10434,10 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.GetUInt64: UInt64;
+function CachedUTF32String.ToUInt64: UInt64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetInt64(Pointer(Chars), Length);
+  Result := PCachedUTF32String(0)._GetInt64(Pointer(Chars), Length);
 end;
 {$else .CPUX86}
 asm
@@ -8381,11 +10448,11 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.TryAsInt64(out Value: Int64): Boolean;
+function CachedUTF32String.TryToInt64(out Value: Int64): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -8405,10 +10472,10 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsInt64Def(const Default: Int64): Int64;
+function CachedUTF32String.ToInt64Def(const Default: Int64): Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(@Default)._GetInt64(Pointer(Chars), -Length);
+  Result := PCachedUTF32String(@Default)._GetInt64(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -8420,10 +10487,10 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.GetInt64: Int64;
+function CachedUTF32String.ToInt64: Int64;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
 begin
-  Result := PCachedUTF16String(0)._GetInt64(Pointer(Chars), -Length);
+  Result := PCachedUTF32String(0)._GetInt64(Pointer(Chars), -Length);
 end;
 {$else .CPUX86}
 asm
@@ -8435,11 +10502,11 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String._GetInt64(S: PWord; L: NativeInt): Int64;
+function CachedUTF32String._GetInt64(S: PCardinal; L: NativeInt): Int64;
 label
   skipsign, hex, fail, zero;
 var
-  Buffer: CachedUTF16String;
+  Buffer: CachedUTF32String;
   HexRet: record
     Value: Integer;
   end;  
@@ -8505,11 +10572,11 @@ begin
       HexRet.Value := 1;
       if (Marker and 4 = 0) then
       begin
-        Result := PCachedUTF16String(-NativeInt(@HexRet))._GetHex64(S, L);
+        Result := PCachedUTF32String(-NativeInt(@HexRet))._GetHex64(S, L);
         if (HexRet.Value = 0) then goto fail;
       end else
       begin
-        Result := -PCachedUTF16String(-NativeInt(@HexRet))._GetHex64(S, L);
+        Result := -PCachedUTF32String(-NativeInt(@HexRet))._GetHex64(S, L);
         if (HexRet.Value = 0) then goto fail;
       end;
 
@@ -8521,7 +10588,7 @@ begin
 
   if (L <= 9) then
   begin
-    R1 := PCachedUTF16String(nil)._GetInt_19(S, L);
+    R1 := PCachedUTF32String(nil)._GetInt_19(S, L);
     if (R1 < 0) then goto fail;
 
     if (Marker and 4 <> 0) then R1 := -R1;
@@ -8546,11 +10613,11 @@ begin
   end;
 
   Dec(L, 9);
-  R2 := PCachedUTF16String(nil)._GetInt_19(S, L);
+  R2 := PCachedUTF32String(nil)._GetInt_19(S, L);
   Inc(S, L);
   if (R2 < 0) then goto fail;
 
-  R1 := PCachedUTF16String(nil)._GetInt_19(S, 9);
+  R1 := PCachedUTF32String(nil)._GetInt_19(S, 9);
   Inc(S, 9);
   if (R1 < 0) then goto fail;
 
@@ -8626,17 +10693,17 @@ fail:
   end;
 end;
 
-function CachedUTF16String._GetInt_19(S: PWord; L: NativeUInt): NativeInt;
+function CachedUTF32String._GetInt_19(S: PCardinal; L: NativeUInt): NativeInt;
 label
   fail, _1, _2, _3, _4, _5, _6, _7, _8, _9;
 var
   {$ifdef CPUX86}
   Store: record
     _R: PNativeInt;
-    _S: PWord;
+    _S: PCardinal;
   end;
   {$else}
-  _S: PWord;
+  _S: PCardinal;
   {$endif}
   _R: PNativeInt;
 begin
@@ -8751,46 +10818,46 @@ fail:
 
   Result := NativeInt({$ifdef CPUX86}Store.{$endif}_S);
   Dec(Result, NativeInt(S));
-  Result := (Result shr 1) or Low(NativeInt);
+  Result := (Result shr 2) or (Low(NativeInt) or (Low(NativeInt) shr 1));
 end;
 
-function CachedUTF16String.TryAsFloat(out Value: Single): Boolean;
+function CachedUTF32String.TryToFloat(out Value: Single): Boolean;
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String.TryAsFloat(out Value: Double): Boolean;
+function CachedUTF32String.TryToFloat(out Value: Double): Boolean;
 begin
   Result := True;
-  Value := PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+  Value := PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String.TryAsFloat(out Value: TExtended80Rec): Boolean;
+function CachedUTF32String.TryToFloat(out Value: TExtended80Rec): Boolean;
 begin
   Result := True;
   {$if SizeOf(Extended) = 10}
-    PExtended(@Value)^ := PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
+    PExtended(@Value)^ := PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
   {$else}
-    Value := TExtended80Rec(PCachedUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
+    Value := TExtended80Rec(PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
   {$ifend}
 end;
 
-function CachedUTF16String.AsFloatDef(const Default: Extended): Extended;
+function CachedUTF32String.ToFloatDef(const Default: Extended): Extended;
 begin
-  Result := PCachedUTF16String(@Default)._GetFloat(Pointer(Chars), Length);
+  Result := PCachedUTF32String(@Default)._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String.GetFloat: Extended;
+function CachedUTF32String.ToFloat: Extended;
 begin
-  Result := PCachedUTF16String(0)._GetFloat(Pointer(Chars), Length);
+  Result := PCachedUTF32String(0)._GetFloat(Pointer(Chars), Length);
 end;
 
-function CachedUTF16String._GetFloat(S: PWord; L: NativeUInt): Extended;
+function CachedUTF32String._GetFloat(S: PCardinal; L: NativeUInt): Extended;
 label
   skipsign, frac, exp, skipexpsign, done, fail, zero;
 var
-  Buffer: CachedUTF16String;
+  Buffer: CachedUTF32String;
   Store: record
     V: NativeInt;
     Sign: Byte;
@@ -8838,11 +10905,11 @@ begin
   begin
     if (L > 9) then
     begin
-      V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
+      V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
       X := 9;
     end else
     begin
-      V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
+      V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
       X := L;
     end;
 
@@ -8862,11 +10929,11 @@ begin
       repeat
         if (L > 9) then
         begin
-          V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
+          V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
           X := 9;
         end else
         begin
-          V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
+          V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
           X := L;
         end;
 
@@ -8908,11 +10975,11 @@ frac:
   begin
     if (L > 9) then
     begin
-      V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
+      V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
       X := 9;
     end else
     begin
-      V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
+      V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
       X := L;
     end;
 
@@ -8933,11 +11000,11 @@ frac:
       repeat
         if (L > 9) then
         begin
-          V := PCachedUTF16String(@Store.V)._GetInt_19(S, 9);
+          V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
           X := 9;
         end else
         begin
-          V := PCachedUTF16String(@Store.V)._GetInt_19(S, L);
+          V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
           X := L;
         end;
 
@@ -9003,7 +11070,7 @@ exp:
     Result := Result * TenPowers[X];
   end else
   begin
-    V := PCachedUTF16String(nil)._GetInt_19(S, L);
+    V := PCachedUTF32String(nil)._GetInt_19(S, L);
     if (V < 0) or (V > 300) then goto fail;
     Result := Result * TenPower(TenPowers, V);
   end;
@@ -9032,19 +11099,19 @@ fail:
   end;
 end;
 
-function CachedUTF16String.AsDateDef(const Default: TDateTime): TDateTime;
+function CachedUTF32String.ToDateDef(const Default: TDateTime): TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
     Result := Default;
 end;
 
-function CachedUTF16String.GetDate: TDateTime;
+function CachedUTF32String.ToDate: TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
     raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
 end;
 
-function CachedUTF16String.TryAsDate(out Value: TDateTime): Boolean;
+function CachedUTF32String.TryToDate(out Value: TDateTime): Boolean;
 const
   DT = 1{Date};
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -9058,19 +11125,19 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsTimeDef(const Default: TDateTime): TDateTime;
+function CachedUTF32String.ToTimeDef(const Default: TDateTime): TDateTime;
 begin
-  if (not _GetDateTime(Result, 2{Time})) then
+  if (not _GetDateTime(Result, 1{Time})) then
     Result := Default;
 end;
 
-function CachedUTF16String.GetTime: TDateTime;
+function CachedUTF32String.ToTime: TDateTime;
 begin
-  if (not _GetDateTime(Result, 2{Time})) then
+  if (not _GetDateTime(Result, 1{Time})) then
     raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
 end;
 
-function CachedUTF16String.TryAsTime(out Value: TDateTime): Boolean;
+function CachedUTF32String.TryToTime(out Value: TDateTime): Boolean;
 const
   DT = 2{Time};
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -9084,19 +11151,19 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String.AsDateTimeDef(const Default: TDateTime): TDateTime;
+function CachedUTF32String.ToDateTimeDef(const Default: TDateTime): TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
     Result := Default;
 end;
 
-function CachedUTF16String.GetDateTime: TDateTime;
+function CachedUTF32String.ToDateTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
     raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
 end;
 
-function CachedUTF16String.TryAsDateTime(out Value: TDateTime): Boolean;
+function CachedUTF32String.TryToDateTime(out Value: TDateTime): Boolean;
 const
   DT = 3{DateTime};
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -9110,13 +11177,13 @@ asm
 end;
 {$ifend}
 
-function CachedUTF16String._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+function CachedUTF32String._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
 label
   fail;
 var
   L, X: NativeUInt;
   Dest: PByte;
-  Src: PWord;
+  Src: PCardinal;
   Buffer: TDateTimeBuffer;
 begin
   Buffer.Value := @Value;
@@ -9142,26 +11209,6 @@ begin
   until (L = 0);
 
   Result := CachedTexts._GetDateTime(Buffer);
-end;
-
-
-{ CachedUTF32String }
-
-function CachedUTF32String.GetEmpty: Boolean;
-begin
-  Result := (Length <> 0);
-end;
-
-procedure CachedUTF32String.SetEmpty(Value: Boolean);
-var
-  V: NativeUInt;
-begin
-  if (Value) then
-  begin
-    V := 0;
-    FLength := V;
-    F.NativeFlags := V;
-  end;
 end;
 
 procedure ascii_from_utf32(Dest: Pointer; Src: PCardinal; Count: NativeInt);
@@ -9242,7 +11289,7 @@ begin
   end;
 end;
 
-procedure CachedUTF32String.ToAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedUTF32String.ToAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L, X: NativeUInt;
   Index: NativeInt;
@@ -9251,16 +11298,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -9307,7 +11354,7 @@ begin
   end;
 end;
 
-procedure CachedUTF32String.ToLowerAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedUTF32String.ToLowerAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L, X: NativeUInt;
   Index: NativeInt;
@@ -9316,16 +11363,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -9376,7 +11423,7 @@ begin
   end;
 end;
 
-procedure CachedUTF32String.ToUpperAnsiString(var S: AnsiString; const CP: Word);
+procedure CachedUTF32String.ToUpperAnsiString(var S: AnsiString; const CodePage: Word);
 var
   L, X: NativeUInt;
   Index: NativeInt;
@@ -9385,16 +11432,16 @@ var
   Converter: Pointer;
   Dest, Src: Pointer;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8String(UTF8String(S));
     Exit;
   end;
 
-  Index := NativeUInt(CP);
+  Index := NativeUInt(CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CP) or (Value < 0) then Break;
+    if (Word(Value) = CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -9447,7 +11494,7 @@ end;
 
 type
   TSBCSConv = record
-    CP: Word;
+    CodePage: Word;
     Length: NativeInt;
     CaseLookup: PUniConvWW;
   end;
@@ -9460,10 +11507,10 @@ var
   CaseLookup: PUniConvWW;
 begin
   // DestSBCS
-  Index := NativeUInt(SBCSConv.CP);
+  Index := NativeUInt(SBCSConv.CodePage);
   Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = SBCSConv.CP) or (Value < 0) then Break;
+    if (Word(Value) = SBCSConv.CodePage) or (Value < 0) then Break;
     Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
   until (False);
   Index := Byte(Value shr 16);
@@ -9517,18 +11564,18 @@ begin
   end;
 end;
 
-procedure CachedUTF32String.ToAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedUTF32String.ToAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Src: Pointer;
   SBCSConv: TSBCSConv;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUTF8ShortString(S);
     Exit;
   end;
-  SBCSConv.CP := CP;
+  SBCSConv.CodePage := CodePage;
 
   L := Self.Length;
   if (L > NativeUInt(High(S))) then L := High(S);
@@ -9547,18 +11594,18 @@ begin
   end;
 end;
 
-procedure CachedUTF32String.ToLowerAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedUTF32String.ToLowerAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Src: Pointer;
   SBCSConv: TSBCSConv;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToLowerUTF8ShortString(S);
     Exit;
   end;
-  SBCSConv.CP := CP;
+  SBCSConv.CodePage := CodePage;
 
   L := Self.Length;
   if (L > NativeUInt(High(S))) then L := High(S);
@@ -9577,18 +11624,18 @@ begin
   end;
 end;
 
-procedure CachedUTF32String.ToUpperAnsiShortString(var S: ShortString; const CP: Word);
+procedure CachedUTF32String.ToUpperAnsiShortString(var S: ShortString; const CodePage: Word);
 var
   L: NativeUInt;
   Src: Pointer;
   SBCSConv: TSBCSConv;
 begin
-  if (CP = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) then
   begin
     ToUpperUTF8ShortString(S);
     Exit;
   end;
-  SBCSConv.CP := CP;
+  SBCSConv.CodePage := CodePage;
 
   L := Self.Length;
   if (L > NativeUInt(High(S))) then L := High(S);
@@ -10388,7 +12435,7 @@ asm
 end;
 {$ifend}
 
-function CachedUTF32String.GetAnsiString: AnsiString;
+function CachedUTF32String.ToAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToAnsiString(Result);
@@ -10404,7 +12451,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetLowerAnsiString: AnsiString;
+function CachedUTF32String.ToLowerAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerAnsiString(Result);
@@ -10420,7 +12467,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetUpperAnsiString: AnsiString;
+function CachedUTF32String.ToUpperAnsiString: AnsiString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperAnsiString(Result);
@@ -10436,7 +12483,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetUTF8String: UTF8String;
+function CachedUTF32String.ToUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToUTF8String(Result);
@@ -10447,7 +12494,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetLowerUTF8String: UTF8String;
+function CachedUTF32String.ToLowerUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToLowerUTF8String(Result);
@@ -10458,7 +12505,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetUpperUTF8String: UTF8String;
+function CachedUTF32String.ToUpperUTF8String: UTF8String;
 {$ifNdef CPUINTEL}
 begin
   ToUpperUTF8String(Result);
@@ -10469,7 +12516,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetWideString: WideString;
+function CachedUTF32String.ToWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToWideString(Result);
@@ -10480,7 +12527,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetLowerWideString: WideString;
+function CachedUTF32String.ToLowerWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerWideString(Result);
@@ -10491,7 +12538,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetUpperWideString: WideString;
+function CachedUTF32String.ToUpperWideString: WideString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperWideString(Result);
@@ -10503,7 +12550,7 @@ end;
 {$endif}
 
 {$ifdef UNICODE}
-function CachedUTF32String.GetUnicodeString: UnicodeString;
+function CachedUTF32String.ToUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToUnicodeString(Result);
@@ -10514,7 +12561,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetLowerUnicodeString: UnicodeString;
+function CachedUTF32String.ToLowerUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToLowerUnicodeString(Result);
@@ -10525,7 +12572,7 @@ asm
 end;
 {$endif}
 
-function CachedUTF32String.GetUpperUnicodeString: UnicodeString;
+function CachedUTF32String.ToUpperUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
   ToUpperUnicodeString(Result);
@@ -10535,6 +12582,54 @@ asm
   jmp ToUpperUnicodeString
 end;
 {$endif}
+{$endif}
+
+function CachedUTF32String.ToString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToAnsiString
+  {$endif}
+end;
+{$endif}
+
+function CachedUTF32String.ToLowerString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToLowerUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToLowerUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToLowerAnsiString
+  {$endif}
+end;
+{$endif}
+
+function CachedUTF32String.ToUpperString: string;
+{$ifNdef CPUINTEL}
+begin
+  ToUpperUnicodeString(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  {$ifdef UNICODE}
+    jmp ToUpperUnicodeString
+  {$else}
+    xor ecx, ecx
+    jmp ToUpperAnsiString
+  {$endif}
+end;
 {$endif}
 
 {$ifdef OPERATORSUPPORT}
@@ -10589,1941 +12684,6 @@ end;
 {$endif}
 {$endif}
 {$endif}
-
-procedure CachedUTF32String.Assign(const S: UCS4String; const NullTerminated: Boolean);
-var
-  P: PNativeInt;
-begin
-  P := Pointer(S);
-  Self.FChars := Pointer(P);
-  if (P = nil) then
-  begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
-  end else
-  begin
-    Dec(P);
-    Self.FLength := P^ - Ord(NullTerminated){$ifdef FPC}+1{$endif};
-    Self.F.NativeFlags := 0;
-  end;
-end;
-
-function CachedUTF32String.DetectAscii: Boolean;
-label
-  fail;
-var
-  P: PCardinal;
-  L: NativeUInt;
-  {$ifdef LARGEINT}
-  MASK: NativeUInt;
-  {$endif}  
-begin
-  P := Pointer(FChars);
-
-  {$ifdef LARGEINT}
-  MASK := not NativeUInt($7f0000007f);
-  L := FLength;
-  while (L > 1) do  
-  begin  
-    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;   
-    Dec(L, 2);
-    Inc(P, 2);
-  end;  
-  if (L and 1 <> 0) and (P^ > $7f) then goto fail;
-  {$else}
-  for L := 1 to FLength do
-  begin
-    if (P^ > $7f) then goto fail;   
-    Inc(P);
-  end;      
-  {$endif}    
-  
-  Ascii := True;
-  Result := True;  
-  Exit;
-fail:
-  Ascii := False;
-  Result := False;  
-end;
-
-function CachedUTF32String.LTrim: Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-var
-  L: NativeUInt;
-  S: PCardinal;
-begin
-  L := Length;
-  S := Pointer(FChars);
-  if (L = 0) then
-  begin
-    Result := False;
-    Exit;
-  end else
-  if (S^ > 32) then
-  begin
-    Result := True;
-    Exit;
-  end else
-  begin
-    Result := _LTrim(S, L);
-  end;
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  test ecx, ecx
-  jz @1
-  xor eax, eax
-  ret
-@1:
-  cmp dword ptr [edx], 32
-  jbe _LTrim
-  mov al, 1
-end;
-{$ifend}
-
-function CachedUTF32String._LTrim(S: PCardinal; L: NativeUInt): Boolean;
-label
-  fail;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  TopS: PCardinal;
-begin  
-  TopS := @PCharArray(S)[L];
-
-  repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
-  until (S^ > 32);
-  
-  FChars := Pointer(S);
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 2; 
-  Result := True;
-  Exit;
-fail:
-  L := 0;
-  FLength := L{0};  
-  Result := False; 
-end;
-
-function CachedUTF32String.RTrim: Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  L: NativeUInt;
-  S: PCardinal;
-begin
-  L := Length;
-  S := Pointer(FChars);
-  if (L = 0) then
-  begin
-    Result := False;
-    Exit;
-  end else
-  begin
-    Dec(L);
-    if (PCharArray(S)[L] > 32) then
-    begin
-      Result := True;
-      Exit;
-    end else
-    begin
-      Result := _RTrim(S, L);
-    end;
-  end;
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  sub ecx, 1
-  jge @1
-  xor eax, eax
-  ret
-@1:    
-  cmp dword ptr [edx + ecx*4], 32
-  jbe _RTrim
-  mov al, 1
-end;
-{$ifend}
-
-function CachedUTF32String._RTrim(S: PCardinal; H: NativeUInt): Boolean;
-label
-  fail;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  TopS: PCardinal;
-begin  
-  TopS := @PCharArray(S)[H];
-  
-  Dec(S);
-  repeat
-    Dec(TopS);  
-    if (S = TopS) then goto fail;    
-  until (TopS^ > 32);
-
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 2;
-  Result := True;
-  Exit;
-fail:
-  H := 0;
-  FLength := H{0};  
-  Result := False; 
-end;
-
-function CachedUTF32String.Trim: Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  L: NativeUInt;
-  S: PCardinal;
-begin
-  L := Length;
-  S := Pointer(FChars);
-  if (L = 0) then
-  begin
-    Result := False;
-    Exit;
-  end else
-  begin
-    Dec(L);
-    if (PCharArray(S)[L] > 32) then
-    begin
-      // LTrim or True
-      if (S^ > 32) then
-      begin
-        Result := True;
-        Exit;
-      end else
-      begin
-        Result := _LTrim(S, L+1);
-        Exit;
-      end;
-    end else
-    begin
-      // RTrim or Trim
-      if (S^ > 32) then
-      begin
-        Result := _RTrim(S, L);
-        Exit;
-      end else
-      begin
-        Result := _Trim(S, L);
-      end;
-    end;
-  end;
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  sub ecx, 1
-  jge @1
-  xor eax, eax
-  ret
-@1:
-  cmp dword ptr [edx + ecx*4], 32
-  jbe @2
-  // LTrim or True
-  inc ecx
-  cmp dword ptr [edx], 32
-  jbe _LTrim
-  mov al, 1
-  ret
-@2:
-  // RTrim or Trim
-  cmp dword ptr [edx], 32
-  ja _RTrim
-  jmp _Trim
-end;
-{$ifend}
-
-function CachedUTF32String._Trim(S: PCardinal; H: NativeUInt): Boolean;
-label
-  fail;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  TopS: PCardinal;
-begin  
-  if (H = 0) then goto fail;  
-  TopS := @PCharArray(S)[H];      
-
-  // LTrim
-  repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
-  until (S^ > 32);  
-  FChars := Pointer(S);
-
-  // RTrim
-  Dec(S);
-  repeat
-    Dec(TopS);  
-  until (TopS^ > 32);    
-  
-  // Result
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 2; 
-  Result := True;
-  Exit;
-fail:
-  H := 0;
-  FLength := H{0};  
-  Result := False; 
-end;
-
-function CachedUTF32String.SubString(const From, Count: NativeUInt): CachedUTF32String;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  L: NativeUInt;
-begin
-  Result.F.NativeFlags := Self.F.NativeFlags;
-  Result.FChars := Pointer(@PCharArray(Self.FChars)[From]);
-
-  L := Self.FLength;
-  Dec(L, From);
-  if (NativeInt(L) <= 0) then
-  begin
-    Result.FLength := 0;
-    Exit;
-  end;
-
-  if (L < Count) then
-  begin
-    Result.FLength := L;
-  end else
-  begin
-    Result.FLength := Count;
-  end;
-end;
-
-function CachedUTF32String.SubString(const Count: NativeUInt): CachedUTF32String;
-var
-  L: NativeUInt;
-begin
-  Result.FChars := Self.FChars;
-  Result.F.NativeFlags := Self.F.NativeFlags;
-  L := Self.FLength;
-  if (L < Count) then
-  begin
-    Result.FLength := L;
-  end else
-  begin
-    Result.FLength := Count;
-  end;
-end;
-
-function CachedUTF32String.Offset(const Count: NativeUInt): Boolean;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
-var
-  L: NativeUInt;
-begin
-  L := FLength;
-  if (L <= Count) then
-  begin
-    FChars := Pointer(@PCharArray(FChars)[L]);
-    FLength := 0;
-    Result := False;
-  end else
-  begin
-    Dec(L, Count);
-    FLength := L;
-    FChars := Pointer(@PCharArray(FChars)[Count]);
-    Result := True;
-  end;
-end;
-
-function CachedUTF32String.Hash: Cardinal;
-var
-  L, L_High: NativeUInt;
-  P: PCardinal;
-  V: Cardinal;
-begin
-  L := FLength;
-  P := Pointer(FChars);
-
-  Result := L;
-  if (L = 0) then Exit;
-
-  L_High := L shl (32-9);
-  if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
-  repeat
-    // Result := (Result shr 5) xor (P^ + Result);
-    // Dec(L);/Inc(P);
-    V := Result shr 5;
-    Dec(L);
-    Inc(Result, P^);
-    Inc(P);
-    Result := Result xor V;
-  until (L = 0);
-
-  Result := (Result and (-1 shr 9)) + (L_High);
-end;
-
-function CachedUTF32String.HashIgnoreCase: Cardinal;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  if (Self.Ascii) then Result := _HashIgnoreCaseAscii
-  else Result := _HashIgnoreCase;
-end;
-{$else .CPUX86}
-asm
-  cmp byte ptr [EAX].F.B0, 0
-  jnz _HashIgnoreCaseAscii
-  // todo
-  jmp _HashIgnoreCase
-end;
-{$ifend}
-
-function CachedUTF32String._HashIgnoreCaseAscii: Cardinal;
-var
-  L, L_High: NativeUInt;
-  P: PCardinal;
-  X, V: Cardinal;
-begin
-  L := FLength;
-  P := Pointer(FChars);
-
-  Result := L;
-  if (L = 0) then Exit;
-
-  L_High := L shl (32-9);
-  if (L > 255) then L_High := NativeInt(L_High) or (1 shl 31);
-  repeat
-    // Result := (Result shr 5) xor (Lower(P^) + Result);
-    // Dec(L);/Inc(P);
-    X := P^;
-    X := X or ((X and $40) shr 1);
-    Dec(L);
-    V := Result shr 5;
-    Inc(Result, X);
-    Inc(P);
-    Result := Result xor V;
-  until (L = 0);
-
-  Result := (Result and (-1 shr 9)) + (L_High);
-end;
-
-function CachedUTF32String._HashIgnoreCase: Cardinal;
-var
-  L: NativeUInt;
-  P: PCardinal;
-  X, V: Cardinal;
-  {$ifdef CPUX86}
-  S: record
-    L_High: NativeUInt;
-  end;
-  {$else}
-  L_High: NativeUInt;
-  {$endif}
-  lookup_utf16_lower: PUniConvWW;
-begin
-  L := FLength;
-  P := Pointer(FChars);
-
-  Result := L;
-  if (L = 0) then Exit;
-
-  V := L shl (32-9);
-  if (L > 255) then V := NativeInt(V) or (1 shl 31);
-  {$ifdef CPUX86}S.{$endif}L_High := V;
-
-  lookup_utf16_lower := Pointer(@UNICONV_CHARCASE.LOWER);
-  repeat
-    // Result := (Result shr 5) xor (Lower(P^) + Result);
-    // Dec(L);/Inc(P);
-    X := P^;
-    Dec(L);
-    if (X > $7f) then
-    begin
-      if (X <= High(Word)) then
-        X := lookup_utf16_lower[X];
-    end else
-    begin
-      X := X or ((X and $40) shr 1);
-    end;
-
-    V := Result shr 5;
-    Inc(Result, X);
-    Inc(P);
-    Result := Result xor V;
-  until (L = 0);
-
-  Result := (Result and (-1 shr 9)) + ({$ifdef CPUX86}S.{$endif}L_High);
-end;
-
-function CachedUTF32String.CharPos(const C: UnicodeChar; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.CharPos(const C: UCS4Char; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.Pos(const S: UnicodeString; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
-begin
-  Result := -1{todo};
-end;
-
-function CachedUTF32String.TryAsBoolean(out Value: Boolean): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetBool(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  sub eax, esp
-  call _GetBool
-  pop edx
-  pop ecx
-  mov [ecx], al
-  xchg eax, edx
-end;
-{$ifend}
-
-function CachedUTF32String.AsBooleanDef(const Default: Boolean): Boolean;
-begin
-  Result := PCachedUTF32String(@Default)._GetBool(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String.GetBoolean: Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetBool(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  jmp _GetBool
-end;
-{$ifend}
-
-function CachedUTF32String._GetBool(S: PCardinal; L: NativeUInt): Boolean;
-label
-  fail;
-type
-  TStrAsData = packed record
-    Dwords: array[0..High(Integer) div 4 - 1] of Cardinal;
-  end;
-var
-  Marker: NativeInt;
-  Buffer: CachedByteString;
-begin
-  Buffer.Chars := Pointer(S);
-  Buffer.Length := L;
-
-  with TStrAsData(Pointer(Buffer.Chars)^) do
-  case L of
-   1: case (Dwords[0]) of
-        Ord('0'):
-        begin
-          // "0"
-          Result := False;
-          Exit;
-        end;
-        Ord('1'):
-        begin
-          // "1"
-          Result := True;
-          Exit;
-        end;
-      end;
-   2: if (Dwords[0] or $20 = Ord('n')) and (Dwords[1] or $20 = Ord('o')) then
-      begin
-        // "no"
-        Result := False;
-        Exit;
-      end;
-   3: if (Dwords[0] or $20 = Ord('y')) and (Dwords[1] or $20 = Ord('e')) and
-         (Dwords[2] or $20 = Ord('s')) then
-      begin
-        // "yes"
-        Result := True;
-        Exit;
-      end;
-   4: if (Dwords[0] or $20 = Ord('t')) and (Dwords[1] or $20 = Ord('r')) and
-         (Dwords[2] or $20 = Ord('u')) and (Dwords[3] or $20 = Ord('e')) then
-      begin
-        // "true"
-        Result := True;
-        Exit;
-      end;
-   5: if (Dwords[0] or $20 = Ord('f')) and (Dwords[1] or $20 = Ord('a')) and
-         (Dwords[2] or $20 = Ord('l')) and (Dwords[3] or $20 = Ord('s')) and
-         (Dwords[4] or $20 = Ord('e')) then
-      begin
-        // "false"
-        Result := False;
-        Exit;
-      end;
-  end;
-
-fail:
-  Marker := NativeInt(@Self);
-  if (Marker = 0) then
-  begin
-    Buffer.Flags := 0;
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidBoolean), @Buffer);
-  end else
-  if (Marker > 0) then
-  begin
-    Result := PBoolean(Marker)^;
-  end else
-  begin
-    PBoolean(-Marker)^ := False;
-    Result := False;
-  end;
-end;
-
-function CachedUTF32String.TryAsHex(out Value: Integer): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetHex(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  sub eax, esp
-  call _GetHex
-  pop edx
-  pop ecx
-  mov [ecx], eax
-  xchg eax, edx
-end;
-{$ifend}
-
-function CachedUTF32String.AsHexDef(const Default: Integer): Integer;
-begin
-  Result := PCachedUTF32String(@Default)._GetHex(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String.GetHex: Integer;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetHex(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  jmp _GetHex
-end;
-{$ifend}
-
-function CachedUTF32String._GetHex(S: PCardinal; L: NativeInt): Integer;
-label
-  fail, zero;
-var
-  Buffer: CachedUTF32String;
-  X: NativeUInt;
-  Marker: NativeInt;
-begin
-  Buffer.F.NativeFlags := NativeUInt(@Self);
-  Buffer.Chars := Pointer(S);
-
-  X := S^;
-  if (X = Ord('0')) then
-  repeat
-    Inc(S);
-    if (L = 1) then goto zero;
-    X := S^;
-    Dec(L);
-  until (X <> Ord('0'));
-
-  if (L > 2*SizeOf(Result)) then goto fail;
-  Result := 0;
-
-  repeat
-    X := S^;
-    Dec(L);
-    Inc(S);
-    if (X >= Ord('A')) then
-    begin
-      X := X or $20;
-      Dec(X, Ord('a') - 10);
-      Result := Result shl 4;
-      if (X >= 16) then goto fail;
-    end else
-    begin
-      Dec(X, Ord('0'));
-      Result := Result shl 4;
-      if (X >= 10) then goto fail;
-    end;
-
-    Inc(Result, X);
-  until (L = 0);
-
-  Exit;
-fail:
-  Marker := Buffer.F.NativeFlags;
-  if (Marker = 0) then
-  begin
-    //Buffer.Flags := 0;
-    raise ECachedString.Create(Pointer(@SInvalidHex), @Buffer);
-  end else
-  if (Marker > 0) then
-  begin
-    Result := PInteger(Marker)^;
-  end else
-  begin
-    PBoolean(-Marker)^ := False;
-  zero:
-    Result := 0;
-  end;
-end;
-
-function CachedUTF32String.TryAsCardinal(out Value: Cardinal): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  sub eax, esp
-  call _GetInt
-  pop edx
-  pop ecx
-  mov [ecx], eax
-  xchg eax, edx
-end;
-{$ifend}
-
-function CachedUTF32String.AsCardinalDef(const Default: Cardinal): Cardinal;
-begin
-  Result := PCachedUTF32String(@Default)._GetInt(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String.GetCardinal: Cardinal;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetInt(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  jmp _GetInt
-end;
-{$ifend}
-
-function CachedUTF32String.TryAsInteger(out Value: Integer): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt(Pointer(Chars), -Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  neg ecx
-  sub eax, esp
-  call _GetInt
-  pop edx
-  pop ecx
-  mov [ecx], eax
-  xchg eax, edx
-end;
-{$ifend}
-
-function CachedUTF32String.AsIntegerDef(const Default: Integer): Integer;
-begin
-  Result := PCachedUTF32String(@Default)._GetInt(Pointer(Chars), -Length);
-end;
-
-function CachedUTF32String.GetInteger: Integer;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetInt(Pointer(Chars), -Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  neg ecx
-  xor eax, eax
-  jmp _GetInt
-end;
-{$ifend}
-
-function CachedUTF32String._GetInt(S: PCardinal; L: NativeInt): Integer;
-label
-  skipsign, hex, fail, zero;
-var
-  Buffer: CachedUTF32String;
-  HexRet: record
-    Value: Integer;
-  end;  
-  X: NativeUInt;
-  Marker: NativeInt;
-begin
-  Buffer.F.NativeFlags := NativeUInt(@Self);
-  Buffer.Chars := Pointer(S);
-  Marker := 0;
-  if (L >= 0) then
-  begin
-    if (L = 0) then goto fail;
-  end else
-  begin
-    L := -L;
-    Inc(Marker);
-  end;
-
-  X := S^;
-  Buffer.Length := L;
-  if (X <= Ord('-')) then
-  case X of
-    Ord('-'):
-    begin
-      Marker := Marker or 4;
-      goto skipsign;
-    end;
-    Ord('+'):
-    begin
-    skipsign:
-      Inc(S);
-      if (L = 1) then goto fail;
-      X := S^;
-      Dec(L);
-    end;
-  end;
-
-  case X of
-    Ord('0'):
-    begin
-      Inc(S);
-      if (L = 1) then goto zero;
-      X := S^;
-      Dec(L);
-      if (X or $20 = Ord('x')) then goto hex;
-
-      if (X = Ord('0')) then
-      repeat
-        Inc(S);
-        if (L = 1) then goto zero;
-        X := S^;
-        Dec(L);
-      until (X <> Ord('0'));
-    end;
-    Ord('$'):
-    begin
-    hex:
-      Inc(S);
-      if (L = 1) then goto fail;
-      Dec(L);
-
-      HexRet.Value := 1;
-      if (Marker and 4 = 0) then
-      begin
-        Result := PCachedUTF32String(-NativeInt(@HexRet))._GetHex(S, L);
-        if (HexRet.Value = 0) then goto fail;
-      end else
-      begin
-        Result := -PCachedUTF32String(-NativeInt(@HexRet))._GetHex(S, L);
-        if (HexRet.Value = 0) then goto fail;
-      end;
-
-      Exit;
-    end;
-  end;
-
-  if (Marker and (4 + 1) = 4) then goto fail;
-
-  if (L >= 10{high(Result)}) then
-  begin
-    Dec(L);
-    Marker := Marker or 2;
-    if (L > 10-1) then goto fail;
-  end;
-  Result := 0;
-
-  repeat
-    X := NativeUInt(S^) - Ord('0');
-    Result := Result * 10;
-    Dec(L);
-    Inc(Result, X);
-    Inc(S);
-    if (X >= 10) then goto fail;
-  until (L = 0);
-
-  if (Marker > 1) then
-  begin
-    if (Marker and 2 <> 0) then
-    begin
-      X := NativeUInt(S^) - Ord('0');
-      if (X >= 10) then goto fail;
-
-      if (Marker and 1 = 0) then
-      begin
-        case Cardinal(Result) of
-          0..High(Cardinal) div 10 - 1: ;
-          High(Cardinal) div 10:
-          begin
-            if (X > High(Cardinal) mod 10) then goto fail;
-          end;
-        else
-          goto fail;
-        end;
-      end else
-      begin
-        case Cardinal(Result) of
-          0..High(Integer) div 10 - 1: ;
-          High(Integer) div 10:
-          begin
-            if (X > (NativeUInt(Marker) shr 2) + High(Integer) mod 10) then goto fail;
-          end;
-        else
-          goto fail;
-        end;
-      end;
-
-      Result := Result * 10;
-      Inc(Result, X);
-    end;
-
-    if (Marker and 4 <> 0) then Result := -Result;
-  end;
-  Exit;
-fail:
-  Marker := Buffer.F.NativeFlags;
-  if (Marker = 0) then
-  begin
-    //Buffer.Flags := 0;
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidInteger), @Buffer);
-  end else
-  if (Marker > 0) then
-  begin
-    Result := PInteger(Marker)^;
-  end else
-  begin
-    PBoolean(-Marker)^ := False;
-  zero:
-    Result := 0;
-  end;
-end;
-
-function CachedUTF32String.TryAsHex64(out Value: Int64): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetHex64(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  sub eax, esp
-  call _GetHex64
-  mov ecx, [esp+4]
-  mov [ecx], eax
-  mov [ecx+4], edx
-  mov eax, [esp]
-  add esp, 8
-end;
-{$ifend}
-
-function CachedUTF32String.AsHex64Def(const Default: Int64): Int64;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(@Default)._GetHex64(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  lea eax, Default
-  call _GetHex64
-end;
-{$ifend}
-
-function CachedUTF32String.GetHex64: Int64;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetHex64(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  jmp _GetHex64
-end;
-{$ifend}
-
-function CachedUTF32String._GetHex64(S: PCardinal; L: NativeInt): Int64;
-label
-  fail, zero;
-var
-  Buffer: CachedUTF32String;
-  X: NativeUInt;
-  R1, R2: NativeUInt;
-  Marker: NativeInt;
-begin
-  Buffer.F.NativeFlags := NativeUInt(@Self);
-  Buffer.Chars := Pointer(S);
-
-  X := S^;
-  if (X = Ord('0')) then
-  repeat
-    Inc(S);
-    if (L = 1) then goto zero;
-    X := S^;
-    Dec(L);
-  until (X <> Ord('0'));
-
-  if (L > 2*SizeOf(Result)) then goto fail;
-
-  R1 := 0;
-  R2 := 0;
-
-  if (L > 8) then
-  repeat
-    X := S^;
-    Dec(L);
-    Inc(S);
-    if (X >= Ord('A')) then
-    begin
-      X := X or $20;
-      Dec(X, Ord('a') - 10);
-      R2 := R2 shl 4;
-      if (X >= 16) then goto fail;
-    end else
-    begin
-      Dec(X, Ord('0'));
-      R2 := R2 shl 4;
-      if (X >= 10) then goto fail;
-    end;
-
-    Inc(R2, X);
-  until (L = 8);
-
-  repeat
-    X := S^;
-    Dec(L);
-    Inc(S);
-    if (X >= Ord('A')) then
-    begin
-      X := X or $20;
-      Dec(X, Ord('a') - 10);
-      R1 := R1 shl 4;
-      if (X >= 16) then goto fail;
-    end else
-    begin
-      Dec(X, Ord('0'));
-      R1 := R1 shl 4;
-      if (X >= 10) then goto fail;
-    end;
-
-    Inc(R1, X);
-  until (L = 0);
-
-  {$ifdef SMALLINT}
-  with PPoint(@Result)^ do
-  begin
-    X := R1;
-    Y := R2;
-  end;
-  {$else .LARGEINT}
-  Result := (R2 shl 32) + R1;
-  {$endif}
-  Exit;
-fail:
-  Marker := Buffer.F.NativeFlags;
-  if (Marker = 0) then
-  begin
-    //Buffer.Flags := 0;
-    raise ECachedString.Create(Pointer(@SInvalidHex), @Buffer);
-  end else
-  if (Marker > 0) then
-  begin
-    Result := PInt64(Marker)^;
-  end else
-  begin
-    PBoolean(-Marker)^ := False;
-  zero:
-    Result := 0;
-  end;
-end;
-
-function CachedUTF32String.TryAsUInt64(out Value: UInt64): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt64(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  sub eax, esp
-  call _GetInt64
-  mov ecx, [esp+4]
-  mov [ecx], eax
-  mov [ecx+4], edx
-  mov eax, [esp]
-  add esp, 8
-end;
-{$ifend}
-
-function CachedUTF32String.AsUInt64Def(const Default: UInt64): UInt64;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(@Default)._GetInt64(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  lea eax, Default
-  call _GetInt64
-end;
-{$ifend}
-
-function CachedUTF32String.GetUInt64: UInt64;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetInt64(Pointer(Chars), Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  jmp _GetInt64
-end;
-{$ifend}
-
-function CachedUTF32String.TryAsInt64(out Value: Int64): Boolean;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetInt64(Pointer(Chars), -Length);
-end;
-{$else .CPUX86}
-asm
-  push edx
-  push 1
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  xor eax, eax
-  neg ecx
-  sub eax, esp
-  call _GetInt64
-  mov ecx, [esp+4]
-  mov [ecx], eax
-  mov [ecx+4], edx
-  mov eax, [esp]
-  add esp, 8
-end;
-{$ifend}
-
-function CachedUTF32String.AsInt64Def(const Default: Int64): Int64;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(@Default)._GetInt64(Pointer(Chars), -Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  neg ecx
-  lea eax, Default
-  call _GetInt64
-end;
-{$ifend}
-
-function CachedUTF32String.GetInt64: Int64;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := PCachedUTF32String(0)._GetInt64(Pointer(Chars), -Length);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, [EAX].FLength
-  mov edx, [EAX].FChars
-  neg ecx
-  xor eax, eax
-  jmp _GetInt64
-end;
-{$ifend}
-
-function CachedUTF32String._GetInt64(S: PCardinal; L: NativeInt): Int64;
-label
-  skipsign, hex, fail, zero;
-var
-  Buffer: CachedUTF32String;
-  HexRet: record
-    Value: Integer;
-  end;  
-  X: NativeUInt;
-  Marker: NativeInt;
-  R1, R2: Integer;
-begin
-  Buffer.F.NativeFlags := NativeUInt(@Self);
-  Buffer.Chars := Pointer(S);
-  Marker := 0;
-  if (L >= 0) then
-  begin
-    if (L = 0) then goto fail;
-  end else
-  begin
-    L := -L;
-    Inc(Marker);
-  end;
-
-  X := S^;
-  Buffer.Length := L;
-  if (X <= Ord('-')) then
-  case X of
-    Ord('-'):
-    begin
-      Marker := Marker or 4;
-      goto skipsign;
-    end;
-    Ord('+'):
-    begin
-    skipsign:
-      Inc(S);
-      if (L = 1) then goto fail;
-      X := S^;
-      Dec(L);
-    end;
-  end;
-
-  case X of
-    Ord('0'):
-    begin
-      Inc(S);
-      if (L = 1) then goto zero;
-      X := S^;
-      Dec(L);
-      if (X or $20 = Ord('x')) then goto hex;
-
-      if (X = Ord('0')) then
-      repeat
-        Inc(S);
-        if (L = 1) then goto zero;
-        X := S^;
-        Dec(L);
-      until (X <> Ord('0'));
-    end;
-    Ord('$'):
-    begin
-    hex:
-      Inc(S);
-      if (L = 1) then goto fail;
-      Dec(L);
-
-      HexRet.Value := 1;
-      if (Marker and 4 = 0) then
-      begin
-        Result := PCachedUTF32String(-NativeInt(@HexRet))._GetHex64(S, L);
-        if (HexRet.Value = 0) then goto fail;
-      end else
-      begin
-        Result := -PCachedUTF32String(-NativeInt(@HexRet))._GetHex64(S, L);
-        if (HexRet.Value = 0) then goto fail;
-      end;
-
-      Exit;
-    end;
-  end;
-
-  if (Marker and (4 + 1) = 4) then goto fail;
-
-  if (L <= 9) then
-  begin
-    R1 := PCachedUTF32String(nil)._GetInt_19(S, L);
-    if (R1 < 0) then goto fail;
-
-    if (Marker and 4 <> 0) then R1 := -R1;
-    Result := R1;
-    Exit;
-  end else
-  if (L >= 19) then
-  begin
-    if (L = 19) then
-    begin
-      Marker := Marker or 2;
-      Dec(L);
-    end else
-    if (L = 20) and (Marker and 1 = 0) then
-    begin
-      Marker := Marker or (2 or 4{TEN_BB});
-      if (S^ <> $31{Ord('1')}) then goto fail;
-      Dec(L, 2);
-      Inc(S);
-    end else
-    goto fail;
-  end;
-
-  Dec(L, 9);
-  R2 := PCachedUTF32String(nil)._GetInt_19(S, L);
-  Inc(S, L);
-  if (R2 < 0) then goto fail;
-
-  R1 := PCachedUTF32String(nil)._GetInt_19(S, 9);
-  Inc(S, 9);
-  if (R1 < 0) then goto fail;
-
-  Result := Decimal64R21(R2, R1);
-
-  if (Marker > 1) then
-  begin
-    if (Marker and 2 <> 0) then
-    begin
-      X := NativeUInt(S^) - Ord('0');
-      if (X >= 10) then goto fail;
-
-      if (Marker and 1 = 0) then
-      begin
-        // UInt64
-        if (Marker and 4 = 0) then
-        begin
-          Result := Decimal64VX(Result, X);
-        end else
-        begin
-          if (Result >= _HIGHU64 div 10) then
-          begin
-            if (Result = _HIGHU64 div 10) then
-            begin
-              if (X > NativeUInt(_HIGHU64 mod 10)) then goto fail;
-            end else
-            begin
-              goto fail;
-            end;
-          end;
-
-          Result := Decimal64VX(Result, X);
-          Inc(Result, TEN_BB);
-        end;
-
-        Exit;
-      end else
-      begin
-        // Int64
-        if (Result >= High(Int64) div 10) then
-        begin
-          if (Result = High(Int64) div 10) then
-          begin
-            if (X > (NativeUInt(Marker) shr 2) + NativeUInt(High(Int64) mod 10)) then goto fail;
-          end else
-          begin
-            goto fail;
-          end;
-        end;
-
-        Result := Decimal64VX(Result, X);
-      end;
-    end;
-
-    if (Marker and 4 <> 0) then Result := -Result;
-  end;
-  Exit;
-fail:
-  Marker := Buffer.F.NativeFlags;
-  if (Marker = 0) then
-  begin
-    //Buffer.Flags := 0;
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidInteger), @Buffer);
-  end else
-  if (Marker > 0) then
-  begin
-    Result := PInt64(Marker)^;
-  end else
-  begin
-    PBoolean(-Marker)^ := False;
-  zero:
-    Result := 0;
-  end;
-end;
-
-function CachedUTF32String._GetInt_19(S: PCardinal; L: NativeUInt): NativeInt;
-label
-  fail, _1, _2, _3, _4, _5, _6, _7, _8, _9;
-var
-  {$ifdef CPUX86}
-  Store: record
-    _R: PNativeInt;
-    _S: PCardinal;
-  end;
-  {$else}
-  _S: PCardinal;
-  {$endif}
-  _R: PNativeInt;
-begin
-  {$ifdef CPUX86}Store.{$endif}_R := Pointer(@Self);
-  {$ifdef CPUX86}Store.{$endif}_S := S;
-
-  Result := 0;
-  case L of
-    9:
-    begin
-    _9:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      if (L >= 10) then goto fail;
-      Inc(Result, L);
-      goto _8;
-    end;
-    8:
-    begin
-    _8:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _7;
-    end;
-    7:
-    begin
-    _7:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _6;
-    end;
-    6:
-    begin
-    _6:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _5;
-    end;
-    5:
-    begin
-    _5:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _4;
-    end;
-    4:
-    begin
-    _4:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _3;
-    end;
-    3:
-    begin
-    _3:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _2;
-    end;
-    2:
-    begin
-    _2:
-      L := NativeUInt(S^) - Ord('0');
-      Inc(S);
-      Result := Result * 2;
-      if (L >= 10) then goto fail;
-      Result := Result * 5;
-      Inc(Result, L);
-      goto _1;
-    end
-  else
-  _1:
-    L := NativeUInt(S^) - Ord('0');
-    Inc(S);
-    Result := Result * 2;
-    if (L >= 10) then goto fail;
-    Result := Result * 5;
-    Inc(Result, L);
-    Exit;
-  end;
-
-fail:
-  {$ifdef CPUX86}
-  _R := Store._R;
-  {$endif}
-  Result := Result shr 1;
-  if (_R <> nil) then _R^ := Result;
-
-  Result := NativeInt({$ifdef CPUX86}Store.{$endif}_S);
-  Dec(Result, NativeInt(S));
-  Result := (Result shr 2) or (Low(NativeInt) or (Low(NativeInt) shr 1));
-end;
-
-function CachedUTF32String.TryAsFloat(out Value: Single): Boolean;
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String.TryAsFloat(out Value: Double): Boolean;
-begin
-  Result := True;
-  Value := PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String.TryAsFloat(out Value: TExtended80Rec): Boolean;
-begin
-  Result := True;
-  {$if SizeOf(Extended) = 10}
-    PExtended(@Value)^ := PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
-  {$else}
-    Value := TExtended80Rec(PCachedUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
-  {$ifend}
-end;
-
-function CachedUTF32String.AsFloatDef(const Default: Extended): Extended;
-begin
-  Result := PCachedUTF32String(@Default)._GetFloat(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String.GetFloat: Extended;
-begin
-  Result := PCachedUTF32String(0)._GetFloat(Pointer(Chars), Length);
-end;
-
-function CachedUTF32String._GetFloat(S: PCardinal; L: NativeUInt): Extended;
-label
-  skipsign, frac, exp, skipexpsign, done, fail, zero;
-var
-  Buffer: CachedUTF32String;
-  Store: record
-    V: NativeInt;
-    Sign: Byte;
-  end;
-  X: NativeUInt;
-  Marker: NativeInt;
-
-  V: NativeInt;
-  Base: Double;
-  TenPowers: PTenPowers;
-begin
-  Buffer.F.NativeFlags := NativeUInt(@Self);
-  Buffer.Chars := Pointer(S);
-  if (L = 0) then goto fail;
-
-  X := S^;
-  Buffer.Length := L;
-  Store.Sign := 0;
-  if (X <= Ord('-')) then
-  case X of
-    Ord('-'):
-    begin
-      Store.Sign := $80;
-      goto skipsign;
-    end;
-    Ord('+'):
-    begin
-    skipsign:
-      Inc(S);
-      if (L = 1) then goto fail;
-      X := S^;
-      Dec(L);
-    end;
-  end;
-
-  if (X = Ord('0')) then
-  repeat
-    Inc(S);
-    if (L = 1) then goto zero;
-    X := S^;
-    Dec(L);
-  until (X <> Ord('0'));
-
-  // integer part
-  begin
-    if (L > 9) then
-    begin
-      V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
-      X := 9;
-    end else
-    begin
-      V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
-      X := L;
-    end;
-
-    if (V < 0) then
-    begin
-      V := not V;
-      Result := Integer(Store.V);
-      Dec(L, V);
-      Inc(S, V);
-    end else
-    begin
-      Result := Integer(V);
-      if (X = L) then goto done;
-      Dec(L, X);
-      Inc(S, X);
-
-      repeat
-        if (L > 9) then
-        begin
-          V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
-          X := 9;
-        end else
-        begin
-          V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
-          X := L;
-        end;
-
-        if (V < 0) then
-        begin
-          X := not V;
-          Result := Result * TEN_POWERS[True][X] + Integer(Store.V);
-          Dec(L, X);
-          Inc(S, X);
-          break;
-        end else
-        begin
-          Result := Result * TEN_POWERS[True][X] + Integer(V);
-          if (X = L) then goto done;
-          Dec(L, X);
-          Inc(S, X);
-        end;
-      until (False);
-    end;
-  end;
-
-  case S^ of
-    Ord('.'), Ord(','): goto frac;
-    Ord('e'), Ord('E'):
-    begin
-      if (S <> Pointer(Buffer.Chars)) then goto exp;
-      goto fail;
-    end
-  else
-    goto fail;
-  end;
-
-frac:
-  if (L = 1) then goto done;
-  Inc(S);
-  Dec(L);
-
-  // frac part
-  begin
-    if (L > 9) then
-    begin
-      V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
-      X := 9;
-    end else
-    begin
-      V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
-      X := L;
-    end;
-
-    if (V < 0) then
-    begin
-      X := not V;
-      Result := Result + TEN_POWERS[False][X] * Integer(Store.V);
-      Dec(L, X);
-      Inc(S, X);
-    end else
-    begin
-      Result := Result + TEN_POWERS[False][X] * Integer(V);
-      if (X = L) then goto done;
-      Dec(L, X);
-      Inc(S, X);
-
-      Base := TEN_POWERS[False][9];
-      repeat
-        if (L > 9) then
-        begin
-          V := PCachedUTF32String(@Store.V)._GetInt_19(S, 9);
-          X := 9;
-        end else
-        begin
-          V := PCachedUTF32String(@Store.V)._GetInt_19(S, L);
-          X := L;
-        end;
-
-        if (V < 0) then
-        begin
-          X := not V;
-          Result := Result + Base * TEN_POWERS[False][X] * Integer(Store.V);
-          Dec(L, X);
-          Inc(S, X);
-          break;
-        end else
-        begin
-          Base := Base * TEN_POWERS[False][X];
-          Result := Result + Base * Integer(V);
-          if (X = L) then goto done;
-          Dec(L, X);
-          Inc(S, X);
-        end;
-      until (False);
-    end;
-  end;
-
-  if (S^ or $20 <> $65{Ord('e')}) then goto fail;
-exp:
-  if (L = 1) then goto done;
-  Inc(S);
-  Dec(L);
-
-  // exponent part
-  X := S^;
-  TenPowers := @TEN_POWERS[True];
-
-  if (X <= Ord('-')) then
-  case X of
-    Ord('-'):
-    begin
-      TenPowers := @TEN_POWERS[False];
-      goto skipexpsign;
-    end;
-    Ord('+'):
-    begin
-    skipexpsign:
-      Inc(S);
-      if (L = 1) then goto done;
-      X := S^;
-      Dec(L);
-    end;
-  end;
-
-  if (X = Ord('0')) then
-  repeat
-    Inc(S);
-    if (L = 1) then goto done;
-    X := S^;
-    Dec(L);
-  until (X <> Ord('0'));
-
-  if (L > 3) then goto fail;
-  if (L = 1) then
-  begin
-    X := NativeUInt(S^) - Ord('0');
-    if (X >= 10) then goto fail;
-    Result := Result * TenPowers[X];
-  end else
-  begin
-    V := PCachedUTF32String(nil)._GetInt_19(S, L);
-    if (V < 0) or (V > 300) then goto fail;
-    Result := Result * TenPower(TenPowers, V);
-  end;
-done:
-  {$ifdef CPUX86}
-    Inc(PExtendedBytes(@Result)[High(TExtendedBytes)], Store.Sign);
-  {$else}
-    if (Store.Sign <> 0) then Result := -Result;
-  {$endif}
-  Exit;
-fail:
-  Marker := Buffer.F.NativeFlags;
-  if (Marker = 0) then
-  begin
-    //Buffer.Flags := 0;
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidFloat), @Buffer);
-  end else
-  if (Marker > 0) then
-  begin
-    Result := PExtended(Marker)^;
-  end else
-  begin
-    PBoolean(-Marker)^ := False;
-  zero:
-    Result := 0;
-  end;
-end;
-
-function CachedUTF32String.AsDateDef(const Default: TDateTime): TDateTime;
-begin
-  if (not _GetDateTime(Result, 1{Date})) then
-    Result := Default;
-end;
-
-function CachedUTF32String.GetDate: TDateTime;
-begin
-  if (not _GetDateTime(Result, 1{Date})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
-end;
-
-function CachedUTF32String.TryAsDate(out Value: TDateTime): Boolean;
-const
-  DT = 1{Date};
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := _GetDateTime(Value, DT);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, DT
-  jmp _GetDateTime
-end;
-{$ifend}
-
-function CachedUTF32String.AsTimeDef(const Default: TDateTime): TDateTime;
-begin
-  if (not _GetDateTime(Result, 1{Time})) then
-    Result := Default;
-end;
-
-function CachedUTF32String.GetTime: TDateTime;
-begin
-  if (not _GetDateTime(Result, 1{Time})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
-end;
-
-function CachedUTF32String.TryAsTime(out Value: TDateTime): Boolean;
-const
-  DT = 2{Time};
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := _GetDateTime(Value, DT);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, DT
-  jmp _GetDateTime
-end;
-{$ifend}
-
-function CachedUTF32String.AsDateTimeDef(const Default: TDateTime): TDateTime;
-begin
-  if (not _GetDateTime(Result, 3{DateTime})) then
-    Result := Default;
-end;
-
-function CachedUTF32String.GetDateTime: TDateTime;
-begin
-  if (not _GetDateTime(Result, 3{DateTime})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
-end;
-
-function CachedUTF32String.TryAsDateTime(out Value: TDateTime): Boolean;
-const
-  DT = 3{DateTime};
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-begin
-  Result := _GetDateTime(Value, DT);
-end;
-{$else .CPUX86}
-asm
-  mov ecx, DT
-  jmp _GetDateTime
-end;
-{$ifend}
-
-function CachedUTF32String._GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
-label
-  fail;
-var
-  L, X: NativeUInt;
-  Dest: PByte;
-  Src: PCardinal;
-  Buffer: TDateTimeBuffer;
-begin
-  Buffer.Value := @Value;
-  L := Self.Length;
-  Buffer.Length := L;
-  Buffer.DT := DT;
-  if (L < DT_LEN_MIN[DT]) or (L > DT_LEN_MAX[DT]) then
-  begin
-  fail:
-    Result := False;
-    Exit;
-  end;
-
-  Src := Pointer(FChars);
-  Dest := Pointer(@Buffer.Bytes);
-  repeat
-    X := Src^;
-    Inc(Src);
-    if (X > High(DT_BYTES)) then goto fail;
-    Dest^ := DT_BYTES[X];
-    Dec(L);
-    Inc(Dest);
-  until (L = 0);
-
-  Result := CachedTexts._GetDateTime(Buffer);
-end;
 
 
 { TCachedTextReader }

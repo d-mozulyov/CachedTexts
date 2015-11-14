@@ -826,90 +826,147 @@ type
   end;
 
 
-
-  //
-  TCachedTextReader = class(TCachedReReader)
-  private
-//    function InternalCallback(Sender: TCachedReReader; Buffer: PByte; BufferSize: NativeUInt; Source: TCachedReader): NativeUInt;
-    function GetEOF: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+  TCachedTextReader = class
   protected
-    FContext: TUniConvContext;
-
-//    function GetIsDirect: Boolean; override;
-    function DetectBOM(const Source: TCachedReader; const DefaultBOM: TBOM): TBOM;
-    procedure InternalCreate(const Source: TCachedReader; const IsOwner: Boolean);
+    FInternalContext: TUniConvContext;
+    FFileName: string;
+    FReader: TCachedReader;
+    FConverter: TUniConvReReader;
+    FSource: TCachedReader;
+    FOwner: Boolean;
+    FFinishing: Boolean;
+    FEOF: Boolean;
+    FOverflow: PByte;
+    function DetectBOM(const Source: TCachedReader): TBOM;
+    function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure OverflowReadData(var Buffer; const Count: NativeUInt);
+  {$ifNdef AUTOREFCOUNT}
   public
-    constructor Create(const Context: TUniConvContext; const Source: TCachedReader; const IsOwner: Boolean = False);
+  {$endif}
+    destructor Destroy; override;
+  public
+    Current: PByte;
+    function Flush: NativeUInt;
+    property Overflow: PByte read FOverflow;
+    property Margin: NativeInt read GetMargin;
+    property Finishing: Boolean read FFinishing;
+    property EOF: Boolean read FEOF;
+  public
+    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
-    property EOF: Boolean read GetEOF;
-    property Context: TUniConvContext read FContext;
+    property Converter: TUniConvReReader read FConverter;
+    property Source: TCachedReader read FSource;
+    property Owner: Boolean read FOwner write FOwner;
+    property FileName: string read FFileName;
   end;
 
-(*  TCachedTextWriter = class(TCachedReWriter)
-  private
-    function InternalCallback(Sender: TCachedReWriter; Buffer: Pointer; BufferSize: NativeUInt; Destination: TCachedWriter): NativeUInt;
+
+  TByteTextReader = class(TCachedTextReader)
   protected
-    FContext: TUniConvContext;
-  public
-    constructor Create(const Context: TUniConvContext; const Destination: TCachedWriter; const IsOwner: Boolean = False);
-    class function StaticCreate(var Static: TCachedStatic; const Context: TUniConvContext; const Destination: TCachedWriter; const IsOwner: Boolean = False): TCachedTextWriter; reintroduce;
-
-    {methods}
-
-    property Context: TUniConvContext read FContext;
-  end; *)
-
-  TCachedByteTextReader = class(TCachedTextReader)
-  private
-  protected
-    FLookup: PUniConvSBCS;
+    FSBCS: PUniConvSBCS;
+    FUCS2: PUniConvWB;
     FNativeFlags: NativeUInt;
   public
-    constructor Create(const Source: TCachedReader; const IsOwner: Boolean = False; const DefaultBOM: TBOM = bomNone);
-    function Readln(var S: CachedByteString): Boolean;
+    constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const DefaultByteCodePage: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-    // single byte char set encodings lookup
+//    function Readln(var S: CachedByteString): Boolean;
+    function ReadChar: UCS4Char;
+
+    // single byte char set encodings
     // nil in UTF8 encoding case
-    property Lookup: PUniConvSBCS read FLookup;
+    property SBCS: PUniConvSBCS read FSBCS;
   end;
 
- (* TCachedByteTextWriter = class(TCachedTextWriter)
-  private
+  TUTF16TextReader = class(TCachedTextReader)
+  public
+    constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const DefaultByteCodePage: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+
+//    function Readln(var S: CachedUTF16String): Boolean;
+    function ReadChar: UCS4Char;
+  end;
+
+
+  TUTF32TextReader = class(TCachedTextReader)
+  public
+    constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const DefaultByteCodePage: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+
+//    function Readln(var S: CachedUTF32String): Boolean;
+    function ReadChar: UCS4Char;
+  end;
+
+  TCachedTextWriter = class
   protected
-    FLookup: PUniConvSBCS;
+    FInternalContext: TUniConvContext;
+    FFileName: string;
+    FWriter: TCachedWriter;
+    FConverter: TUniConvReWriter;
+    FTarget: TCachedWriter;
+    FOwner: Boolean;
+    FEOF: Boolean;
+    FOverflow: PByte;
+    function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure OverflowWriteData(var Buffer; const Count: NativeUInt);
+  {$ifNdef AUTOREFCOUNT}
   public
+  {$endif}
+    destructor Destroy; override;
+  public
+    Current: PByte;
+    function Flush: NativeUInt;
+    property Overflow: PByte read FOverflow;
+    property Margin: NativeInt read GetMargin;
+    property EOF: Boolean read FEOF;
+  public
+    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure WriteData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
-    // single byte char set encodings lookup
+    property Converter: TUniConvReWriter read FConverter;
+    property Target: TCachedWriter read FTarget;
+    property Owner: Boolean read FOwner write FOwner;
+    property FileName: string read FFileName;
+  end;
+
+
+  TByteTextWriter = class(TCachedTextWriter)
+  protected
+    FSBCS: PUniConvSBCS;
+  public
+    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+
+    // single byte char set encodings
     // nil in UTF8 encoding case
-    property Lookup: PUniConvSBCS read FLookup;
+    property SBCS: PUniConvSBCS read FSBCS;
   end;
-*)
 
 
-
-  TCachedUTF16TextReader = class(TCachedTextReader)
+  TUTF16TextWriter = class(TCachedTextWriter)
   public
-    constructor Create(const Source: TCachedReader; const IsOwner: Boolean = False; const DefaultBOM: TBOM = bomNone);
-    function Readln(var S: CachedUTF16String): Boolean;
+    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+
   end;
 
 
-(*  TCachedUTF16TextWriter = class(TCachedTextWriter)
-
-
-  end;  *)
-
-
-  TCachedUTF32TextReader = class(TCachedTextReader)
+  TUTF32TextWriter = class(TCachedTextWriter)
   public
-    constructor Create(const Source: TCachedReader; const IsOwner: Boolean = False; const DefaultBOM: TBOM = bomNone);
-    function Readln(var S: CachedUTF32String): Boolean;
+    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+
   end;
 
-(*  TCachedUTF32TextWriter = class(TCachedTextWriter)
-
-
-  end; *)
 
 implementation
 
@@ -12471,99 +12528,189 @@ end;
 
 { TCachedTextReader }
 
-constructor TCachedTextReader.Create(const Context: TUniConvContext;
-  const Source: TCachedReader; const IsOwner: Boolean);
+function DetectSBCS(const CodePage: Word): PUniConvSBCS;
 begin
-  FContext := Context;
-  InternalCreate(Source, IsOwner);
+  if (CodePage = CODEPAGE_UTF8) then
+  begin
+    Result := nil;
+  end else
+  begin
+    Result := UniConvSBCS(CodePage);
+    if (Result.CodePage <> CodePage) then
+      raise ECachedText.CreateFmt('CP%d is not byte encoding', [CodePage]);
+  end;
 end;
 
-procedure TCachedTextReader.InternalCreate(const Source: TCachedReader; const IsOwner: Boolean);
-begin
-//  inherited Create(InternalCallback, Source, IsOwner);
-end;
-
-(*function TCachedTextReader.GetIsDirect: Boolean;
-begin
-  Result := (@FContext.ConvertProc = @TUniConvContextEx.convert_copy);
-end;*)
-
-function TCachedTextReader.DetectBOM(const Source: TCachedReader; const DefaultBOM: TBOM): TBOM;
-var
-  S: NativeInt;
+function TCachedTextReader.DetectBOM(const Source: TCachedReader): TBOM;
 begin
   if (Source.Margin < 4) and (not Source.EOF) then Source.Flush;
 
   Result := UniConv.DetectBOM(Source.Current, Source.Margin);
   if (Result <> bomNone) then
+    Inc(Source.Current, BOM_INFO[Result].Size);
+end;
+
+constructor TCachedTextReader.Create(const Context: PUniConvContext;
+  const Source: TCachedReader; const Owner: Boolean);
+begin
+  inherited Create;
+
+  FSource := Source;
+  FOwner := Owner;
+  if (Context <> nil) and
+    (@PUniConvContextEx(Context).FConvertProc <> @TUniConvContextEx.convert_copy) then
   begin
-    S := BOM_INFO[Result].Size;
-    Inc(Source.Current, S);
-//    Dec(Source.Margin, S);
+    FConverter := TUniConvReReader.Create(Context, Source);
+    FReader := FConverter;
   end else
   begin
-    Result := DefaultBOM;
+    FReader := Source;
+  end;
+
+  Current := FReader.Current;
+  FOverflow := FReader.Overflow;
+  FFinishing := FReader.Finishing;
+  FEOF := FReader.EOF;
+end;
+
+destructor TCachedTextReader.Destroy;
+begin
+  FReader := nil;
+
+  if (FConverter <> nil) then
+  begin
+    FOwner := FOwner or FConverter.Owner;
+    FConverter.Owner := False;
+    FConverter.Free;
+  end;
+
+  if (FOwner) then FSource.Free;
+  inherited;
+end;
+
+function TCachedTextReader.GetMargin: NativeInt;
+var
+  P: NativeInt;
+begin
+  // Result := NativeInt(FOverflow) - NativeInt(Current);
+  P := NativeInt(Current);
+  Result := NativeInt(FOverflow);
+  Dec(Result, P);
+end;
+
+function TCachedTextReader.GetPosition: Int64;
+begin
+  Result := FReader.Position;
+end;
+
+function TCachedTextReader.Flush: NativeUInt;
+begin
+  Result := FReader.Flush;
+
+  Current := FReader.Current;
+  FOverflow := FReader.Overflow;
+  FFinishing := FReader.Finishing;
+  FEOF := FReader.EOF;
+end;
+
+procedure TCachedTextReader.OverflowReadData(var Buffer; const Count: NativeUInt);
+begin
+  FReader.Current := Current;
+  FReader.Read(Buffer, Count);
+
+  Current := FReader.Current;
+  FOverflow := FReader.Overflow;
+  FFinishing := FReader.Finishing;
+  FEOF := FReader.EOF;
+end;
+
+procedure TCachedTextReader.ReadData(var Buffer; const Count: NativeUInt);
+var
+  P: PByte;
+begin
+  P := Current;
+  Inc(P, Count);
+
+  if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+  begin
+    OverflowReadData(Buffer, Count);
+  end else
+  begin
+    Current := P;
+    Dec(P, Count);
+    NcMove(P^, Buffer, Count);
   end;
 end;
 
-(*function TCachedTextReader.InternalCallback(Sender: TCachedReReader;
-  Buffer: PByte; BufferSize: NativeUInt; Source: TCachedReader): NativeUInt;
-var
-  I: NativeInt;
-  Count: NativeUInt;
-begin
-  Result := 0;
 
-  repeat
-    // actualize source buffer
-    if (Source.Margin <= 0) then
-    begin
-//      if (not Source.Flush) then Exit;
-    end;
+{ TByteTextReader }
 
-    // Convert
-    FContext.ModeFinalize := Source.EOF;
-    I := Context.Convert(Buffer, BufferSize + 16, Source.Current, Source.Margin);
-
-    // Offset
-    Count := Context.DestinationWritten;
-    Inc(Result, Count);
-    Inc(Buffer, Count);
-    Dec(BufferSize, Count);
-    Source.Skip(Context.SourceRead);
-  until (I >= 0);
-end;  *)
-
-function TCachedTextReader.GetEOF: Boolean;
-begin
-  if (Self.Margin > 0) then Result := False
-  else Result := Self.EOF;
-end;
-
-
- { TCachedByteTextReader }
-
-constructor TCachedByteTextReader.Create(const Source: TCachedReader;
-  const IsOwner: Boolean; const DefaultBOM: TBOM);
+constructor TByteTextReader.Create(const Source: TCachedReader;
+  const DefaultByteCodePage: Word; const Owner: Boolean);
 var
   BOM: TBOM;
+  Context: PUniConvContext;
 begin
-  BOM := DetectBOM(Source, DefaultBOM);
-
+  BOM := DetectBOM(Source);
+  FSBCS := DetectSBCS(DefaultByteCodePage);
+  Context := @FInternalContext;
   if (BOM = bomNone) then
   begin
-    FContext.Init(bomNone, bomNone);
-//    FLookup := default_lookup_sbcs;
-//    FNativeFlags := default_lookup_sbcs_index shl 24;
+    Context := nil;
+  end else
+  if (BOM = bomUTF8) then
+  begin
+    FSBCS := nil;
+    Context := nil;
   end else
   begin
-    FContext.Init(bomUtf8, BOM);
+    if (FSBCS = nil) then
+    begin
+      Context.Init(bomUTF8, BOM);
+    end else
+    begin
+      Context.Init(bomNone, BOM, DefaultByteCodePage);
+    end;
   end;
-  
-  InternalCreate(Source, IsOwner);
+
+  if (FSBCS = nil) then
+  begin
+    FNativeFlags := $ff000000;
+  end else
+  begin
+    FNativeFlags := NativeUInt(FSBCS.Index) shl 24;
+    FUCS2 := Pointer(FSBCS.UCS2);
+  end;
+  inherited Create(Context, Source, Owner);
 end;
 
-function TCachedByteTextReader.Readln(var S: CachedByteString): Boolean;
+constructor TByteTextReader.CreateFromFile(const FileName: string;
+  const DefaultByteCodePage: Word);
+begin
+  FFileName := FileName;
+  Create(TCachedFileReader.Create(FileName), DefaultByteCodePage, True);
+end;
+
+constructor TByteTextReader.CreateDirect(const Context: PUniConvContext;
+  const Source: TCachedReader; const Owner: Boolean);
+begin
+  if (Context = nil) then FSBCS := nil{UTF-8}
+  else
+  FSBCS := DetectSBCS(Context.DestinationCodePage);
+
+  if (FSBCS = nil) then
+  begin
+    FNativeFlags := $ff000000;
+  end else
+  begin
+    FNativeFlags := NativeUInt(FSBCS.Index) shl 24;
+    FUCS2 := Pointer(FSBCS.UCS2);
+  end;
+
+  inherited Create(Context, Source, Owner);
+end;
+
+(*function TByteTextReader.Readln(var S: CachedByteString): Boolean;
 label
   small, check_x, done_, done;
 const
@@ -12674,7 +12821,7 @@ begin
     X := X shr L;
     {$ifdef CPUX86}_S := Store.S;{$endif}
 
-    {$ifdef CPUX86}with TCachedByteTextReader(_Self) do{$endif}
+    {$ifdef CPUX86}with TByteTextReader(_Self) do{$endif}
     begin
       {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := FNativeFlags + Byte(Flags and ASCII_MASK = 0);
       Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
@@ -12697,7 +12844,7 @@ begin
         begin
           Flush;
           {$ifdef CPUX86}
-          Result := TCachedByteTextReader(Store.Self).Readln(Store.S^);
+          Result := TByteTextReader(Store.Self).Readln(Store.S^);
           {$else}
           Result := Readln(S);
           {$endif}
@@ -12715,7 +12862,7 @@ done_:
   {$ifdef CPUX86}
   _Self := Store.Self;
   _S := Store.S;
-  with TCachedByteTextReader(_Self) do
+  with TByteTextReader(_Self) do
   {$endif}
   begin
     {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := FNativeFlags + Byte(Flags and ASCII_MASK = 0);
@@ -12727,7 +12874,7 @@ done_:
     begin
       Flush;
       {$ifdef CPUX86}
-      Result := TCachedByteTextReader(Store.Self).Readln(Store.S^);
+      Result := TByteTextReader(Store.Self).Readln(Store.S^);
       {$else}
       Result := Readln(S);
       {$endif}
@@ -12740,12 +12887,54 @@ done_:
 
 done:
   Result := True;
+end;          *)
+
+function TByteTextReader.ReadChar: UCS4Char;
+begin
+  Result := 0;
 end;
 
 
-{ TCachedUTF16TextReader }
+{ TUTF16TextReader }
 
-constructor TCachedUTF16TextReader.Create(const Source: TCachedReader;
+constructor TUTF16TextReader.Create(const Source: TCachedReader;
+  const DefaultByteCodePage: Word; const Owner: Boolean);
+var
+  BOM: TBOM;
+  Context: PUniConvContext;
+begin
+  BOM := DetectBOM(Source);
+  {CheckByteEncoding}DetectSBCS(DefaultByteCodePage);
+  Context := @FInternalContext;
+
+  if (BOM = bomUTF16) then
+  begin
+    Context := nil;
+  end else
+  begin
+    if (BOM = bomNone) and (DefaultByteCodePage = CODEPAGE_UTF8) then
+      BOM := bomUTF8;
+
+    Context.Init(bomUTF16, BOM, DefaultByteCodePage);
+  end;
+
+  inherited Create(Context, Source, Owner);
+end;
+
+constructor TUTF16TextReader.CreateFromFile(const FileName: string;
+  const DefaultByteCodePage: Word);
+begin
+  FFileName := FileName;
+  Create(TCachedFileReader.Create(FileName), DefaultByteCodePage, True);
+end;
+
+constructor TUTF16TextReader.CreateDirect(const Context: PUniConvContext;
+  const Source: TCachedReader; const Owner: Boolean);
+begin
+  inherited Create(Context, Source, Owner);
+end;
+
+(*constructor TUTF16TextReader.Create(const Source: TCachedReader;
   const IsOwner: Boolean; const DefaultBOM: TBOM);
 var
   BOM: TBOM;
@@ -12756,7 +12945,7 @@ begin
   InternalCreate(Source, IsOwner);
 end;
 
-function TCachedUTF16TextReader.Readln(var S: CachedUTF16String): Boolean;
+function TUTF16TextReader.Readln(var S: CachedUTF16String): Boolean;
 label
   small, check_x, done_, done;
 const
@@ -12856,7 +13045,7 @@ begin
     {$ifdef CPUX86}_S := Store.S;{$endif}
     Flags := Flags or X;
 
-    {$ifdef CPUX86}with TCachedUTF16TextReader(_Self) do{$endif}
+    {$ifdef CPUX86}with TUTF16TextReader(_Self) do{$endif}
     begin
       {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
       Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
@@ -12879,7 +13068,7 @@ begin
         begin
           Flush;
           {$ifdef CPUX86}
-          Result := TCachedUTF16TextReader(Store.Self).Readln(Store.S^);
+          Result := TUTF16TextReader(Store.Self).Readln(Store.S^);
           {$else}
           Result := Readln(S);
           {$endif}
@@ -12897,7 +13086,7 @@ done_:
   {$ifdef CPUX86}
   _Self := Store.Self;
   _S := Store.S;
-  with TCachedUTF16TextReader(_Self) do
+  with TUTF16TextReader(_Self) do
   {$endif}
   begin
     {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
@@ -12909,7 +13098,7 @@ done_:
     begin
       Flush;
       {$ifdef CPUX86}
-      Result := TCachedUTF16TextReader(Store.Self).Readln(Store.S^);
+      Result := TUTF16TextReader(Store.Self).Readln(Store.S^);
       {$else}
       Result := Readln(S);
       {$endif}
@@ -12922,23 +13111,54 @@ done_:
 
 done:
   Result := True;
+end;   *)
+
+function TUTF16TextReader.ReadChar: UCS4Char;
+begin
+  Result := 0;
 end;
 
 
-{ TCachedUTF32TextReader }
+{ TUTF32TextReader }
 
-constructor TCachedUTF32TextReader.Create(const Source: TCachedReader;
-  const IsOwner: Boolean; const DefaultBOM: TBOM);
+constructor TUTF32TextReader.Create(const Source: TCachedReader;
+  const DefaultByteCodePage: Word; const Owner: Boolean);
 var
   BOM: TBOM;
+  Context: PUniConvContext;
 begin
-  BOM := DetectBOM(Source, DefaultBOM);
-  FContext.Init(bomUtf32, BOM);
-  
-  InternalCreate(Source, IsOwner);
+  BOM := DetectBOM(Source);
+  {CheckByteEncoding}DetectSBCS(DefaultByteCodePage);
+  Context := @FInternalContext;
+
+  if (BOM = bomUTF32) then
+  begin
+    Context := nil;
+  end else
+  begin
+    if (BOM = bomNone) and (DefaultByteCodePage = CODEPAGE_UTF8) then
+      BOM := bomUTF8;
+
+    Context.Init(bomUTF32, BOM, DefaultByteCodePage);
+  end;
+
+  inherited Create(Context, Source, Owner);
 end;
 
-function TCachedUTF32TextReader.Readln(var S: CachedUTF32String): Boolean;
+constructor TUTF32TextReader.CreateFromFile(const FileName: string;
+  const DefaultByteCodePage: Word);
+begin
+  FFileName := FileName;
+  Create(TCachedFileReader.Create(FileName), DefaultByteCodePage, True);
+end;
+
+constructor TUTF32TextReader.CreateDirect(const Context: PUniConvContext;
+  const Source: TCachedReader; const Owner: Boolean);
+begin
+  inherited Create(Context, Source, Owner);
+end;
+
+(*function TUTF32TextReader.Readln(var S: CachedUTF32String): Boolean;
 label
   loop, done_, done;
 var
@@ -13027,69 +13247,213 @@ done_:
 //  Margin := M;
 done:
   Result := True;
-end;
+end;       *)
 
-
-(*
-{ TCachedTextWriter }
-
-constructor TCachedTextWriter.Create(const Context: TUniConvContext;
-  const Destination: TCachedWriter; const IsOwner: Boolean);
-begin
-  FContext := Context;
-  inherited Create(InternalCallback, Destination, IsOwner);
-end;
-
-class function TCachedTextWriter.StaticCreate(var Static: TCachedStatic;
-  const Context: TUniConvContext; const Destination: TCachedWriter;
-  const IsOwner: Boolean): TCachedTextWriter;
-begin
-  Result := TCachedTextWriter(StaticInstance(Static));
-  Result.Create(Context, Destination, IsOwner);
-end;
-
-function TCachedTextWriter.InternalCallback(Sender: TCachedReWriter;
-  Buffer: Pointer; BufferSize: NativeUInt; Destination: TCachedWriter): NativeUInt;
+function TUTF32TextReader.ReadChar: UCS4Char;
 begin
   Result := 0;
-  // todo
 end;
 
 
+{ TCachedTextWriter }
 
-{ TCachedByteTextReader }
-
-constructor TCachedByteTextReader.Create(const Context: TUniConvContext;
-  const Source: TCachedReader; const IsOwner: Boolean);
+constructor TCachedTextWriter.Create(const Context: PUniConvContext;
+  const Target: TCachedWriter; const Owner: Boolean);
 begin
-  // todo
+  inherited Create;
+
+  FTarget := Target;
+  FOwner := Owner;
+  if (Context <> nil) and
+    (@PUniConvContextEx(Context).FConvertProc <> @TUniConvContextEx.convert_copy) then
+  begin
+    FConverter := TUniConvReWriter.Create(Context, Target);
+    FWriter := FConverter;
+  end else
+  begin
+    FWriter := Target;
+  end;
+
+  Current := FWriter.Current;
+  FOverflow := FWriter.Overflow;
+  FEOF := FWriter.EOF;
 end;
 
-constructor TCachedByteTextReader.Create(const Source: TCachedReader;
-  const IsOwner: Boolean);
+destructor TCachedTextWriter.Destroy;
 begin
-  // todo
+  FWriter := nil;
+
+  if (FConverter <> nil) then
+  begin
+    FOwner := FOwner or FConverter.Owner;
+    FConverter.Owner := False;
+    FConverter.Free;
+  end;
+
+  if (FOwner) then FTarget.Free;
+  inherited;
 end;
 
-
-class function TCachedByteTextReader.StaticCreate(var Static: TCachedStatic;
-  const Context: TUniConvContext; const Source: TCachedReader;
-  const IsOwner: Boolean): TCachedByteTextReader;
+function TCachedTextWriter.GetMargin: NativeInt;
+var
+  P: NativeInt;
 begin
-  Result := TCachedByteTextReader(StaticInstance(Static));
-  Result.Create(Context, Source, IsOwner);
+  // Result := NativeInt(FOverflow) - NativeInt(Current);
+  P := NativeInt(Current);
+  Result := NativeInt(FOverflow);
+  Dec(Result, P);
 end;
 
-class function TCachedByteTextReader.StaticCreate(var Static: TCachedStatic;
-  const Source: TCachedReader; const IsOwner: Boolean): TCachedByteTextReader;
+function TCachedTextWriter.GetPosition: Int64;
 begin
-  Result := TCachedByteTextReader(StaticInstance(Static));
-  Result.Create(Source, IsOwner);
+  Result := FWriter.Position;
+end;
+
+function TCachedTextWriter.Flush: NativeUInt;
+begin
+  Result := FWriter.Flush;
+
+  Current := FWriter.Current;
+  FOverflow := FWriter.Overflow;
+  FEOF := FWriter.EOF;
+end;
+
+procedure TCachedTextWriter.OverflowWriteData(var Buffer; const Count: NativeUInt);
+begin
+  FWriter.Current := Current;
+  FWriter.Write(Buffer, Count);
+
+  Current := FWriter.Current;
+  FOverflow := FWriter.Overflow;
+  FEOF := FWriter.EOF;
+end;
+
+procedure TCachedTextWriter.WriteData(var Buffer; const Count: NativeUInt);
+var
+  P: PByte;
+begin
+  P := Current;
+  Inc(P, Count);
+
+  if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+  begin
+    OverflowWriteData(Buffer, Count);
+  end else
+  begin
+    Current := P;
+    Dec(P, Count);
+    NcMove(Buffer, P^, Count);
+  end;
 end;
 
 
-//  ECachedString = class({$ifdef KOL}Exception{$else}EConvertError{$endif})
-//  public  *)
+{ TByteTextWriter }
+
+constructor TByteTextWriter.Create(const Target: TCachedWriter;
+  const BOM: TBOM; const ByteCodePage: Word; const Owner: Boolean);
+var
+  Context: PUniConvContext;
+begin
+  FSBCS := DetectSBCS(ByteCodePage);
+  Context := @FInternalContext;
+  Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
+
+  if (FSBCS = nil) then
+  begin
+    if (BOM = bomUTF8) then Context := nil
+    else
+    Context.Init(BOM, bomUTF8, ByteCodePage);
+  end else
+  begin
+    if (BOM = bomNone) then Context := nil
+    else
+    Context.Init(BOM, bomNone, ByteCodePage);
+  end;
+
+  inherited Create(Context, Target, Owner);
+end;
+
+constructor TByteTextWriter.CreateFromFile(const FileName: string;
+  const BOM: TBOM; const ByteCodePage: Word);
+begin
+  Create(TCachedFileWriter.Create(FileName), BOM, ByteCodePage, True);
+end;
+
+constructor TByteTextWriter.CreateDirect(const Context: PUniConvContext;
+  const Target: TCachedWriter; const Owner: Boolean);
+begin
+  inherited Create(Context, Target, Owner);
+end;
+
+
+{ TUTF16TextWriter }
+
+constructor TUTF16TextWriter.Create(const Target: TCachedWriter;
+  const BOM: TBOM; const ByteCodePage: Word; const Owner: Boolean);
+var
+  Context: PUniConvContext;
+begin
+  {CheckByteEncoding}DetectSBCS(ByteCodePage);
+  Context := @FInternalContext;
+  Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
+
+  if (BOM = bomUTF16) then
+  begin
+    Context := nil;
+  end else
+  begin
+    Context.Init(BOM, bomUTF16, ByteCodePage);
+  end;
+
+  inherited Create(Context, Target, Owner);
+end;
+
+constructor TUTF16TextWriter.CreateFromFile(const FileName: string;
+  const BOM: TBOM; const ByteCodePage: Word);
+begin
+  Create(TCachedFileWriter.Create(FileName), BOM, ByteCodePage, True);
+end;
+
+constructor TUTF16TextWriter.CreateDirect(const Context: PUniConvContext;
+  const Target: TCachedWriter; const Owner: Boolean);
+begin
+  inherited Create(Context, Target, Owner);
+end;
+
+
+{ TUTF32TextWriter }
+
+constructor TUTF32TextWriter.Create(const Target: TCachedWriter;
+  const BOM: TBOM; const ByteCodePage: Word; const Owner: Boolean);
+var
+  Context: PUniConvContext;
+begin
+  {CheckByteEncoding}DetectSBCS(ByteCodePage);
+  Context := @FInternalContext;
+  Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
+
+  if (BOM = bomUTF32) then
+  begin
+    Context := nil;
+  end else
+  begin
+    Context.Init(BOM, bomUTF32, ByteCodePage);
+  end;
+
+  inherited Create(Context, Target, Owner);
+end;
+
+constructor TUTF32TextWriter.CreateFromFile(const FileName: string;
+  const BOM: TBOM; const ByteCodePage: Word);
+begin
+  Create(TCachedFileWriter.Create(FileName), BOM, ByteCodePage, True);
+end;
+
+constructor TUTF32TextWriter.CreateDirect(const Context: PUniConvContext;
+  const Target: TCachedWriter; const Owner: Boolean);
+begin
+  inherited Create(Context, Target, Owner);
+end;
 
 
 initialization

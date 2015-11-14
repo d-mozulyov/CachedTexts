@@ -1033,13 +1033,13 @@ begin
 end;
 
 type
-  TUniConvGap = record
+  TGap16 = record
     Data: array[0..15] of Byte;
     Size: NativeUInt;
   end;
-  PUniConvGap = ^TUniConvGap;
+  PGap16 = ^TGap16;
 
-function UniConvGapClear(Data: PByte; Size: NativeUInt; var Gap: TUniConvGap): NativeUInt;
+function Gap16Clear(Data: PByte; Size: NativeUInt; Gap: PGap16): NativeUInt;
 begin
   if (Size >= Gap.Size) then
   begin
@@ -1057,16 +1057,6 @@ begin
   end;
 end;
 
-(*function CachedConvert(var Data: PByte; var Size: NativeUInt;
-  var Context: TUniConvContext; const CachedBuffer: TCachedBuffer): NativeInt;
-begin
-
-  Result := Context.Convert;
-  Inc(Data, Context.DestinationWritten);
-  Dec(Size, Context.DestinationWritten);
-  Inc(Source.Current, Context.SourceRead);
-end;*)
-
 { TUniConvReReader }
 
 constructor TUniConvReReader.Create(const Context: PUniConvContext;
@@ -1080,53 +1070,65 @@ end;
 function TUniConvReReader.InternalCallback(Sender: TCachedBuffer; Data: PByte;
   Size: NativeUInt): NativeUInt;
 var
-  Source: TCachedReader;
   Context: PUniConvContext;
+  Reader: TCachedReader;
+  Gap: PGap16;
   R: NativeInt;
 begin
-  Source := Self.Source;
   Context := Self.Context;
+  Reader := Self.Source;
+  Gap := PGap16(@Self.FGap);
 
-  Result := UniConvGapClear(Data, Size, PUniConvGap(@FGap)^);
+  Result := Gap16Clear(Data, Size, Gap);
   Inc(Data, Result);
   Dec(Size, Result);
 
-  if (Size > 0) then
+  if (Size <> 0) and (not Reader.EOF) then
   repeat
     // conversion
     Context.Destination := Data;
     Context.DestinationSize := Size;
-    Context.ModeFinalize := Source.Finishing;
-    Context.Source := Source.Current;
-    Context.SourceSize := Source.Margin;
+    Context.ModeFinalize := Reader.Finishing;
+    Context.Source := Reader.Current;
+    Context.SourceSize := Reader.Margin;
     R := Context.Convert;
 
     // increment
     Inc(Data, Context.DestinationWritten);
     Dec(Size, Context.DestinationWritten);
     Inc(Result, Context.DestinationWritten);
-    Inc(Source.Current, Context.SourceRead);
+    Inc(Reader.Current, Context.SourceRead);
 
     // next iteration
-    if (R = 0) then Exit;
-    if (R < 0) then
+    if (R <= 0) then
     begin
-      // source too small
-      if (Source.Finishing) then
+      // reader buffer fully read
+      if (Reader.Finishing) then
       begin
-        Source.EOF := True;
+        Reader.EOF := True;
         Exit;
       end else
       begin
-        Source.Flush;
+        Reader.Flush;
       end;
     end else
     // if (R > 0) then
     begin
       // destination too small
-      if (Size = 0) then Exit;
+      // convert to Gap
+      Context.Destination := @Gap.Data;
+      Context.DestinationSize := SizeOf(Gap.Data);
+      Context.Source := Reader.Current;
+      Context.SourceSize := Reader.Margin;
+      Context.Convert;
 
+      // converted sizes
+      Gap.Size := Context.DestinationWritten;
+      Inc(Reader.Current, Context.SourceRead);
 
+      // copy Gap bytes
+      Inc(Result, Gap16Clear(Data, Size, Gap));
+      Exit;
     end;
   until (False);
 end;
@@ -1144,16 +1146,52 @@ end;
 
 function TUniConvReWriter.InternalCallback(Sender: TCachedBuffer; Data: PByte;
   Size: NativeUInt): NativeUInt;
-//var
-//  Target: TCachedWriter;
+var
+  Context: PUniConvContext;
+  Writer: TCachedWriter;
+  Gap: PGap16;
+  R: NativeInt;
 begin
- // Target := Self.Target;
+  Context := Self.Context;
+  Writer := Self.Target;
+  Gap := PGap16(@Self.FGap);
   Result := 0;
+  if (Writer.EOF) then Exit;
 
-//  repeat
+  Context.ModeFinalize := (Size < Self.Memory.Size);
+  Inc(Writer.Current, Gap16Clear(Writer.Current, Gap.Size, Gap));
+  if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
 
-  //  Context.Convert;
-//  until (False);
+  repeat
+    // conversion
+    Context.Source := Data;
+    Context.SourceSize := Size;
+    Context.Destination := Writer.Current;
+    Context.DestinationSize := Writer.Margin + 16;
+    R := Context.Convert;
+
+    // increment
+    Inc(Data, Context.SourceRead);
+    Dec(Size, Context.SourceRead);
+    Inc(Result, Context.SourceRead);
+    Inc(Writer.Current, Context.DestinationWritten);
+
+    // next iteration
+    if (R > 0) then
+    begin
+      // writer buffer fully written
+      Writer.Flush;
+    end else
+    // if (R <= 0) then
+    begin
+      // data buffer fully read
+      Move(Data^, Gap.Data, Size);
+      Gap.Size := Size;
+      Inc(Result, Size);
+      if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
+      Exit;
+    end;
+  until (False);
 end;
 
 

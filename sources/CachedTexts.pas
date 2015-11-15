@@ -85,7 +85,7 @@ unit CachedTexts;
 {$endif}
 
 
-//   {$undef INLINESUPPORT}
+   {$undef INLINESUPPORT}
 interface
   uses {$ifdef UNITSCOPENAMES}System.Types, System.SysConst{$else}Types, SysConst{$endif},
        {$ifdef MSWINDOWS}{$ifdef UNITSCOPENAMES}Winapi.Windows{$else}Windows{$endif},{$endif}
@@ -282,6 +282,7 @@ type
 
   CachedByteString = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
+    FChars: PAnsiChar;
     FLength: NativeUInt;
     F: packed record
     case Integer of
@@ -289,7 +290,6 @@ type
       1: (Ascii, References: Boolean; Reserved: Byte; SBCSIndex: ShortInt);
       2: (NativeFlags: NativeUInt);
     end;
-    FChars: PAnsiChar;
 
     function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
@@ -305,6 +305,8 @@ type
     function _HashIgnoreCaseAscii: Cardinal;
     function _HashIgnoreCaseUTF8: Cardinal;
     function _HashIgnoreCase(NF: NativeUInt): Cardinal;
+    function _PosIgnoreCaseUTF8(const S: CachedByteString; const From: NativeUInt): NativeInt;
+    function _PosIgnoreCase(const S: CachedByteString; const From: NativeUInt): NativeInt;
     function _GetBool(S: PByte; L: NativeUInt): Boolean;
     function _GetHex(S: PByte; L: NativeInt): Integer;
     function _GetInt(S: PByte; L: NativeInt): Integer;
@@ -314,17 +316,18 @@ type
     function _GetFloat(S: PByte; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
+    property Chars: PAnsiChar read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
     property Empty: Boolean read GetEmpty write SetEmpty;
     property Ascii: Boolean read F.Ascii write F.Ascii;
     property References: Boolean read F.References write F.References;
     property Flags: Cardinal read F.Flags write F.Flags;
-    property Chars: PAnsiChar read FChars write FChars;
     property SBCSIndex: ShortInt read F.SBCSIndex write F.SBCSIndex;
     property SBCS: PUniConvSBCS read GetSBCS write SetSBCS;
     property UTF8: Boolean read GetUTF8 write SetUTF8;
     property Encoding: Word read GetEncoding write SetEncoding;
 
+    procedure Assign(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: UTF8String); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: ShortString; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -342,10 +345,12 @@ type
 
     function CharPos(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
     function CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
-    function Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
-    function Pos(const S: AnsiString; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const S: AnsiString; const From: NativeUInt = 0): NativeInt; overload;
+    function Pos(const S: CachedByteString; const From: NativeUInt = 0): NativeInt; overload;
+    function Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Pos(const S: AnsiString; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function PosIgnoreCase(const S: CachedByteString; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function PosIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function PosIgnoreCase(const S: AnsiString; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
   public
     function ToBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -439,6 +444,7 @@ type
 
   CachedUTF16String = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
+    FChars: PUnicodeChar;
     FLength: NativeUInt;
     F: packed record
     case Integer of
@@ -446,7 +452,6 @@ type
       1: (Ascii, References: Boolean; Reserved: Word);
       2: (NativeFlags: NativeUInt);
     end;
-    FChars: PUnicodeChar;
 
     function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
@@ -464,13 +469,14 @@ type
     function _GetFloat(S: PWord; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
+    property Chars: PUnicodeChar read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
     property Empty: Boolean read GetEmpty write SetEmpty;
     property Ascii: Boolean read F.Ascii write F.Ascii;
     property References: Boolean read F.References write F.References;
     property Flags: Cardinal read F.Flags write F.Flags;
-    property Chars: PUnicodeChar read FChars write FChars;
 
+    procedure Assign(const AChars: PUnicodeChar; const ALength: NativeUInt); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: WideString); {$ifdef UNICODE}overload;{$endif}{$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     procedure Assign(const S: UnicodeString); overload; inline;
@@ -488,10 +494,12 @@ type
 
     function CharPos(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt;
     function CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt = 0): NativeInt;
-    function Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
-    function Pos(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload;
+    function Pos(const S: CachedUTF16String; const From: NativeUInt = 0): NativeInt; overload;
+    function Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Pos(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function PosIgnoreCase(const S: CachedUTF16String; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function PosIgnoreCase(const S: UnicodeString; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
   public
     function ToBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToBooleanDef(const Default: Boolean): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -585,6 +593,7 @@ type
 
   CachedUTF32String = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
+    FChars: PUCS4Char;
     FLength: NativeUInt;
     F: packed record
     case Integer of
@@ -592,7 +601,6 @@ type
       1: (Ascii, References: Boolean; Reserved: Word);
       2: (NativeFlags: NativeUInt);
     end;
-    FChars: PUCS4Char;
 
     function GetEmpty: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEmpty(Value: Boolean); {$ifdef INLINESUPPORT}inline;{$endif}
@@ -610,14 +618,15 @@ type
     function _GetFloat(S: PCardinal; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   public
+    property Chars: PUCS4Char read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
     property Empty: Boolean read GetEmpty write SetEmpty;
     property Ascii: Boolean read F.Ascii write F.Ascii;
     property References: Boolean read F.References write F.References;
     property Flags: Cardinal read F.Flags write F.Flags;
-    property Chars: PUCS4Char read FChars write FChars;
 
-    procedure Assign(const S: UCS4String; const NullTerminated: Boolean = True); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const AChars: PUCS4Char; const ALength: NativeUInt); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: UCS4String; const NullTerminated: Boolean = True); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function DetermineAscii: Boolean;
 
     function TrimLeft: Boolean;
@@ -631,9 +640,11 @@ type
 
     function CharPos(const C: UCS4Char; const From: NativeUInt = 0): NativeInt;
     function CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt = 0): NativeInt;
-    function Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
+    function Pos(const S: CachedUTF32String; const From: NativeUInt = 0): NativeInt; overload;
+    function Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Pos(const S: UCS4String; const From: NativeUInt = 0): NativeInt; overload;
-    function PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const S: CachedUTF32String; const From: NativeUInt = 0): NativeInt; overload;
+    function PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function PosIgnoreCase(const S: UCS4String; const From: NativeUInt = 0): NativeInt; overload;
   public
     function ToBoolean: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -737,9 +748,9 @@ type
     FFinishing: Boolean;
     FEOF: Boolean;
     FOverflow: PByte;
-    function DetectBOM(const Source: TCachedReader): TBOM;
     function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetEOF(const Value: Boolean);
     procedure OverflowReadData(var Buffer; const Count: NativeUInt);
   {$ifNdef AUTOREFCOUNT}
   public
@@ -751,7 +762,7 @@ type
     property Overflow: PByte read FOverflow;
     property Margin: NativeInt read GetMargin;
     property Finishing: Boolean read FFinishing;
-    property EOF: Boolean read FEOF;
+    property EOF: Boolean read FEOF write SetEOF;
   public
     constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
     procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
@@ -768,31 +779,40 @@ type
   TByteTextReader = class(TCachedTextReader)
   protected
     FSBCS: PUniConvSBCS;
+    FEncoding: Word;
     FUCS2: PUniConvWB;
     FNativeFlags: NativeUInt;
+
+    procedure SetSBCS(const Value: PUniConvSBCS);
+    function FlushReadln(var S: CachedByteString): Boolean;
+    function FlushReadChar: UCS4Char;
   public
-    constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const DefaultByteCodePage: Word = 0);
+    constructor Create(const Encoding: Word; const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const Encoding: Word; const FileName: string; const DefaultByteEncoding: Word = 0);
+    constructor CreateDefault(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateDefaultFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-//    function Readln(var S: CachedByteString): Boolean;
+    function Readln(var S: CachedByteString): Boolean;
     function ReadChar: UCS4Char;
 
-    // single byte char set encodings
-    // nil in UTF8 encoding case
-    property SBCS: PUniConvSBCS read FSBCS;
+    property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
+    property Encoding: Word read FEncoding;
   end;
 
 
 { TUTF16TextReader class }
 
   TUTF16TextReader = class(TCachedTextReader)
+  protected
+    function FlushReadln(var S: CachedUTF16String): Boolean;
+    function FlushReadChar: UCS4Char;
   public
-    constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const DefaultByteCodePage: Word = 0);
+    constructor Create(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-//    function Readln(var S: CachedUTF16String): Boolean;
+    function Readln(var S: CachedUTF16String): Boolean;
     function ReadChar: UCS4Char;
   end;
 
@@ -800,12 +820,15 @@ type
 { TUTF32TextReader class }
 
   TUTF32TextReader = class(TCachedTextReader)
+  protected
+    function FlushReadln(var S: CachedUTF32String): Boolean;
+    function FlushReadChar: UCS4Char;
   public
-    constructor Create(const Source: TCachedReader; const DefaultByteCodePage: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const DefaultByteCodePage: Word = 0);
+    constructor Create(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-//    function Readln(var S: CachedUTF32String): Boolean;
+    function Readln(var S: CachedUTF32String): Boolean;
     function ReadChar: UCS4Char;
   end;
 
@@ -824,6 +847,7 @@ type
     FOverflow: PByte;
     function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure SetEOF(const Value: Boolean);
     procedure OverflowWriteData(var Buffer; const Count: NativeUInt);
   {$ifNdef AUTOREFCOUNT}
   public
@@ -834,7 +858,7 @@ type
     function Flush: NativeUInt;
     property Overflow: PByte read FOverflow;
     property Margin: NativeInt read GetMargin;
-    property EOF: Boolean read FEOF;
+    property EOF: Boolean read FEOF write SetEOF;
   public
     constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
     procedure WriteData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
@@ -851,14 +875,14 @@ type
   TByteTextWriter = class(TCachedTextWriter)
   protected
     FSBCS: PUniConvSBCS;
+    FEncoding: Word;
   public
-    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0);
+    constructor Create(const Encoding: Word; const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const Encoding: Word; const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
 
-    // single byte char set encodings
-    // nil in UTF8 encoding case
-    property SBCS: PUniConvSBCS read FSBCS;
+    property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
+    property Encoding: Word read FEncoding;
   end;
 
 
@@ -866,8 +890,8 @@ type
 
   TUTF16TextWriter = class(TCachedTextWriter)
   public
-    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0);
+    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
 
   end;
@@ -877,8 +901,8 @@ type
 
   TUTF32TextWriter = class(TCachedTextWriter)
   public
-    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const ByteCodePage: Word = 0);
+    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
 
   end;
@@ -2453,6 +2477,31 @@ begin
   end;
 end;
 
+procedure CachedByteString.Assign(const AChars: PAnsiChar;
+  const ALength: NativeUInt; const CodePage: Word);
+{$ifdef CPUX86}
+var
+  CP: Word;
+{$endif}
+begin
+  Self.FChars := AChars;
+  Self.FLength := ALength;
+
+  {$ifdef CPUX86}
+  CP := CodePage;
+  {$endif}
+  if ({$ifdef CPUX86}CP{$else}CodePage{$endif} = 0) or
+    ({$ifdef CPUX86}CP{$else}CodePage{$endif} = CODEPAGE_DEFAULT) then
+  begin
+    Self.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+  end else
+  begin
+    Self.Flags := $ff000000;
+    if ({$ifdef CPUX86}CP{$else}CodePage{$endif} <> CODEPAGE_UTF8) then
+      SetEncoding({$ifdef CPUX86}CP{$else}CodePage{$endif});
+  end;
+end;
+
 procedure CachedByteString.Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
 var
   P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
@@ -2963,7 +3012,7 @@ begin
 
   if (NF and 1 <> 0) then Result := _HashIgnoreCaseAscii
   else
-  if (NF < (1 shl 24)) then Result := _HashIgnoreCaseUTF8
+  if (NF >= NativeUInt($ff) shl 24) then Result := _HashIgnoreCaseUTF8
   else
   Result := _HashIgnoreCase(NF);
 end;
@@ -2976,8 +3025,8 @@ asm
   {$endif}
   test edx, 1
   jnz _HashIgnoreCaseAscii
-  cmp edx, $01000000
-  jb _HashIgnoreCaseUTF8
+  cmp edx, $ff000000
+  jae _HashIgnoreCaseUTF8
   jmp _HashIgnoreCase
 end;
 {$endif}
@@ -3195,14 +3244,8 @@ begin
     Exit;
   end;
 
-  // SBCSLookup := Pointer(@uniconv_lookup_sbcs[NF]);
-  {$ifdef CPUX86}
-    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs);
-    Inc(SBCSLookup, NF-1);
-  {$else}
-    SBCSLookup := nil;//Pointer(@uniconv_lookup_sbcs[NF]);
-  {$endif}
-  // Lower := inline SBCSLookup.GetLowerCaseUCS2;
+  // Lower := inline UNICONV_SUPPORTED_SBCS[SBCSIndex].GetLowerCaseUCS2;
+  SBCSLookup := Pointer(NF * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
   Lower := Pointer(SBCSLookup.FUCS2.Lower);
   if (Lower = nil) then Lower := Pointer(SBCSLookup.AllocFillUCS2(SBCSLookup.FUCS2.Lower, ccLower));
 
@@ -3267,73 +3310,119 @@ begin
   Result := (Result and (-1 shr 9)) + {$ifdef CPUX86}S.{$endif}L_High;
 end;
 
-function CachedByteString.CharPos(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
+function CachedByteString.CharPos(const C: AnsiChar; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedByteString.CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
+function CachedByteString.CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function CachedByteString.Pos(const S: CachedByteString; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
 function CachedByteString.Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
+var
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  Buffer.Chars := AChars;
+  Buffer.Length := ALength;
+  Result := Self.Pos(PCachedByteString(@Buffer)^, From);
+end;
+
+function CachedByteString.Pos(const S: AnsiString; const From: NativeUInt): NativeInt;
+var
+  P: {$ifdef NEXTGEN}PNativeUInt{$else}PCardinal{$endif};
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  Buffer.Chars := P;
+  if (P = nil) then
+  begin
+    Result := -1;
+  end else
+  begin
+    Dec(P);
+    Buffer.Length := P^;
+    Result := Self.Pos(PCachedByteString(@Buffer)^, From);
+  end;
+end;
+
+function CachedByteString._PosIgnoreCaseUTF8(const S: CachedByteString; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedByteString.Pos(const S: AnsiString; const From: NativeUInt = 0): NativeInt;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
-  PLength = ^TLength;
+function CachedByteString._PosIgnoreCase(const S: CachedByteString; const From: NativeUInt): NativeInt;
 begin
-  if (Pointer(S) = nil) then Result := -1
-  else
-  Result := Pos(Pointer(S), PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^, From);
+  Result := -1{todo};
 end;
-{$else}
-asm
-  test edx, edx
-  jz @1
-  push [esp]
-  mov [esp+4], ecx
-  mov ecx, [edx-4]
-  jmp Pos
-@1:
-  mov eax, -1
-  ret
+
+function CachedByteString.PosIgnoreCase(const S: CachedByteString; const From: NativeUInt): NativeInt;
+begin
+  if (Integer(Self.Flags) < 0) then
+  begin
+    Result := Self._PosIgnoreCaseUTF8(S, From);
+  end else
+  begin
+    Result := Self._PosIgnoreCase(S, From);
+  end;
 end;
-{$ifend}
 
 function CachedByteString.PosIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
+var
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
 begin
-  Result := -1{todo};
+  Buffer.Chars := AChars;
+  Buffer.Length := ALength;
+  if (Integer(Self.Flags) < 0) then
+  begin
+    Result := Self._PosIgnoreCaseUTF8(PCachedByteString(@Buffer)^, From);
+  end else
+  begin
+    Result := Self._PosIgnoreCase(PCachedByteString(@Buffer)^, From);
+  end;
 end;
 
 function CachedByteString.PosIgnoreCase(const S: AnsiString; const From: NativeUInt = 0): NativeInt;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
-  PLength = ^TLength;
+var
+  P: {$ifdef NEXTGEN}PNativeUInt{$else}PCardinal{$endif};
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
 begin
-  if (Pointer(S) = nil) then Result := -1
-  else
-  Result := PosIgnoreCase(Pointer(S), PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^, From);
+  P := Pointer(S);
+  Buffer.Chars := P;
+  if (P = nil) then
+  begin
+    Result := -1;
+  end else
+  begin
+    Dec(P);
+    Buffer.Length := P^;
+    if (Integer(Self.Flags) < 0) then
+    begin
+      Result := Self._PosIgnoreCaseUTF8(PCachedByteString(@Buffer)^, From);
+    end else
+    begin
+      Result := Self._PosIgnoreCase(PCachedByteString(@Buffer)^, From);
+    end;
+  end;
 end;
-{$else}
-asm
-  test edx, edx
-  jz @1
-  push [esp]
-  mov [esp+4], ecx
-  mov ecx, [edx-4]
-  jmp PosIgnoreCase
-@1:
-  mov eax, -1
-  ret
-end;
-{$ifend}
 
 function CachedByteString.TryToBoolean(out Value: Boolean): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -6163,6 +6252,13 @@ begin
   end;
 end;
 
+procedure CachedUTF16String.Assign(const AChars: PUnicodeChar; const ALength: NativeUInt);
+begin
+  Self.FChars := AChars;
+  Self.FLength := ALength;
+  Self.F.NativeFlags := 0;
+end;
+
 procedure CachedUTF16String.Assign(const S: WideString);
 var
   P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
@@ -6595,7 +6691,7 @@ begin
 end;
 {$else .CPUX86}
 asm
-  cmp byte ptr [EAX].F.B0, 0
+  cmp byte ptr [EAX].F.Ascii, 0
   jnz _HashIgnoreCaseAscii
   jmp _HashIgnoreCase
 end;
@@ -6743,67 +6839,75 @@ begin
   Result := -1{todo};
 end;
 
-function CachedUTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+function CachedUTF16String.Pos(const S: CachedUTF16String; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
+end;
+
+function CachedUTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+var
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  Buffer.Chars := AChars;
+  Buffer.Length := ALength;
+  Result := Self.Pos(PCachedUTF16String(@Buffer)^, From);
 end;
 
 function CachedUTF16String.Pos(const S: UnicodeString; const From: NativeUInt): NativeInt;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+var
+  P: PInteger;
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
 begin
-  if (Pointer(S) = nil) then Result := -1
-  else
-  Result := Pos(Pointer(S),
-    PInteger(PByteArray(Pointer(S)) - SizeOf(Integer))^ {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}shr 1{$ifend},
-    From);
+  P := Pointer(S);
+  Buffer.Chars := P;
+  if (P = nil) then
+  begin
+    Result := -1;
+  end else
+  begin
+    Dec(P);
+    Buffer.Length := P^;
+    Result := Self.Pos(PCachedUTF16String(@Buffer)^, From);
+  end;
 end;
-{$else}
-asm
-  test edx, edx
-  jz @1
-  push [esp]
-  mov [esp+4], ecx
-  mov ecx, [edx-4]
-  {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}
-  shr ecx, 1
-  {$ifend}
-  jmp Pos
-@1:
-  mov eax, -1
-  ret
-end;
-{$ifend}
 
-function CachedUTF16String.PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+function CachedUTF16String.PosIgnoreCase(const S: CachedUTF16String; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
-function CachedUTF16String.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
-{$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
+function CachedUTF16String.PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+var
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
 begin
-  if (Pointer(S) = nil) then Result := -1
-  else
-  Result := PosIgnoreCase(Pointer(S),
-    PInteger(PByteArray(Pointer(S)) - SizeOf(Integer))^ {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}shr 1{$ifend},
-    From);
+  Buffer.Chars := AChars;
+  Buffer.Length := ALength;
+  Result := Self.PosIgnoreCase(PCachedUTF16String(@Buffer)^, From);
 end;
-{$else}
-asm
-  test edx, edx
-  jz @1
-  push [esp]
-  mov [esp+4], ecx
-  mov ecx, [edx-4]
-  {$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)}
-  shr ecx, 1
-  {$ifend}
-  jmp PosIgnoreCase
-@1:
-  mov eax, -1
-  ret
+
+function CachedUTF16String.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
+var
+  P: PInteger;
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  Buffer.Chars := P;
+  Dec(P);
+  Buffer.Length := P^;
+  Result := Self.PosIgnoreCase(PCachedUTF16String(@Buffer)^, From);
 end;
-{$ifend}
 
 function CachedUTF16String.TryToBoolean(out Value: Boolean): Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
@@ -9253,6 +9357,13 @@ begin
   end;
 end;
 
+procedure CachedUTF32String.Assign(const AChars: PUCS4Char; const ALength: NativeUInt);
+begin
+  Self.FChars := AChars;
+  Self.FLength := ALength;
+  Self.F.NativeFlags := 0;
+end;
+
 procedure CachedUTF32String.Assign(const S: UCS4String; const NullTerminated: Boolean);
 var
   P: PNativeInt;
@@ -9648,9 +9759,8 @@ begin
 end;
 {$else .CPUX86}
 asm
-  cmp byte ptr [EAX].F.B0, 0
+  cmp byte ptr [EAX].F.Ascii, 0
   jnz _HashIgnoreCaseAscii
-  // todo
   jmp _HashIgnoreCase
 end;
 {$ifend}
@@ -9742,51 +9852,85 @@ begin
   Result := -1{todo};
 end;
 
-function CachedUTF32String.Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+function CachedUTF32String.Pos(const S: CachedUTF32String; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
+end;
+
+function CachedUTF32String.Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+var
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  Buffer.Chars := AChars;
+  Buffer.Length := ALength;
+  Result := Self.Pos(PCachedUTF32String(@Buffer)^, From);
 end;
 
 function CachedUTF32String.Pos(const S: UCS4String; const From: NativeUInt): NativeInt;
-type
-  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
-  PLength = ^TLength;
 var
   L: NativeUInt;
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
 begin
-  if (Pointer(S) = nil) then
+  L := NativeUInt(Pointer(S));
+  if (L = 0{nil}) then
   begin
     Result := -1;
   end else
   begin
-    L := PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^;
-    Dec(L);
+    Buffer.Chars := Pointer(S);
+    Dec(L, SizeOf(NativeUInt));
+    L := PNativeUInt(L)^;
+    {$ifNdef FPC}Dec(L);{$endif}
     Inc(L, Byte(S[L] <> 0));
-    Result := Pos(Pointer(S), L, From);
+    Buffer.Length := L;
+    Result := Self.Pos(PCachedUTF32String(@Buffer)^, From);
   end;
 end;
 
-function CachedUTF32String.PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+function CachedUTF32String.PosIgnoreCase(const S: CachedUTF32String; const From: NativeUInt): NativeInt;
 begin
   Result := -1{todo};
 end;
 
+function CachedUTF32String.PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
+var
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  Buffer.Chars := AChars;
+  Buffer.Length := ALength;
+  Result := Self.PosIgnoreCase(PCachedUTF32String(@Buffer)^, From);
+end;
+
 function CachedUTF32String.PosIgnoreCase(const S: UCS4String; const From: NativeUInt): NativeInt;
-type
-  TLength = {$ifdef NEXTGEN}NativeUInt{$else}Cardinal{$endif};
-  PLength = ^TLength;
 var
   L: NativeUInt;
+  Buffer: record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
 begin
-  if (Pointer(S) = nil) then
+  L := NativeUInt(Pointer(S));
+  if (L = 0{nil}) then
   begin
     Result := -1;
   end else
   begin
-    L := PLength(PByteArray(Pointer(S)) - SizeOf(TLength))^;
-    Dec(L);
+    Buffer.Chars := Pointer(S);
+    Dec(L, SizeOf(NativeUInt));
+    L := PNativeUInt(L)^;
+    {$ifNdef FPC}Dec(L);{$endif}
     Inc(L, Byte(S[L] <> 0));
-    Result := PosIgnoreCase(Pointer(S), L, From);
+    Buffer.Length := L;
+    Result := Self.PosIgnoreCase(PCachedUTF32String(@Buffer)^, From);
   end;
 end;
 
@@ -12688,20 +12832,20 @@ end;
 
 { TCachedTextReader }
 
-function DetectSBCS(const CodePage: Word): PUniConvSBCS;
+function DetectSBCS(const CodePage: Word; const UTF8Compatible: Boolean = True): PUniConvSBCS;
 begin
-  if (CodePage = CODEPAGE_UTF8) then
+  if (CodePage = CODEPAGE_UTF8) and (UTF8Compatible) then
   begin
     Result := nil;
   end else
   begin
     Result := UniConvSBCS(CodePage);
-    if (Result.CodePage <> CodePage) then
+    if (CodePage <> 0) and (Result.CodePage <> CodePage) then
       raise ECachedText.CreateFmt('CP%d is not byte encoding', [CodePage]);
   end;
 end;
 
-function TCachedTextReader.DetectBOM(const Source: TCachedReader): TBOM;
+function DetectBOM(const Source: TCachedReader): TBOM;
 begin
   if (Source.Margin < 4) and (not Source.EOF) then Source.Flush;
 
@@ -12763,6 +12907,19 @@ begin
   Result := FReader.Position;
 end;
 
+procedure TCachedTextReader.SetEOF(const Value: Boolean);
+begin
+  if (Value) and (FEOF <> Value) then
+  begin
+    FReader.EOF := True;
+
+    Current := FReader.Current;
+    FOverflow := FReader.Overflow;
+    FFinishing := FReader.Finishing;
+    FEOF := FReader.EOF;
+  end;
+end;
+
 function TCachedTextReader.Flush: NativeUInt;
 begin
   Result := FReader.Flush;
@@ -12805,69 +12962,229 @@ end;
 
 { TByteTextReader }
 
-constructor TByteTextReader.Create(const Source: TCachedReader;
-  const DefaultByteCodePage: Word; const Owner: Boolean);
+procedure TByteTextReader.SetSBCS(const Value: PUniConvSBCS);
+begin
+  FSBCS := Value;
+
+  if (Value = nil) then
+  begin
+    FEncoding := CODEPAGE_UTF8;
+    FNativeFlags := $ff000000;
+  end else
+  begin
+    FEncoding := Value.CodePage;
+    FUCS2 := Pointer(Value.UCS2);
+    FNativeFlags := NativeUInt(Value.Index) shl 24;
+  end;
+end;
+
+constructor TByteTextReader.Create(const Encoding: Word;
+  const Source: TCachedReader; const DefaultByteEncoding: Word;
+  const Owner: Boolean);
 var
   BOM: TBOM;
+  SBCS, DefaultSBCS: PUniConvSBCS;
   Context: PUniConvContext;
 begin
   BOM := DetectBOM(Source);
-  FSBCS := DetectSBCS(DefaultByteCodePage);
+  SBCS := DetectSBCS(Encoding);
+  DefaultSBCS := DetectSBCS(DefaultByteEncoding);
   Context := @FInternalContext;
+
+  if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
+    BOM := bomUTF8;
+
+  if (SBCS = nil) then
+  begin
+    if (BOM = bomUTF8) then
+    begin
+      Context := nil;
+    end else
+    begin
+      Context.Init(bomUTF8, BOM, DefaultByteEncoding);
+    end;
+  end else
+  if (BOM = bomNone) then
+  begin
+    if (SBCS = DefaultSBCS) then
+    begin
+      Context := nil;
+    end else
+    begin
+      Context.InitSBCSFromSBCS(SBCS.CodePage, DefaultSBCS.CodePage);
+    end;
+  end else
+  begin
+    Context.Init(bomNone, BOM, Encoding);
+  end;
+
+  SetSBCS(SBCS);
+  inherited Create(Context, Source, Owner);
+end;
+
+constructor TByteTextReader.CreateFromFile(const Encoding: Word;
+  const FileName: string; const DefaultByteEncoding: Word);
+begin
+  FFileName := FileName;
+  Create(Encoding, TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
+end;
+
+constructor TByteTextReader.CreateDefault(const Source: TCachedReader;
+  const DefaultByteEncoding: Word; const Owner: Boolean);
+var
+  BOM: TBOM;
+  SBCS: PUniConvSBCS;
+  Context: PUniConvContext;
+begin
+  BOM := DetectBOM(Source);
+  SBCS := DetectSBCS(DefaultByteEncoding);
+  Context := @FInternalContext;
+
   if (BOM = bomNone) then
   begin
     Context := nil;
   end else
   if (BOM = bomUTF8) then
   begin
-    FSBCS := nil;
+    SBCS := nil;
     Context := nil;
   end else
   begin
-    if (FSBCS = nil) then
+    if (SBCS = nil) then
     begin
       Context.Init(bomUTF8, BOM);
     end else
     begin
-      Context.Init(bomNone, BOM, DefaultByteCodePage);
+      Context.Init(bomNone, BOM, DefaultByteEncoding);
     end;
   end;
 
-  if (FSBCS = nil) then
-  begin
-    FNativeFlags := $ff000000;
-  end else
-  begin
-    FNativeFlags := NativeUInt(FSBCS.Index) shl 24;
-    FUCS2 := Pointer(FSBCS.UCS2);
-  end;
+  SetSBCS(SBCS);
   inherited Create(Context, Source, Owner);
 end;
 
-constructor TByteTextReader.CreateFromFile(const FileName: string;
-  const DefaultByteCodePage: Word);
+constructor TByteTextReader.CreateDefaultFromFile(const FileName: string;
+  const DefaultByteEncoding: Word);
 begin
   FFileName := FileName;
-  Create(TCachedFileReader.Create(FileName), DefaultByteCodePage, True);
+  CreateDefault(TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
 end;
 
 constructor TByteTextReader.CreateDirect(const Context: PUniConvContext;
   const Source: TCachedReader; const Owner: Boolean);
+var
+  SBCS: PUniConvSBCS;
 begin
-  if (Context = nil) then FSBCS := nil{UTF-8}
-  else
-  FSBCS := DetectSBCS(Context.DestinationCodePage);
+  SBCS := nil{UTF-8};
+  if (Context <> nil) then SBCS := DetectSBCS(Context.DestinationCodePage);
 
-  if (FSBCS = nil) then
+  SetSBCS(SBCS);
+  inherited Create(Context, Source, Owner);
+end;
+
+function TByteTextReader.FlushReadChar: UCS4Char;
+begin
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
+
+  Result := Self.ReadChar;
+end;
+
+function TByteTextReader.ReadChar: UCS4Char;
+label
+  buffer_too_small;
+var
+  P: PByte;
+  X, Y: NativeUInt;
+  UCS2: PUniConvWB;
+begin
+  P := Self.Current;
+
+  X := P^;
+  Inc(P);
+  if (NativeUInt(P) <= NativeUInt(FOverflow)) then
   begin
-    FNativeFlags := $ff000000;
+    if (X <= $7f) then
+    begin
+      Self.Current := P;
+      Result := X;
+      Exit;
+    end;
+
+    UCS2 := Self.FUCS2;
+    if (UCS2 <> nil) then
+    begin
+      X := UCS2[X];
+      Self.Current := P;
+      Result := X;
+      Exit;
+    end;
+
+    X := UNICONV_UTF8_SIZE[X];
+    Inc(P, X);
+    Dec(P, Byte(X <> 0));
+    if (NativeUInt(P) > NativeUInt(FOverflow)) then goto buffer_too_small;
+    Self.Current := P;
+
+    Dec(P, X);
+    Y := X;
+    X := PCardinal(P)^;
+    case Y of
+      2: if (X and $C0E0 = $80C0) then
+         begin
+           // X := ((X and $1F) shl 6) or ((X shr 8) and $3F);
+           Y := X;
+           X := X and $1F;
+           Y := Y shr 8;
+           X := X shl 6;
+           Y := Y and $3F;
+           Result := X + Y;
+           Exit;
+         end;
+      3: if (X and $C0C000 = $808000) then
+         begin
+            // X := ((X & 0x0f) << 12) | ((X & 0x3f00) >> 2) | ((X >> 16) & 0x3f);
+           Y := (X and $0F) shl 12;
+           Y := Y + (X shr 16) and $3F;
+           X := (X and $3F00) shr 2;
+           Result := X + Y;
+           Exit;
+         end;
+      4: if (X and $C0C0C000 = $80808000) then
+         begin
+           // X := (X&07)<<18 | (X&3f00)<<4 | (X>>10)&0fc0 | (X>>24)&3f;
+           Y := (X and $07) shl 18;
+           Y := Y + (X and $3f00) shl 4;
+           Y := Y + (X shr 10) and $0fc0;
+           X := (X shr 24) and $3f;
+           Result := X + Y;
+           Exit;
+         end;
+    end;
+
+    // unknown:
+    Result := UNKNOWN_CHARACTER;
+    Exit;
   end else
   begin
-    FNativeFlags := NativeUInt(FSBCS.Index) shl 24;
-    FUCS2 := Pointer(FSBCS.UCS2);
+  buffer_too_small:
+    if (Self.EOF) then Result := 0
+    else
+    Result := FlushReadChar;
   end;
+end;
 
-  inherited Create(Context, Source, Owner);
+function TByteTextReader.FlushReadln(var S: CachedByteString): Boolean;
+begin
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
+
+  Result := Self.Readln(S);
+end;
+
+function TByteTextReader.Readln(var S: CachedByteString): Boolean;
+begin
+  Result := False;
 end;
 
 (*function TByteTextReader.Readln(var S: CachedByteString): Boolean;
@@ -13049,22 +13366,17 @@ done:
   Result := True;
 end;          *)
 
-function TByteTextReader.ReadChar: UCS4Char;
-begin
-  Result := 0;
-end;
-
 
 { TUTF16TextReader }
 
 constructor TUTF16TextReader.Create(const Source: TCachedReader;
-  const DefaultByteCodePage: Word; const Owner: Boolean);
+  const DefaultByteEncoding: Word; const Owner: Boolean);
 var
   BOM: TBOM;
   Context: PUniConvContext;
 begin
   BOM := DetectBOM(Source);
-  {CheckByteEncoding}DetectSBCS(DefaultByteCodePage);
+  {Check}DetectSBCS(DefaultByteEncoding);
   Context := @FInternalContext;
 
   if (BOM = bomUTF16) then
@@ -13072,20 +13384,20 @@ begin
     Context := nil;
   end else
   begin
-    if (BOM = bomNone) and (DefaultByteCodePage = CODEPAGE_UTF8) then
+    if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
       BOM := bomUTF8;
 
-    Context.Init(bomUTF16, BOM, DefaultByteCodePage);
+    Context.Init(bomUTF16, BOM, DefaultByteEncoding);
   end;
 
   inherited Create(Context, Source, Owner);
 end;
 
 constructor TUTF16TextReader.CreateFromFile(const FileName: string;
-  const DefaultByteCodePage: Word);
+  const DefaultByteEncoding: Word);
 begin
   FFileName := FileName;
-  Create(TCachedFileReader.Create(FileName), DefaultByteCodePage, True);
+  Create(TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
 end;
 
 constructor TUTF16TextReader.CreateDirect(const Context: PUniConvContext;
@@ -13094,18 +13406,153 @@ begin
   inherited Create(Context, Source, Owner);
 end;
 
-(*constructor TUTF16TextReader.Create(const Source: TCachedReader;
-  const IsOwner: Boolean; const DefaultBOM: TBOM);
-var
-  BOM: TBOM;
+function TUTF16TextReader.FlushReadChar: UCS4Char;
 begin
-  BOM := DetectBOM(Source, DefaultBOM);
-  FContext.Init(bomUtf16, BOM);
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
 
-  InternalCreate(Source, IsOwner);
+  Result := Self.ReadChar;
+end;
+
+function TUTF16TextReader.ReadChar: UCS4Char;
+label
+  buffer_too_small, unknown, done;
+var
+  X, Y: NativeUInt;
+begin
+  Y{P} := NativeUInt(Self.Current);
+
+  X := PWord(Y{P})^;
+  Inc(Y{P}, SizeOf(UnicodeChar));
+  if (Y{P} <= NativeUInt(FOverflow)) then
+  begin
+    if (X < $d800) then
+    begin
+    done:
+      Self.Current := Pointer(Y{P});
+      Result := X;
+      Exit;
+    end;
+    if (X >= $e000) then goto done;
+    if (X >= $dc00) then goto unknown;
+
+    Inc(Y{P}, SizeOf(UnicodeChar));
+    if (Y{P} > NativeUInt(FOverflow)) then goto buffer_too_small;
+    Self.Current := Pointer(Y{P});
+
+    Dec(Y{P}, SizeOf(UnicodeChar));
+    Y := PWord(Y{P})^;
+    Dec(Y, $dc00);
+    Dec(X, $d800);
+    if (Y >= ($e000-$dc00)) then goto unknown;
+    X := X shl 10;
+    Inc(Y, $10000);
+    Inc(X, Y);
+    Result := X;
+    Exit;
+
+  unknown:
+    X := UNKNOWN_CHARACTER;
+    goto done;
+  end else
+  begin
+  buffer_too_small:
+    if (Self.EOF) then Result := 0
+    else
+    Result := FlushReadChar;
+  end;
+end;
+
+function TUTF16TextReader.FlushReadln(var S: CachedUTF16String): Boolean;
+begin
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
+
+  Result := Self.Readln(S);
 end;
 
 function TUTF16TextReader.Readln(var S: CachedUTF16String): Boolean;
+label
+  done_one, flush_recall;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
+  CR_XOR_MASK = $000d000d; // \r
+  LF_XOR_MASK = $000a000a; // \n
+  SUB_MASK  = Integer(-$00010001);
+  OVERFLOW_MASK = Integer($80008000);
+  ASCII_MASK = Integer($ff80ff80);
+var
+  P, Top: PCardinal;
+  X, Flags: NativeUInt;
+begin
+  P := Pointer(Self.Current);
+  S.Chars := Pointer(P);
+  Flags := NativeUInt(Self.Overflow);
+  Dec(Flags, NativeUInt(P));
+
+  if (NativeInt(Flags) >= SizeOf(UnicodeChar)) then
+  begin
+    Flags := Flags shr 1;
+    Top := @PCardinalArray(P)[Flags];
+    Flags := 0;
+
+    repeat
+      X := P^;
+      Inc(P);
+      Flags := Flags or X;
+
+      if (X <> $0a) then
+      begin
+        if (X <> $0d) then
+        begin
+          if (P <> Top) then Continue;
+          if (not Self.EOF) then goto flush_recall;
+          Self.Current := Pointer(P);
+          Inc(P);
+        end else
+        begin
+          // #13
+          if (P = Top) then
+          begin
+            if (not Self.EOF) then goto flush_recall;
+            goto done_one;
+          end else
+          begin
+            if (P^ <> $0a) then goto done_one;
+            Inc(P);
+            Self.Current := Pointer(P);
+            Dec(P);
+          end;
+        end;
+      end else
+      begin
+        // #10
+      done_one:
+        Self.Current := Pointer(P);
+      end;
+
+      Dec(P);
+      S.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
+      Flags{BytesCount} := NativeUInt(P) - NativeUInt(S.FChars);
+      S.Length := Flags{BytesCount} shr 1;
+      Result := True;
+      Exit;
+    until (False);
+  end else
+  begin
+    if (Self.EOF) then
+    begin
+      Result := False;
+    end else
+    begin
+    flush_recall:
+      Result := FlushReadln(S);
+    end;
+  end;
+end;
+
+
+(*function TUTF16TextReader.Readln(var S: CachedUTF16String): Boolean;
 label
   small, check_x, done_, done;
 const
@@ -13273,22 +13720,17 @@ done:
   Result := True;
 end;   *)
 
-function TUTF16TextReader.ReadChar: UCS4Char;
-begin
-  Result := 0;
-end;
-
 
 { TUTF32TextReader }
 
 constructor TUTF32TextReader.Create(const Source: TCachedReader;
-  const DefaultByteCodePage: Word; const Owner: Boolean);
+  const DefaultByteEncoding: Word; const Owner: Boolean);
 var
   BOM: TBOM;
   Context: PUniConvContext;
 begin
   BOM := DetectBOM(Source);
-  {CheckByteEncoding}DetectSBCS(DefaultByteCodePage);
+  {Check}DetectSBCS(DefaultByteEncoding);
   Context := @FInternalContext;
 
   if (BOM = bomUTF32) then
@@ -13296,20 +13738,20 @@ begin
     Context := nil;
   end else
   begin
-    if (BOM = bomNone) and (DefaultByteCodePage = CODEPAGE_UTF8) then
+    if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
       BOM := bomUTF8;
 
-    Context.Init(bomUTF32, BOM, DefaultByteCodePage);
+    Context.Init(bomUTF32, BOM, DefaultByteEncoding);
   end;
 
   inherited Create(Context, Source, Owner);
 end;
 
 constructor TUTF32TextReader.CreateFromFile(const FileName: string;
-  const DefaultByteCodePage: Word);
+  const DefaultByteEncoding: Word);
 begin
   FFileName := FileName;
-  Create(TCachedFileReader.Create(FileName), DefaultByteCodePage, True);
+  Create(TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
 end;
 
 constructor TUTF32TextReader.CreateDirect(const Context: PUniConvContext;
@@ -13318,100 +13760,115 @@ begin
   inherited Create(Context, Source, Owner);
 end;
 
-(*function TUTF32TextReader.Readln(var S: CachedUTF32String): Boolean;
-label
-  loop, done_, done;
-var
-  P, Top: PCardinal;
-  X, Flags{, M}: NativeInt;
+function TUTF32TextReader.FlushReadChar: UCS4Char;
 begin
-  Flags := Self.Margin;
-  if (Flags < SizeOf(P^)) then
-  begin
-//    if (not Self.Flush) or (Self.Margin < SizeOf(P^)) then
-    begin
-      Result := False;
-      Exit;
-    end;
-    Flags := Self.Margin;
-  end;
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
 
-  P := Pointer(Self.Current);
-  Flags := Flags shr 2;
-  Top := @PCardinalArray(P)[Flags];
-  S.FChars := Pointer(P);
-  Flags := 0;
-
-loop:
-  X := P^;
-  Inc(P);
-  Flags := Flags or X;
-
-  if (X > $0d) then
-  begin
-    if (P <> Top) then goto loop;
-    goto done_;
-  end else
-  if (X = $0d) or (X = $0a) then
-  begin
-    Dec(P);
-    S.F.NativeFlags := Byte(Flags <= $7f);
-    Flags{BytesCount} := NativeUInt(P) - NativeUInt(S.FChars);
-    S.Length := Flags{BytesCount} shr 2;
-//    M := Self.Margin - Flags{BytesCount};
-
-    {$ifdef CPUX86}
-    X := P^;
-    {$endif}
-    Inc(P);
-//    Dec(M, SizeOf(P^));
-
-    if (X = $0d) then
-    begin
-      if (P <> Top) then
-      begin
-        if (P^ = $0a) then
-        begin
-          Inc(P);
-//          Dec(M, SizeOf(P^));
-        end;
-      end else
-      if (not FEOF) then
-      begin
-        Flush;
-        Result := Readln(S);
-        Exit;
-      end;
-    end;
-
-    Current := Pointer(P);
-//    Margin := M;
-    goto done;
-  end;
-  if (P <> Top) then goto loop;
-
-done_:
-  S.F.NativeFlags := Byte(Flags <= $7f);
-  Flags{BytesCount} := NativeUInt(P) - NativeUInt(S.FChars);
-  S.Length := Flags{BytesCount} shr 2;
-//  M := Self.Margin - Flags{BytesCount};
-
-  if (not FEOF) then
-  begin
-    Flush;
-    Result := Readln(S);
-    Exit;
-  end;
-
-  Current := Pointer(P);
-//  Margin := M;
-done:
-  Result := True;
-end;       *)
+  Result := Self.ReadChar;
+end;
 
 function TUTF32TextReader.ReadChar: UCS4Char;
+var
+  P: PCardinal;
+  X: NativeUInt;
 begin
-  Result := 0;
+  P := Pointer(Self.Current);
+
+  X := P^;
+  Inc(P);
+  if (NativeUInt(P) <= NativeUInt(FOverflow)) then
+  begin
+    Self.Current := Pointer(P);
+    Result := X;
+    Exit;
+  end else
+  begin
+    if (Self.EOF) then Result := 0
+    else
+    Result := FlushReadChar;
+  end;
+end;
+
+function TUTF32TextReader.FlushReadln(var S: CachedUTF32String): Boolean;
+begin
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
+
+  Result := Self.Readln(S);
+end;
+
+function TUTF32TextReader.Readln(var S: CachedUTF32String): Boolean;
+label
+  done_one, flush_recall;
+var
+  P, Top: PCardinal;
+  X, Flags: NativeUInt;
+begin
+  P := Pointer(Self.Current);
+  S.Chars := Pointer(P);
+  Flags := NativeUInt(Self.Overflow);
+  Dec(Flags, NativeUInt(P));
+
+  if (NativeInt(Flags) >= SizeOf(UCS4Char)) then
+  begin
+    Flags := Flags shr 2;
+    Top := @PCardinalArray(P)[Flags];
+    Flags := 0;
+
+    repeat
+      X := P^;
+      Inc(P);
+      Flags := Flags or X;
+
+      if (X <> $0a) then
+      begin
+        if (X <> $0d) then
+        begin
+          if (P <> Top) then Continue;
+          if (not Self.EOF) then goto flush_recall;
+          Self.Current := Pointer(P);
+          Inc(P);
+        end else
+        begin
+          // #13
+          if (P = Top) then
+          begin
+            if (not Self.EOF) then goto flush_recall;
+            goto done_one;
+          end else
+          begin
+            if (P^ <> $0a) then goto done_one;
+            Inc(P);
+            Self.Current := Pointer(P);
+            Dec(P);
+          end;
+        end;
+      end else
+      begin
+        // #10
+      done_one:
+        Self.Current := Pointer(P);
+      end;
+
+      Dec(P);
+      S.F.NativeFlags := Byte(Flags <= $7f);
+      Flags{BytesCount} := NativeUInt(P) - NativeUInt(S.FChars);
+      S.Length := Flags{BytesCount} shr 2;
+      Result := True;
+      Exit;
+    until (False);
+  end else
+  begin
+    if (Self.EOF) then
+    begin
+      Result := False;
+    end else
+    begin
+    flush_recall:
+      Result := FlushReadln(S);
+    end;
+  end;
 end;
 
 
@@ -13469,6 +13926,18 @@ begin
   Result := FWriter.Position;
 end;
 
+procedure TCachedTextWriter.SetEOF(const Value: Boolean);
+begin
+  if (Value) and (FEOF <> Value) then
+  begin
+    FWriter.EOF := True;
+
+    Current := FWriter.Current;
+    FOverflow := FWriter.Overflow;
+    FEOF := FWriter.EOF;
+  end;
+end;
+
 function TCachedTextWriter.Flush: NativeUInt;
 begin
   Result := FWriter.Flush;
@@ -13509,39 +13978,71 @@ end;
 
 { TByteTextWriter }
 
-constructor TByteTextWriter.Create(const Target: TCachedWriter;
-  const BOM: TBOM; const ByteCodePage: Word; const Owner: Boolean);
+constructor TByteTextWriter.Create(const Encoding: Word; const Target: TCachedWriter;
+  const BOM: TBOM; const DefaultByteEncoding: Word; const Owner: Boolean);
 var
   Context: PUniConvContext;
+  DefaultSBCS: PUniConvSBCS;
+  SrcBOM, DestBOM: TBOM;
 begin
-  FSBCS := DetectSBCS(ByteCodePage);
   Context := @FInternalContext;
   Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
 
+  FSBCS := DetectSBCS(Encoding);
+  DefaultSBCS := DetectSBCS(DefaultByteEncoding);
   if (FSBCS = nil) then
   begin
-    if (BOM = bomUTF8) then Context := nil
-    else
-    Context.Init(BOM, bomUTF8, ByteCodePage);
+    FEncoding := CODEPAGE_UTF8;
+    SrcBOM := bomUTF8;
   end else
   begin
-    if (BOM = bomNone) then Context := nil
-    else
-    Context.Init(BOM, bomNone, ByteCodePage);
+    FEncoding := FSBCS.CodePage;
+    SrcBOM := bomNone;
+  end;
+  DestBOM := BOM;
+  if (DestBOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then DestBOM := bomUTF8;
+
+  if (SrcBOM = DestBOM) then
+  begin
+    if (FSBCS = DefaultSBCS) then
+    begin
+      Context := nil;
+    end else
+    begin
+      Context.InitSBCSFromSBCS(FSBCS.CodePage, DefaultSBCS.CodePage);
+    end;
+  end else
+  if (SrcBOM = bomNone) then
+  begin
+    Context.Init(DestBOM, bomNone, Encoding);
+  end else
+  begin
+    Context.Init(DestBOM, bomUTF8, DefaultByteEncoding);
   end;
 
   inherited Create(Context, Target, Owner);
 end;
 
-constructor TByteTextWriter.CreateFromFile(const FileName: string;
-  const BOM: TBOM; const ByteCodePage: Word);
+constructor TByteTextWriter.CreateFromFile(const Encoding: Word; const FileName: string;
+  const BOM: TBOM; const DefaultByteEncoding: Word);
 begin
-  Create(TCachedFileWriter.Create(FileName), BOM, ByteCodePage, True);
+  FFileName := FileName;
+  Create(Encoding, TCachedFileWriter.Create(FileName), BOM, DefaultByteEncoding, True);
 end;
 
 constructor TByteTextWriter.CreateDirect(const Context: PUniConvContext;
   const Target: TCachedWriter; const Owner: Boolean);
 begin
+  if (Context = nil) or (Context.SourceCodePage = CODEPAGE_UTF8) then
+  begin
+    FSBCS := nil;
+    FEncoding := CODEPAGE_UTF8;
+  end else
+  begin
+    FSBCS := DetectSBCS(Context.SourceCodePage);
+    FEncoding := FSBCS.CodePage;
+  end;
+
   inherited Create(Context, Target, Owner);
 end;
 
@@ -13549,11 +14050,11 @@ end;
 { TUTF16TextWriter }
 
 constructor TUTF16TextWriter.Create(const Target: TCachedWriter;
-  const BOM: TBOM; const ByteCodePage: Word; const Owner: Boolean);
+  const BOM: TBOM; const DefaultByteEncoding: Word; const Owner: Boolean);
 var
   Context: PUniConvContext;
 begin
-  {CheckByteEncoding}DetectSBCS(ByteCodePage);
+  {Check}DetectSBCS(DefaultByteEncoding);
   Context := @FInternalContext;
   Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
 
@@ -13562,16 +14063,17 @@ begin
     Context := nil;
   end else
   begin
-    Context.Init(BOM, bomUTF16, ByteCodePage);
+    Context.Init(BOM, bomUTF16, DefaultByteEncoding);
   end;
 
   inherited Create(Context, Target, Owner);
 end;
 
 constructor TUTF16TextWriter.CreateFromFile(const FileName: string;
-  const BOM: TBOM; const ByteCodePage: Word);
+  const BOM: TBOM; const DefaultByteEncoding: Word);
 begin
-  Create(TCachedFileWriter.Create(FileName), BOM, ByteCodePage, True);
+  FFileName := FileName;
+  Create(TCachedFileWriter.Create(FileName), BOM, DefaultByteEncoding, True);
 end;
 
 constructor TUTF16TextWriter.CreateDirect(const Context: PUniConvContext;
@@ -13584,11 +14086,11 @@ end;
 { TUTF32TextWriter }
 
 constructor TUTF32TextWriter.Create(const Target: TCachedWriter;
-  const BOM: TBOM; const ByteCodePage: Word; const Owner: Boolean);
+  const BOM: TBOM; const DefaultByteEncoding: Word; const Owner: Boolean);
 var
   Context: PUniConvContext;
 begin
-  {CheckByteEncoding}DetectSBCS(ByteCodePage);
+  {Check}DetectSBCS(DefaultByteEncoding);
   Context := @FInternalContext;
   Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
 
@@ -13597,16 +14099,17 @@ begin
     Context := nil;
   end else
   begin
-    Context.Init(BOM, bomUTF32, ByteCodePage);
+    Context.Init(BOM, bomUTF32, DefaultByteEncoding);
   end;
 
   inherited Create(Context, Target, Owner);
 end;
 
 constructor TUTF32TextWriter.CreateFromFile(const FileName: string;
-  const BOM: TBOM; const ByteCodePage: Word);
+  const BOM: TBOM; const DefaultByteEncoding: Word);
 begin
-  Create(TCachedFileWriter.Create(FileName), BOM, ByteCodePage, True);
+  FFileName := FileName;
+  Create(TCachedFileWriter.Create(FileName), BOM, DefaultByteEncoding, True);
 end;
 
 constructor TUTF32TextWriter.CreateDirect(const Context: PUniConvContext;

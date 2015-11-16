@@ -5670,7 +5670,13 @@ begin
   copy_samelength_characters:
     Dest := WideStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
-    utf16_from_sbcs(Dest, Src, L, Converter);
+    if (Converter = nil) then
+    begin
+      utf16_from_utf8(Dest, Src, L);
+    end else
+    begin
+      utf16_from_sbcs(Dest, Src, L, Converter);
+    end
   end;
 end;
 
@@ -5716,7 +5722,13 @@ begin
   copy_samelength_characters:
     Dest := WideStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
-    utf16_from_sbcs_lower(Dest, Src, L, Converter);
+    if (Converter = nil) then
+    begin
+      utf16_from_utf8_lower(Dest, Src, L);
+    end else
+    begin
+      utf16_from_sbcs_lower(Dest, Src, L, Converter);
+    end;
   end;
 end;
 
@@ -5762,7 +5774,13 @@ begin
   copy_samelength_characters:
     Dest := WideStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
-    utf16_from_sbcs_upper(Dest, Src, L, Converter);
+    if (Converter = nil) then
+    begin
+      utf16_from_utf8_upper(Dest, Src, L);
+    end else
+    begin
+      utf16_from_sbcs_upper(Dest, Src, L, Converter);
+    end;
   end;
 end;
 
@@ -5813,7 +5831,13 @@ begin
   copy_samelength_characters:
     Dest := UnicodeStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
-    utf16_from_sbcs(Dest, Src, L, Converter);
+    if (Converter = nil) then
+    begin
+      utf16_from_utf8(Dest, Src, L);
+    end else
+    begin
+      utf16_from_sbcs(Dest, Src, L, Converter);
+    end;
   end;
 end;
 {$else .NONUNICODE_CPUX86}
@@ -5869,7 +5893,13 @@ begin
   copy_samelength_characters:
     Dest := UnicodeStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
-    utf16_from_sbcs_lower(Dest, Src, L, Converter);
+    if (Converter = nil) then
+    begin
+      utf16_from_utf8_lower(Dest, Src, L);
+    end else
+    begin
+      utf16_from_sbcs_lower(Dest, Src, L, Converter);
+    end;
   end;
 end;
 {$else .NONUNICODE_CPUX86}
@@ -5925,7 +5955,13 @@ begin
   copy_samelength_characters:
     Dest := UnicodeStringAlloc(Pointer(S), L, 0);
     Pointer(S) := Dest;
-    utf16_from_sbcs_upper(Dest, Src, L, Converter);
+    if (Converter = nil) then
+    begin
+      utf16_from_utf8_upper(Dest, Src, L);
+    end else
+    begin
+      utf16_from_sbcs_upper(Dest, Src, L, Converter);
+    end;
   end;
 end;
 {$else .NONUNICODE_CPUX86}
@@ -13183,13 +13219,10 @@ begin
 end;
 
 function TByteTextReader.Readln(var S: CachedByteString): Boolean;
-begin
-  Result := False;
-end;
-
-(*function TByteTextReader.Readln(var S: CachedByteString): Boolean;
+type
+  TSelf = TByteTextReader;
 label
-  small, check_x, done_, done;
+  next_cardinal, retrieve_top, done, done_one, flush_recall;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
   CR_XOR_MASK = $0d0d0d0d; // \r
@@ -13198,173 +13231,121 @@ const
   OVERFLOW_MASK = Integer($80808080);
   ASCII_MASK = Integer($80808080);
 var
-  P: PByte;
-  X, T, V, U, Flags, M: NativeInt;
-  L: NativeUInt;
+  P, Top: PByte;
+  X, T, V, U, Flags: NativeInt;
 
   {$ifdef CPUX86}
   Store: record
     Self: Pointer;
     S: PCachedByteString;
-    Top: PByte;
   end;
-  _Self: Pointer;
   _S: PCachedByteString;
   {$endif}
 begin
-  {$ifdef CPUX86}
-  Store.Self := Pointer(Self);
-  Store.S := @S;
-  {$endif}
-
-  Flags := Self.Margin;
-  if (Flags < SizeOf(P^)) then
-  begin
-//    if (not Self.Flush) or (Self.Margin < SizeOf(P^)) then
-    begin
-      Result := False;
-      Exit;
-    end;
-    Flags := Self.Margin;
-  end;
-
+  S.F.NativeFlags := Self.FNativeFlags;
   P := Pointer(Self.Current);
-  L := Flags{Margin};
+  PByte(S.FChars) := P;
+  Flags := NativeUInt(Self.Overflow);
+  Dec(Flags, NativeUInt(P));
+
   {$ifdef CPUX86}
-  Store.Top := @PByteArray(P)[L];
+    Store.Self := Pointer(Self);
+    Store.S := @S;
   {$endif}
-  S.FChars := Pointer(P);
-  Flags := 0;
 
-  if (L < CHARS_IN_CARDINAL) then
+  if (NativeInt(Flags) >= SizeOf(AnsiChar)) then
   begin
-  small:
-    V := L;
-    {$ifNdef CPUX86}
-    L := 0;
-    {$endif}
-    case V of
-      1: begin
-           X := P^ shl 24;
-           Inc(P);
-         end;
-      2: begin
-           X := PWord(P)^;
-           Inc(P, 2);
-         end;
-    else
-      // 3:
-      X := PCardinal(P)^ shl 8;
-      Inc(P, 3);
-    end;
-    goto check_x;
-  end else
-  repeat
-    X := PCardinal(P)^;
-    {$ifNdef CPUX86}
-    Dec(L, CHARS_IN_CARDINAL);
-    {$endif}
-    Inc(P, CHARS_IN_CARDINAL);
+    Top := P;
+    Inc(Top, Flags);
+    Flags := 0;
 
-  check_x:
-    T := (X xor CR_XOR_MASK);
-    U := (X xor LF_XOR_MASK);
-    V := T + SUB_MASK;
-    T := not T;
-    T := T and V;
-    V := U + SUB_MASK;
-    U := not U;
-    U := U and V;
+    repeat
+      Dec(Top, CHARS_IN_CARDINAL);
+    next_cardinal:
+      X := PCardinal(P)^;
 
-    T := T or U;
-    if (T and OVERFLOW_MASK = 0) then
-    begin
-      {$ifdef CPUX86}
-      L := NativeUInt(Store.Top);
-      Dec(L, NativeUInt(P));
-      {$endif}
-      Flags := Flags or X;
-      if (L >= CHARS_IN_CARDINAL) then continue;
-      if (L <> 0) then goto small;
-      goto done_;
-    end;
-
-    Dec(P, CHARS_IN_CARDINAL);
-    L := Byte(Byte(T and $80 = 0) + Byte(T and $8080 = 0) + Byte(T and $808080 = 0));
-    Inc(P, L);
-    L := L shl 3;
-    Flags := Flags or (X shl L);
-    {$ifdef CPUX86}_Self := Store.Self;{$endif}
-    X := X shr L;
-    {$ifdef CPUX86}_S := Store.S;{$endif}
-
-    {$ifdef CPUX86}with TByteTextReader(_Self) do{$endif}
-    begin
-      {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := FNativeFlags + Byte(Flags and ASCII_MASK = 0);
-      Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
-      {$ifdef CPUX86}_S{$else}S{$endif}.Length := Flags{BytesCount};
-      M := Margin - Flags{BytesCount};
-
-      Inc(P);
-      Dec(M, SizeOf(P^));
-      if (Byte(X) <> $0a) then
+      if (NativeUInt(P) <= NativeUInt(Top{Cardinal})) then
       begin
-        if (M >= SizeOf(P^)) then
-        begin
-          if (P^ = $0a) then
-          begin
-            Inc(P);
-//            Dec(M, SizeOf(P^));
-          end;
-        end else
-        if (not FEOF) then
-        begin
-          Flush;
-          {$ifdef CPUX86}
-          Result := TByteTextReader(Store.Self).Readln(Store.S^);
-          {$else}
-          Result := Readln(S);
-          {$endif}
-          Exit;
-        end;
+        Inc(P, CHARS_IN_CARDINAL);
+        Flags := Flags or X;
+
+        T := (X xor CR_XOR_MASK);
+        U := (X xor LF_XOR_MASK);
+        V := T + SUB_MASK;
+        T := not T;
+        T := T and V;
+        V := U + SUB_MASK;
+        U := not U;
+        U := U and V;
+
+        T := T or U;
+        if (T and OVERFLOW_MASK = 0) then goto next_cardinal;
+        Dec(P, CHARS_IN_CARDINAL);
+        Inc(P, Byte(Byte(T and $80 = 0) + Byte(T and $8080 = 0) +
+          Byte(T and $808080 = 0)));
+        goto retrieve_top;
+      end else
+      begin
+      retrieve_top:
+        Inc(Top, CHARS_IN_CARDINAL);
+        if (P = Top) then goto done;
       end;
 
-      Current := Pointer(P);
-//      Margin := M;
-    end;
-    goto done;
-  until (False);
+      X := P^;
+      Flags := Flags or X;
+      Inc(P);
+      if (X <> $0a) then
+      begin
+        if (X <> $0d) then
+        begin
+          if (P <> Top) then Continue;
+        done:
+          if (not {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Finishing) then goto flush_recall;
+          {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Current := Pointer(P);
+          Inc(P);
+        end else
+        begin
+          // #13
+          if (P = Top) then
+          begin
+            if (not {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Finishing) then goto flush_recall;
+            goto done_one;
+          end else
+          begin
+            if (P^ <> $0a) then goto done_one;
+            Inc(P);
+            {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Current := Pointer(P);
+            Dec(P);
+          end;
+        end;
+      end else
+      begin
+        // #10
+      done_one:
+        {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Current := Pointer(P);
+      end;
 
-done_:
-  {$ifdef CPUX86}
-  _Self := Store.Self;
-  _S := Store.S;
-  with TByteTextReader(_Self) do
-  {$endif}
-  begin
-    {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := FNativeFlags + Byte(Flags and ASCII_MASK = 0);
-    Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
-    {$ifdef CPUX86}_S{$else}S{$endif}.Length := Flags{BytesCount};
-//    M := Margin - Flags{BytesCount};
-
-    if (not FEOF) then
-    begin
-      Flush;
-      {$ifdef CPUX86}
-      Result := TByteTextReader(Store.Self).Readln(Store.S^);
-      {$else}
-      Result := Readln(S);
-      {$endif}
+      Dec(P);
+      {$ifdef CPUX86}_S := Store.S;{$endif}
+      {$ifdef CPUX86}_S{$else}S{$endif}.F.Ascii := (Flags and ASCII_MASK = 0);
+      Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
+      {$ifdef CPUX86}_S{$else}S{$endif}.Length := Flags{BytesCount};
+      Result := True;
       Exit;
+    until (False);
+  end else
+  begin
+    if ({$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.EOF) then
+    begin
+      Result := False;
+    end else
+    begin
+    flush_recall:
+      Result := {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.FlushReadln(
+        {$ifdef CPUX86}Store.S^{$else}S{$endif});
     end;
-
-    Current := Pointer(P);
-//    Margin := M;
   end;
-
-done:
-  Result := True;
-end;          *)
+end;
 
 
 { TUTF16TextReader }
@@ -13472,8 +13453,10 @@ begin
 end;
 
 function TUTF16TextReader.Readln(var S: CachedUTF16String): Boolean;
+type
+  TSelf = TUTF16TextReader;
 label
-  done_one, flush_recall;
+  next_cardinal, retrieve_top, done, done_one, flush_recall;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
   CR_XOR_MASK = $000d000d; // \r
@@ -13482,45 +13465,88 @@ const
   OVERFLOW_MASK = Integer($80008000);
   ASCII_MASK = Integer($ff80ff80);
 var
-  P, Top: PCardinal;
-  X, Flags: NativeUInt;
+  P, Top: PWord;
+  X, T, V, U, Flags: NativeInt;
+
+  {$ifdef CPUX86}
+  Store: record
+    Self: Pointer;
+    S: PCachedUTF16String;
+  end;
+  _S: PCachedUTF16String;
+  {$endif}
 begin
   P := Pointer(Self.Current);
-  S.Chars := Pointer(P);
+  PWord(S.FChars) := P;
   Flags := NativeUInt(Self.Overflow);
   Dec(Flags, NativeUInt(P));
+
+  {$ifdef CPUX86}
+    Store.Self := Pointer(Self);
+    Store.S := @S;
+  {$endif}
 
   if (NativeInt(Flags) >= SizeOf(UnicodeChar)) then
   begin
     Flags := Flags shr 1;
-    Top := @PCardinalArray(P)[Flags];
+    Top := @PWordArray(P)[Flags];
     Flags := 0;
 
     repeat
-      X := P^;
-      Inc(P);
-      Flags := Flags or X;
+      Dec(Top, CHARS_IN_CARDINAL);
+    next_cardinal:
+      X := PCardinal(P)^;
 
+      if (NativeUInt(P) <= NativeUInt(Top{Cardinal})) then
+      begin
+        Inc(P, CHARS_IN_CARDINAL);
+        Flags := Flags or X;
+
+        T := (X xor CR_XOR_MASK);
+        U := (X xor LF_XOR_MASK);
+        V := T + SUB_MASK;
+        T := not T;
+        T := T and V;
+        V := U + SUB_MASK;
+        U := not U;
+        U := U and V;
+
+        T := T or U;
+        if (T and OVERFLOW_MASK = 0) then goto next_cardinal;
+        Dec(P, CHARS_IN_CARDINAL);
+        Inc(P, Byte(T and $8000 = 0));
+        goto retrieve_top;
+      end else
+      begin
+      retrieve_top:
+        Inc(Top, CHARS_IN_CARDINAL);
+        if (P = Top) then goto done;
+      end;
+
+      X := P^;
+      Flags := Flags or X;
+      Inc(P);
       if (X <> $0a) then
       begin
         if (X <> $0d) then
         begin
           if (P <> Top) then Continue;
-          if (not Self.EOF) then goto flush_recall;
-          Self.Current := Pointer(P);
+        done:
+          if (not {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Finishing) then goto flush_recall;
+          {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Current := Pointer(P);
           Inc(P);
         end else
         begin
           // #13
           if (P = Top) then
           begin
-            if (not Self.EOF) then goto flush_recall;
+            if (not {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Finishing) then goto flush_recall;
             goto done_one;
           end else
           begin
             if (P^ <> $0a) then goto done_one;
             Inc(P);
-            Self.Current := Pointer(P);
+            {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Current := Pointer(P);
             Dec(P);
           end;
         end;
@@ -13528,197 +13554,30 @@ begin
       begin
         // #10
       done_one:
-        Self.Current := Pointer(P);
+        {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.Current := Pointer(P);
       end;
 
       Dec(P);
-      S.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
-      Flags{BytesCount} := NativeUInt(P) - NativeUInt(S.FChars);
-      S.Length := Flags{BytesCount} shr 1;
+      {$ifdef CPUX86}_S := Store.S;{$endif}
+      {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
+      Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
+      {$ifdef CPUX86}_S{$else}S{$endif}.Length := Flags{BytesCount} shr 1;
       Result := True;
       Exit;
     until (False);
   end else
   begin
-    if (Self.EOF) then
+    if ({$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.EOF) then
     begin
       Result := False;
     end else
     begin
     flush_recall:
-      Result := FlushReadln(S);
+      Result := {$ifdef CPUX86}TSelf(Store.Self){$else}Self{$endif}.FlushReadln(
+        {$ifdef CPUX86}Store.S^{$else}S{$endif});
     end;
   end;
 end;
-
-
-(*function TUTF16TextReader.Readln(var S: CachedUTF16String): Boolean;
-label
-  small, check_x, done_, done;
-const
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
-  CR_XOR_MASK = $000d000d; // \r
-  LF_XOR_MASK = $000a000a; // \n
-  SUB_MASK  = Integer(-$00010001);
-  OVERFLOW_MASK = Integer($80008000);
-  ASCII_MASK = Integer($ff80ff80);
-var
-  P: PWord;
-  X, T, V, U, Flags, M: NativeInt;
-  L: NativeUInt;
-
-  {$ifdef CPUX86}
-  Store: record
-    Self: Pointer;
-    S: PCachedUTF16String;
-    Top: PByte;
-  end;
-  _Self: Pointer;
-  _S: PCachedUTF16String;
-  {$endif}
-begin
-  {$ifdef CPUX86}
-  Store.Self := Pointer(Self);
-  Store.S := @S;
-  {$endif}
-
-  Flags := Self.Margin;
-  if (Flags < SizeOf(P^)) then
-  begin
-//    if (not Self.Flush) or (Self.Margin < SizeOf(P^)) then
-    begin
-      Result := False;
-      Exit;
-    end;
-    Flags := Self.Margin;
-  end;
-
-  P := Pointer(Self.Current);
-  L := Flags{Margin} and -SizeOf(P^);
-  {$ifdef CPUX86}
-  Store.Top := @PByteArray(P)[L];
-  {$endif}
-  S.FChars := Pointer(P);
-  Flags := 0;
-
-  if (L < SizeOf(Cardinal)) then
-  begin
-  small:
-    X := P^;
-    Inc(P);
-    {$ifNdef CPUX86}
-    L := 0;
-    {$endif}
-    goto check_x;
-  end else
-  repeat
-    X := PCardinal(P)^;
-    {$ifNdef CPUX86}
-    Dec(L, SizeOf(Cardinal));
-    {$endif}
-    Inc(P, CHARS_IN_CARDINAL);
-
-  check_x:
-    T := (X xor CR_XOR_MASK);
-    U := (X xor LF_XOR_MASK);
-    V := T + SUB_MASK;
-    T := not T;
-    T := T and V;
-    V := U + SUB_MASK;
-    U := not U;
-    U := U and V;
-
-    T := T or U;
-    if (T and OVERFLOW_MASK = 0) then
-    begin
-      {$ifdef CPUX86}
-      L := NativeUInt(Store.Top);
-      Dec(L, NativeUInt(P));
-      {$endif}
-      Flags := Flags or X;
-      if (L >= SizeOf(Cardinal)) then continue;
-      if (L <> 0) then goto small;
-      goto done_;
-    end;
-
-    Dec(P, CHARS_IN_CARDINAL);
-    if (T and (OVERFLOW_MASK and $ffff) = 0) then
-    begin
-      X := X shr 16;
-      Inc(P);
-    end;
-    {$ifdef CPUX86}_Self := Store.Self;{$endif}
-    X := Word(X);
-    {$ifdef CPUX86}_S := Store.S;{$endif}
-    Flags := Flags or X;
-
-    {$ifdef CPUX86}with TUTF16TextReader(_Self) do{$endif}
-    begin
-      {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
-      Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
-      {$ifdef CPUX86}_S{$else}S{$endif}.Length := Flags{BytesCount} shr 1;
-      M := Margin - Flags{BytesCount};
-
-      Inc(P);
-      Dec(M, SizeOf(P^));
-      if (X <> $0a) then
-      begin
-        if (M >= SizeOf(P^)) then
-        begin
-          if (P^ = $0a) then
-          begin
-            Inc(P);
-//            Dec(M, SizeOf(P^));
-          end;
-        end else
-        if (not FEOF) then
-        begin
-          Flush;
-          {$ifdef CPUX86}
-          Result := TUTF16TextReader(Store.Self).Readln(Store.S^);
-          {$else}
-          Result := Readln(S);
-          {$endif}
-          Exit;
-        end;
-      end;
-
-      Current := Pointer(P);
-//      Margin := M;
-    end;
-    goto done;
-  until (False);
-
-done_:
-  {$ifdef CPUX86}
-  _Self := Store.Self;
-  _S := Store.S;
-  with TUTF16TextReader(_Self) do
-  {$endif}
-  begin
-    {$ifdef CPUX86}_S{$else}S{$endif}.F.NativeFlags := Byte(Flags and ASCII_MASK = 0);
-    Flags{BytesCount} := NativeUInt(P) - NativeUInt({$ifdef CPUX86}_S{$else}S{$endif}.FChars);
-    {$ifdef CPUX86}_S{$else}S{$endif}.Length := Flags{BytesCount} shr 1;
-//    M := Margin - Flags{BytesCount};
-
-    if (not FEOF) then
-    begin
-      Flush;
-      {$ifdef CPUX86}
-      Result := TUTF16TextReader(Store.Self).Readln(Store.S^);
-      {$else}
-      Result := Readln(S);
-      {$endif}
-      Exit;
-    end;
-
-    Current := Pointer(P);
-//    Margin := M;
-  end;
-
-done:
-  Result := True;
-end;   *)
 
 
 { TUTF32TextReader }
@@ -13826,7 +13685,7 @@ begin
         if (X <> $0d) then
         begin
           if (P <> Top) then Continue;
-          if (not Self.EOF) then goto flush_recall;
+          if (not Self.Finishing) then goto flush_recall;
           Self.Current := Pointer(P);
           Inc(P);
         end else
@@ -13834,7 +13693,7 @@ begin
           // #13
           if (P = Top) then
           begin
-            if (not Self.EOF) then goto flush_recall;
+            if (not Self.Finishing) then goto flush_recall;
             goto done_one;
           end else
           begin

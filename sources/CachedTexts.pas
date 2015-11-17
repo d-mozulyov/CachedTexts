@@ -10753,11 +10753,13 @@ begin
     if (X <> Y) then goto make_result;
   end;
 
-  X := 0;
-  Y := 0;    
   Result := 0;
   Exit;
 
+  // warnings off
+  X := 0;
+  Y := 0;    
+  
 make_result:
   Result := Ord(X > Y)*2 - 1;
 end;
@@ -10903,11 +10905,13 @@ begin
     if (X <> Y) then goto make_result;
   until (False);
 
-  X := 0;
-  Y := 0;    
   Result := 0;
   Exit;
 
+  // warnings off
+  X := 0;
+  Y := 0;    
+  
 make_result:
   Result := Ord(X > Y)*2 - 1;
 end;

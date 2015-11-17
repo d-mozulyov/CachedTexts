@@ -1007,10 +1007,10 @@ type
   P8Bytes = ^T8Bytes;
 
   PWordArray = ^TWordArray;
-  TWordArray = array[0..0] of Word;
+  TWordArray = array[0..High(Integer) div SizeOf(Word) - 1] of Word;
 
   PCardinalArray = ^TCardinalArray;
-  TCardinalArray = array[0..0] of Cardinal;
+  TCardinalArray = array[0..High(Integer) div SizeOf(Cardinal) - 1] of Cardinal;
 
   TNativeIntArray = array[0..High(Integer) div SizeOf(NativeInt) - 1] of NativeInt;
   PNativeIntArray = ^TNativeIntArray;
@@ -3312,25 +3312,25 @@ end;
 
 function ByteString.CharPos(const C: AnsiChar; const From: NativeUInt): NativeInt;
 label
-  found;
+  failure, found;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
   SUB_MASK  = Integer(-$01010101);
   OVERFLOW_MASK = Integer($80808080);
 var
   X, V, CharMask: NativeInt;
-  P, Top: PByte;
-  StoredP: PByte;
+  P, TopCardinal, Top: PByte;
+  StoredChars: PByte;
 begin
   P := Pointer(FChars);
-  Top := Pointer(@PByteArray(P)[FLength]);
-  StoredP := P;
+  TopCardinal := Pointer(@PByteArray(P)[FLength - CHARS_IN_CARDINAL]);
+  StoredChars := P;
   Inc(P, From);
+  if (Self.Ascii > (Byte(C) <= $7f)) then goto failure;
   CharMask := Ord(C) * $01010101;
 
-  Dec(Top, CHARS_IN_CARDINAL);
   repeat
-    if (NativeUInt(P) > NativeUInt(Top{Cardinal})) then Break;
+    if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     Inc(P, CHARS_IN_CARDINAL);
 
@@ -3344,9 +3344,9 @@ begin
     Inc(P, Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0)));
     goto found;
   until (False);
-  Inc(Top, CHARS_IN_CARDINAL);
 
   CharMask := CharMask and $ff;
+  Top := Pointer(@PByteArray(TopCardinal)[CHARS_IN_CARDINAL]);
   while (NativeUInt(P) < NativeUInt(Top)) do
   begin
     X := P^;
@@ -3354,70 +3354,79 @@ begin
     Inc(P);
   end;
 
+failure:
   Result := -1;
   Exit;
 found:
   Result := NativeInt(P);
-  Dec(Result, NativeInt(StoredP));
+  Dec(Result, NativeInt(StoredChars));
 end;
 
-function DetectSBCSLowerUpperChars(const C, Flags: NativeInt): NativeInt;
-var
-  SBCS: PUniConvSBCSEx;
-  Lookup: PUniConvSS;
+function DetectSBCSLowerUpperChars(const C: NativeInt; const SBCS: PUniConvSBCS): NativeInt;
 begin
-  SBCS := Pointer((Flags shr 24) * SizeOf(TUniConvSBCS) + NativeInt(@UNICONV_SUPPORTED_SBCS));
-
-  Lookup := SBCS.FLowerCase;
-  if (Lookup = nil) then Lookup := SBCS.FromSBCS(SBCS, ccLower);
-  Result := PUniConvBB(Lookup)[C];
-
-  Lookup := SBCS.FUpperCase;
-  if (Lookup = nil) then Lookup := SBCS.FromSBCS(SBCS, ccUpper);
-  Result := (Result shl 8) + PUniConvBB(Lookup)[C];
+  Result := PUniConvBB(SBCS.LowerCase)[C];
+  Result := (Result shl 8) + PUniConvBB(SBCS.UpperCase)[C];
 end;
 
 function ByteString.CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt): NativeInt;
 label
-  found;
+  sbcs_lookup_chars, failure, found;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
   SUB_MASK  = Integer(-$01010101);
   OVERFLOW_MASK = Integer($80808080);
 var
   X, T, V, U, LowerCharMask, UpperCharMask: NativeInt;
-  P, Top: PByte;
-  StoredP: PByte;
+  P, TopCardinal, Top: PByte;
+  StoredChars: PByte;
+  Lookup: PUniConvBB;
 begin
   P := Pointer(FChars);
-  Top := Pointer(@PByteArray(P)[FLength]);
-  StoredP := P;
+  TopCardinal := Pointer(@PByteArray(P)[FLength - CHARS_IN_CARDINAL]);
+  StoredChars := P;
   Inc(P, From);
 
-  LowerCharMask := Ord(C);
+  U := Ord(C);
   UpperCharMask := Self.F.Flags;
-  if (LowerCharMask <= $7f) then
+  if (U <= $7f) then
   begin
-    UpperCharMask := UNICONV_CHARCASE.VALUES[$10000 + LowerCharMask];
-    LowerCharMask := UNICONV_CHARCASE.VALUES[LowerCharMask];
-  end else
-  if (Integer(UpperCharMask) < 0) then
-  begin
-    // UTF-8 (case sensitive)
-    UpperCharMask := LowerCharMask;
+    UpperCharMask := UNICONV_CHARCASE.VALUES[$10000 + U];
+    LowerCharMask := UNICONV_CHARCASE.VALUES[U];
   end else
   begin
-    // SBCS
-    LowerCharMask := DetectSBCSLowerUpperChars(LowerCharMask, UpperCharMask);
-    UpperCharMask := LowerCharMask shr 8;
-    LowerCharMask := Byte(LowerCharMask);
+    if (UpperCharMask and 1 <> 0{Ascii}) then goto failure;
+    if (Integer(UpperCharMask) < 0) then
+    begin
+      // UTF-8 (case sensitive)
+      LowerCharMask := U;
+      UpperCharMask := U;
+    end else
+    begin
+      // SBCS
+      UpperCharMask := UpperCharMask shr 24;
+      UpperCharMask := UpperCharMask * SizeOf(TUniConvSBCS);
+      Inc(UpperCharMask, NativeInt(@UNICONV_SUPPORTED_SBCS));
+      Lookup := Pointer(PUniConvSBCSEx(UpperCharMask).FLowerCase);
+      if (Lookup <> nil) then
+      begin
+        LowerCharMask := Lookup[U];
+        Lookup := Pointer(PUniConvSBCSEx(UpperCharMask).FUpperCase);
+        if (Lookup = nil) then goto sbcs_lookup_chars;
+        UpperCharMask := Lookup[U];
+      end else
+      begin
+      sbcs_lookup_chars:
+        LowerCharMask := DetectSBCSLowerUpperChars(U, PUniConvSBCS(UpperCharMask));
+        UpperCharMask := LowerCharMask shr 8;
+        LowerCharMask := Byte(LowerCharMask);
+      end;
+    end;
   end;
 
   LowerCharMask := LowerCharMask * $01010101;
   UpperCharMask := UpperCharMask * $01010101;
-  Dec(Top, CHARS_IN_CARDINAL);
   repeat
-    if (NativeUInt(P) > NativeUInt(Top{Cardinal})) then Break;
+    if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     Inc(P, CHARS_IN_CARDINAL);
 
@@ -3436,10 +3445,10 @@ begin
     Inc(P, Byte(Byte(T and $80 = 0) + Byte(T and $8080 = 0) + Byte(T and $808080 = 0)));
     goto found;
   until (False);
-  Inc(Top, CHARS_IN_CARDINAL);
 
   LowerCharMask := Byte(LowerCharMask);
   UpperCharMask := Byte(UpperCharMask);
+  Top := Pointer(@PByteArray(TopCardinal)[CHARS_IN_CARDINAL]);
   while (NativeUInt(P) < NativeUInt(Top)) do
   begin
     X := P^;
@@ -3448,11 +3457,12 @@ begin
     Inc(P);
   end;
 
+failure:
   Result := -1;
   Exit;
 found:
   Result := NativeInt(P);
-  Dec(Result, NativeInt(StoredP));
+  Dec(Result, NativeInt(StoredChars));
 end;
 
 function ByteString.Pos(const S: ByteString; const From: NativeUInt): NativeInt;
@@ -7002,65 +7012,69 @@ end;
 
 function UTF16String.CharPos(const C: UnicodeChar; const From: NativeUInt): NativeInt;
 label
-  found;
+  failure, found;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
 var
   X: Cardinal;
   CValue: Word;
-  P, Top: PWord;
-  StoredP: PWord;
+  P, TopCardinal, Top: PWord;
+  StoredChars: PWord;
 begin
   P := Pointer(FChars);
-  Top := Pointer(@PWordArray(P)[FLength]);
-  StoredP := P;
+  TopCardinal := Pointer(@PWordArray(P)[FLength - CHARS_IN_CARDINAL]);
+  StoredChars := P;
   Inc(P, From);
+  if (Self.Ascii > (Ord(C) <= $7f)) then goto failure;
   CValue := Ord(C);
 
-  Dec(Top);
-  if (NativeUInt(P) < NativeUInt(Top)) then
   repeat
+    if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     if (Word(X) = CValue) then goto found;
     Inc(P);
     X := X shr 16;
     if (Word(X) = CValue) then goto found;
     Inc(P);
-  until (NativeUInt(P) >= NativeUInt(Top));
-  Inc(Top);
+  until (False);
 
-  if (P <> Top) and (P^ = CValue) then goto found;
+  Top := Pointer(@PWordArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  if (NativeUInt(P) < NativeUInt(Top)) and (P^ = CValue) then goto found;
+
+failure:
   Result := -1;
   Exit;
 found:
   Result := NativeInt(P);
-  Dec(Result, NativeInt(StoredP));
+  Dec(Result, NativeInt(StoredChars));
   Result := Result shr 1;
 end;
 
 function UTF16String.CharPosIgnoreCase(const C: UnicodeChar; const From: NativeUInt): NativeInt;
 label
-  found;
+  failure, found;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
   SUB_MASK  = Integer(-$00010001);
   OVERFLOW_MASK = Integer($80008000);
 var
   X, T, V, U, LowerCharMask, UpperCharMask: NativeInt;
-  P, Top: PWord;
-  StoredP: PWord;
+  P, TopCardinal, Top: PWord;
+  StoredChars: PWord;
 begin
   P := Pointer(FChars);
-  Top := Pointer(@PWordArray(P)[FLength]);
-  StoredP := P;
+  TopCardinal := Pointer(@PWordArray(P)[FLength - CHARS_IN_CARDINAL]);
+  StoredChars := P;
   Inc(P, From);
+  if (Self.Ascii > (Ord(C) <= $7f)) then goto failure;
 
   LowerCharMask := Ord(UNICONV_CHARCASE.LOWER[C]);
   UpperCharMask := Ord(UNICONV_CHARCASE.UPPER[C]);
   LowerCharMask := LowerCharMask + LowerCharMask shl 16;
   UpperCharMask := UpperCharMask + UpperCharMask shl 16;
 
-  Dec(Top, CHARS_IN_CARDINAL);
   repeat
-    if (NativeUInt(P) > NativeUInt(Top{Cardinal})) then Break;
+    if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     Inc(P, CHARS_IN_CARDINAL);
 
@@ -7079,22 +7093,23 @@ begin
     Inc(P, Byte(T and $8000 = 0));
     goto found;
   until (False);
-  Inc(Top, CHARS_IN_CARDINAL);
 
   LowerCharMask := Word(LowerCharMask);
   UpperCharMask := Word(UpperCharMask);
-  if (P <> Top) then
+  Top := Pointer(@PWordArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  if (NativeUInt(P) < NativeUInt(Top)) then
   begin
     X := P^;
     if (X = LowerCharMask) then goto found;
     if (X = UpperCharMask) then goto found;
   end;
 
+failure:
   Result := -1;
   Exit;
 found:
   Result := NativeInt(P);
-  Dec(Result, NativeInt(StoredP));
+  Dec(Result, NativeInt(StoredChars));
   Result := Result shr 1;
 end;
 
@@ -10103,42 +10118,45 @@ end;
 
 function UTF32String.CharPos(const C: UCS4Char; const From: NativeUInt): NativeInt;
 label
-  found;
+  failure, found;
 var
   P, Top: PCardinal;
-  StoredP: PCardinal;
+  StoredChars: PCardinal;
 begin
   P := Pointer(FChars);
   Top := Pointer(@PCardinalArray(P)[FLength]);
-  StoredP := P;
+  StoredChars := P;
   Inc(P, From);
+  if (Self.Ascii > (Ord(C) <= $7f)) then goto failure;
 
-  if (NativeUInt(P) < NativeUInt(Top)) then
-  repeat
+  while (NativeUInt(P) < NativeUInt(Top)) do
+  begin
     if (P^ = C) then goto found;
     Inc(P);
-  until (P = Top);
+  end;
 
+failure:
   Result := -1;
   Exit;
 found:
   Result := NativeInt(P);
-  Dec(Result, NativeInt(StoredP));
+  Dec(Result, NativeInt(StoredChars));
   Result := Result shr 2;
 end;
 
 function UTF32String.CharPosIgnoreCase(const C: UCS4Char; const From: NativeUInt): NativeInt;
 label
-  found;
+  failure, found;
 var
   X, LowerChar, UpperChar: NativeInt;
   P, Top: PCardinal;
-  StoredP: PCardinal;
+  StoredChars: PCardinal;
 begin
   P := Pointer(FChars);
   Top := Pointer(@PCardinalArray(P)[FLength]);
-  StoredP := P;
+  StoredChars := P;
   Inc(P, From);
+  if (Self.Ascii > (Ord(C) <= $7f)) then goto failure;
 
   LowerChar := Ord(C);
   UpperChar := LowerChar;
@@ -10148,19 +10166,20 @@ begin
     UpperChar := UNICONV_CHARCASE.VALUES[UpperChar + $10000];
   end;
 
-  if (NativeUInt(P) < NativeUInt(Top)) then
-  repeat
+  while (NativeUInt(P) < NativeUInt(Top)) do
+  begin
     X := P^;
     if (X = LowerChar) then goto found;
     if (X = UpperChar) then goto found;
     Inc(P);
-  until (P = Top);
+  end;
 
+failure:
   Result := -1;
   Exit;
 found:
   Result := NativeInt(P);
-  Dec(Result, NativeInt(StoredP));
+  Dec(Result, NativeInt(StoredChars));
   Result := Result shr 2;
 end;
 

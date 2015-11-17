@@ -19,21 +19,10 @@ implementation
 
 
 procedure RUN;
-var
-  Text: TUTF16TextReader;
-  S: CachedUTF16String;
 begin
 
-  Text := TUTF16TextReader.CreateFromFile('TEST.txt');
-  try
-    while Text.Readln(S) do
-      ShowMessage('"' + string(S) + '"');
 
-  finally
-    Text.Free;
-  end;
-
-  ShowMessage('Done'{'Test'});
+  ShowMessage('Test');
 end;
 
 procedure ShowMessage(const S: string);
@@ -54,11 +43,6 @@ procedure ShowMessage(const StrFmt: string; const Args: array of const);
 begin
   ShowMessage(Format(StrFmt, Args));
 end;
-
-
-
-
-
 
 initialization
 

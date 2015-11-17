@@ -3469,13 +3469,14 @@ end;
 
 function ByteString.Pos(const S: ByteString; const From: NativeUInt): NativeInt;
 label
-  failure, char_found;
+  next_iteration, failure, char_found;
 type
   TChar = Byte;
   PChar = ^TChar;
   TCharArray = TByteArray;
   PCharArray = ^TCharArray;
 const
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(TChar);
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
   SUB_MASK  = Integer(-$01010101);
   OVERFLOW_MASK = Integer($80808080);
@@ -3483,34 +3484,36 @@ var
   L: NativeUInt;
   X, V, CharMask: NativeInt;
   P, Top, TopCardinal: PChar;
+  P1, P2: PChar;
   Store: record
     StrLength: NativeUInt;
     StrChars: Pointer;
     SelfChars: Pointer;
-    SelfCharsTop: Pointer;
+    CharMask: NativeInt;
   end;
 begin
-  CharMask := From{store};
   Store.StrChars := S.Chars;
   L := S.Length;
   if (L <= 1) then
   begin
     if (L = 0) then goto failure;
-    Result := Self.CharPos(PAnsiChar(Store.StrChars)^, CharMask);
+    Result := Self.CharPos(PAnsiChar(Store.StrChars)^, From);
     Exit;
   end;
   Store.StrLength := L;
   P := Pointer(Self.FChars);
   Store.SelfChars := P;
-  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
-  TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-L - (CHARS_IN_CARDINAL - 1)]);  
-  Inc(P, CharMask{From});
+  TopCardinal := Pointer(@PCharArray(P)[Self.FLength -L - (CHARS_IN_CARDINAL - 1)]);  
+  Inc(P, From);
 
   CharMask := PChar(Store.StrChars)^;
   if (Self.Ascii > (CharMask <= $7f)) then goto failure;
   CharMask := CharMask * $01010101;
 
-  repeat
+  Store.CharMask := CharMask;
+  next_iteration:
+    CharMask := Store.CharMask;
+  repeat   
     if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     Inc(P, CHARS_IN_CARDINAL);
@@ -3524,9 +3527,35 @@ begin
     Dec(P, CHARS_IN_CARDINAL);
     Inc(P, Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0)));
   char_found:
-    X := __uniconv_compare_bytes(Pointer(P), Store.StrChars, Store.StrLength);
     Inc(P);
-    if (X <> 0) then Continue;
+    L := Store.StrLength - 1;    
+    P2 := Store.StrChars;
+    P1 := P;
+    Inc(P2);
+    if (L >= CHARS_IN_NATIVE) then
+    repeat
+      if (PNativeUInt(P1)^ <> PNativeUInt(P2)^) then goto next_iteration;
+      Dec(L, CHARS_IN_NATIVE);
+      Inc(P1, CHARS_IN_NATIVE);
+      Inc(P2, CHARS_IN_NATIVE);
+    until (L < CHARS_IN_NATIVE);
+    {$ifdef LARGEINT}    
+    if (L >= CHARS_IN_CARDINAL{4}) then
+    begin
+      if (PCardinal(P1)^ <> PCardinal(P2)^) then goto next_iteration;
+      Dec(L, CHARS_IN_CARDINAL);
+      Inc(P1, CHARS_IN_CARDINAL);
+      Inc(P2, CHARS_IN_CARDINAL);      
+    end;
+    {$endif}
+    if (L <> 0) then
+    repeat    
+      if (P1^ <> P2^) then goto next_iteration;     
+      Dec(L);
+      Inc(P1);
+      Inc(P2);            
+    until (L = 0);
+    
     Dec(P);
     Pointer(Result) := P;
     Dec(Result, NativeInt(Store.SelfChars));
@@ -3540,7 +3569,7 @@ begin
     X := P^;
     if (X = CharMask) then goto char_found;
     Inc(P);
-  end;
+  end; 
 
 failure:
   Result := -1;
@@ -7466,24 +7495,25 @@ end;
 
 function UTF16String.Pos(const S: UTF16String; const From: NativeUInt): NativeInt;
 label
-  failure, char_found;
+  next_iteration, failure, char_found;
 type
   TChar = Word;
   PChar = ^TChar;
   TCharArray = TWordArray;
   PCharArray = ^TCharArray;
 const
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(TChar);
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
 var
-  L: NativeUInt;
-  X: NativeInt;
+  L, X: NativeUInt;
   CValue: Word;
   P, Top, TopCardinal: PChar;
+  P1, P2: PChar;
   Store: record
     StrLength: NativeUInt;
     StrChars: Pointer;
     SelfChars: Pointer;
-    SelfCharsTop: Pointer;
+    CValue: Word;
   end;  
 begin
   Store.StrChars := S.Chars;
@@ -7497,13 +7527,15 @@ begin
   Store.StrLength := L;
   P := Pointer(Self.FChars);
   Store.SelfChars := P;
-  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
-  TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-L - (CHARS_IN_CARDINAL - 1)]);  
+  TopCardinal := Pointer(@PCharArray(P)[Self.FLength -L - (CHARS_IN_CARDINAL - 1)]);  
   Inc(P, From);
 
   CValue := PChar(Store.StrChars)^;
   if (Self.Ascii > (CValue <= $7f)) then goto failure;
-  
+  Store.CValue := CValue;
+
+  next_iteration:
+    CValue := Store.CValue;   
   repeat
     if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
@@ -7512,11 +7544,33 @@ begin
     X := X shr 16;
     Inc(P);    
     if (Word(X) <> CValue) then Continue;
-    Dec(P);    
   char_found:
-    X := __uniconv_compare_words(Pointer(P), Store.StrChars, Store.StrLength);
     Inc(P);
-    if (X <> 0) then Continue;
+    L := Store.StrLength - 1;    
+    P2 := Store.StrChars;
+    P1 := P;
+    Inc(P2);
+    if (L >= CHARS_IN_NATIVE) then
+    repeat
+      if (PNativeUInt(P1)^ <> PNativeUInt(P2)^) then goto next_iteration;
+      Dec(L, CHARS_IN_NATIVE);
+      Inc(P1, CHARS_IN_NATIVE);
+      Inc(P2, CHARS_IN_NATIVE);
+    until (L < CHARS_IN_NATIVE);
+    {$ifdef LARGEINT}    
+    if (L >= CHARS_IN_CARDINAL{2}) then
+    begin
+      if (PCardinal(P1)^ <> PCardinal(P2)^) then goto next_iteration;
+      Dec(L, CHARS_IN_CARDINAL);
+      Inc(P1, CHARS_IN_CARDINAL);
+      Inc(P2, CHARS_IN_CARDINAL);      
+    end;
+    {$endif}
+    if (L <> 0) then
+    begin
+      if (P1^ <> P2^) then goto next_iteration;     
+    end;
+    
     Dec(P);
     Pointer(Result) := P;
     Dec(Result, NativeInt(Store.SelfChars));
@@ -10710,20 +10764,24 @@ end;
 
 function UTF32String.Pos(const S: UTF32String; const From: NativeUInt): NativeInt;
 label
-  failure, char_found;
+  next_iteration, failure, char_found;
 type
   TChar = Cardinal;
   PChar = ^TChar;
   TCharArray = TCardinalArray;
   PCharArray = ^TCharArray;
+const
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(TChar);
+  CHARS_IN_CARDINAL = SizeOf(CARDINAL) div SizeOf(TChar);
 var
   L, X: NativeUInt;
   P, Top: PChar;
+  P1, P2: PChar;
   Store: record
     StrLength: NativeUInt;
     StrChars: Pointer;
     SelfChars: Pointer;
-    SelfCharsTop: Pointer;
+    X: NativeUInt;
   end;  
 begin
   Store.StrChars := S.Chars;
@@ -10737,25 +10795,43 @@ begin
   Store.StrLength := L;
   P := Pointer(Self.FChars);
   Store.SelfChars := P;
-  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
-  Top := Pointer(@PCharArray(Store.SelfCharsTop)[-L + 1]);
+  Top := Pointer(@PCharArray(P)[Self.FLength -L + 1]);
   Inc(P, From);
   
   X := PChar(Store.StrChars)^;
   if (Self.Ascii > (X <= $7f)) then goto failure;
-
+  Store.X := X;
+  
   repeat
-    while (NativeUInt(P) < NativeUInt(Top)) do
-    begin
+  next_iteration:
+    X := Store.X;  
+    if (NativeUInt(P) < NativeUInt(Top)) then
+    repeat
       if (P^ = TChar(X)) then goto char_found;
       Inc(P);
-    end;
+    until (NativeUInt(P) = NativeUInt(Top));
     Break;
 
   char_found:
-    X := utf32_compare_utf32(Pointer(P), Store.StrChars, Store.StrLength);
     Inc(P);
-    if (X <> 0) then Continue;
+    L := Store.StrLength - 1;    
+    P2 := Store.StrChars;
+    P1 := P;
+    Inc(P2);
+    if (L >= CHARS_IN_NATIVE) then
+    repeat
+      if (PNativeUInt(P1)^ <> PNativeUInt(P2)^) then goto next_iteration;
+      Dec(L, CHARS_IN_NATIVE);
+      Inc(P1, CHARS_IN_NATIVE);
+      Inc(P2, CHARS_IN_NATIVE);
+    until (L < CHARS_IN_NATIVE);
+    {$ifdef LARGEINT}    
+    if (L >= CHARS_IN_CARDINAL{1}) then
+    begin
+      if (PCardinal(P1)^ <> PCardinal(P2)^) then goto next_iteration;
+    end;
+    {$endif}
+        
     Dec(P);
     Pointer(Result) := P;
     Dec(Result, NativeInt(Store.SelfChars));

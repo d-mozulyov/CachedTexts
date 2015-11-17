@@ -3468,8 +3468,82 @@ found:
 end;
 
 function ByteString.Pos(const S: ByteString; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Byte;
+  PChar = ^TChar;
+  TCharArray = TByteArray;
+  PCharArray = ^TCharArray;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
+  SUB_MASK  = Integer(-$01010101);
+  OVERFLOW_MASK = Integer($80808080);
+var
+  L: NativeUInt;
+  X, V, CharMask: NativeInt;
+  P, Top, TopCardinal: PChar;
+  Store: record
+    StrLength: NativeUInt;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+  end;
 begin
-  Result := -1{todo};
+  CharMask := From{store};
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPos(PAnsiChar(Store.StrChars)^, CharMask);
+    Exit;
+  end;
+  Store.StrLength := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
+  TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-L - (CHARS_IN_CARDINAL - 1)]);  
+  Inc(P, CharMask{From});
+
+  CharMask := PChar(Store.StrChars)^;
+  if (Self.Ascii > (CharMask <= $7f)) then goto failure;
+  CharMask := CharMask * $01010101;
+
+  repeat
+    if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
+    X := PCardinal(P)^;
+    Inc(P, CHARS_IN_CARDINAL);
+
+    X := X xor CharMask;
+    V := X + SUB_MASK;
+    X := not X;
+    X := X and V;
+
+    if (X and OVERFLOW_MASK = 0) then Continue;
+    Dec(P, CHARS_IN_CARDINAL);
+    Inc(P, Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0)));
+  char_found:
+    X := __uniconv_compare_bytes(Pointer(P), Store.StrChars, Store.StrLength);
+    Inc(P);
+    if (X <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Exit;
+  until (False);
+
+  CharMask := CharMask and $ff;
+  Top := Pointer(@PByteArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  while (NativeUInt(P) < NativeUInt(Top)) do
+  begin
+    X := P^;
+    if (X = CharMask) then goto char_found;
+    Inc(P);
+  end;
+
+failure:
+  Result := -1;
 end;
 
 function ByteString.Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
@@ -7391,8 +7465,70 @@ found:
 end;
 
 function UTF16String.Pos(const S: UTF16String; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Word;
+  PChar = ^TChar;
+  TCharArray = TWordArray;
+  PCharArray = ^TCharArray;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
+var
+  L: NativeUInt;
+  X: NativeInt;
+  CValue: Word;
+  P, Top, TopCardinal: PChar;
+  Store: record
+    StrLength: NativeUInt;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+  end;  
 begin
-  Result := -1{todo};
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPos(PUnicodeChar(Store.StrChars)^, From);
+    Exit;
+  end;
+  Store.StrLength := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
+  TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-L - (CHARS_IN_CARDINAL - 1)]);  
+  Inc(P, From);
+
+  CValue := PChar(Store.StrChars)^;
+  if (Self.Ascii > (CValue <= $7f)) then goto failure;
+  
+  repeat
+    if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
+    X := PCardinal(P)^;
+    if (Word(X) = CValue) then goto char_found;
+    Inc(P);
+    X := X shr 16;
+    Inc(P);    
+    if (Word(X) <> CValue) then Continue;
+    Dec(P);    
+  char_found:
+    X := __uniconv_compare_words(Pointer(P), Store.StrChars, Store.StrLength);
+    Inc(P);
+    if (X <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Result := Result shr 1;
+    Exit;    
+  until (False);
+
+  Top := Pointer(@PWordArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  if (NativeUInt(P) < NativeUInt(Top)) and (P^ = CValue) then goto char_found;  
+
+failure:
+  Result := -1;  
 end;
 
 function UTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
@@ -10548,8 +10684,86 @@ found:
   Result := Result shr 2;
 end;
 
-function UTF32String.Pos(const S: UTF32String; const From: NativeUInt): NativeInt;
+function utf32_compare_utf32(S1, S2: PCardinal; L: NativeUInt): NativeInt;
+label
+  make_result;
+var
+  X, Y, i: NativeUInt;
 begin
+  for i := 1 to L do
+  begin
+    X := S1^;
+    Y := S2^;
+    Inc(S1);
+    Inc(S2);
+    if (X <> Y) then goto make_result;
+  end;
+
+  X := 0;
+  Y := 0;    
+  Result := 0;
+  Exit;
+
+make_result:
+  Result := Ord(X > Y)*2 - 1;
+end;
+
+function UTF32String.Pos(const S: UTF32String; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Cardinal;
+  PChar = ^TChar;
+  TCharArray = TCardinalArray;
+  PCharArray = ^TCharArray;
+var
+  L, X: NativeUInt;
+  P, Top: PChar;
+  Store: record
+    StrLength: NativeUInt;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+  end;  
+begin
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPos(PUCS4Char(Store.StrChars)^, From);
+    Exit;
+  end;
+  Store.StrLength := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
+  Top := Pointer(@PCharArray(Store.SelfCharsTop)[-L + 1]);
+  Inc(P, From);
+  
+  X := PChar(Store.StrChars)^;
+  if (Self.Ascii > (X <= $7f)) then goto failure;
+
+  repeat
+    while (NativeUInt(P) < NativeUInt(Top)) do
+    begin
+      if (P^ = TChar(X)) then goto char_found;
+      Inc(P);
+    end;
+    Break;
+
+  char_found:
+    X := utf32_compare_utf32(Pointer(P), Store.StrChars, Store.StrLength);
+    Inc(P);
+    if (X <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Result := Result shr 2;
+    Exit;
+  until (False);  
+  
+failure:
   Result := -1{todo};
 end;
 
@@ -10587,30 +10801,6 @@ begin
     Buffer.Length := L;
     Result := Self.Pos(PUTF32String(@Buffer)^, From);
   end;
-end;
-
-function utf32_compare_utf32(S1, S2: PCardinal; L: NativeUInt): NativeInt;
-label
-  make_result;
-var
-  X, Y, i: NativeUInt;
-begin
-  for i := 1 to L do
-  begin
-    X := S1^;
-    Y := S2^;
-    Inc(S1);
-    Inc(S2);
-    if (X <> Y) then goto make_result;
-  end;
-
-  X := 0;
-  Y := 0;    
-  Result := 0;
-  Exit;
-
-make_result:
-  Result := Ord(X > Y)*2 - 1;
 end;
 
 function utf32_compare_utf32_ignorecase(S1, S2: PCardinal; L: NativeUInt): NativeInt;
@@ -10673,7 +10863,7 @@ begin
   if (L <= 1) then
   begin
     if (L = 0) then goto failure;
-    Result := Self.CharPosIgnoreCase(PUCS4Char(Store.StrChars)^, UpperChar);
+    Result := Self.CharPosIgnoreCase(PUCS4Char(Store.StrChars)^, UpperChar{From});
     Exit;
   end;
   Store.StrLength := L;

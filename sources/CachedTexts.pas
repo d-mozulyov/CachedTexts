@@ -1024,9 +1024,12 @@ type
   PUniConvContextEx = ^TUniConvContextEx;
   TUniConvContextEx = object(TUniConvContext) end;
 
+const
+  DBLROUND_CONST: Double = 6755399441055744.0;
+
 var
   UNICONV_SUPPORTED_SBCS_HASH: array[0..High(UniConv.UNICONV_SUPPORTED_SBCS_HASH)] of Integer;
-  UNICONV_UTF8_SIZE: TUniConvBB;
+  UNICONV_UTF8CHAR_SIZE: TUniConvBB;
 
 procedure InternalLookupsInitialize;
 begin
@@ -1035,7 +1038,7 @@ begin
   DEFAULT_UNICONV_SBCS_INDEX := UniConv.DEFAULT_UNICONV_SBCS_INDEX;
 
   Move(UniConv.UNICONV_SUPPORTED_SBCS_HASH, UNICONV_SUPPORTED_SBCS_HASH, SizeOf(UNICONV_SUPPORTED_SBCS_HASH));
-  Move(UniConv.UNICONV_UTF8_SIZE, UNICONV_UTF8_SIZE, SizeOf(UNICONV_UTF8_SIZE));
+  Move(UniConv.UNICONV_UTF8CHAR_SIZE, UNICONV_UTF8CHAR_SIZE, SizeOf(UNICONV_UTF8CHAR_SIZE));
 end;
 
 type
@@ -1992,11 +1995,10 @@ asm
   mov [rdx], rax
 end;
 {$else .CPUARM}
-  ROUND_CONST: Double = 6755399441055744.0;
 var
   D, M: NativeInt;
 begin
-  PDouble(@DivMod)^ := (X64 * UN_DIGITS_8) + ROUND_CONST;
+  PDouble(@DivMod)^ := (X64 * UN_DIGITS_8) + DBLROUND_CONST;
 
   D := DivMod.D;
   {$ifdef LARGEINT}
@@ -3132,7 +3134,7 @@ begin
     Inc(P, CHARS_IN_CARDINAL);
     if (X and $80 <> 0) then
     begin
-      case UNICONV_UTF8_SIZE[Byte(X)] of
+      case UNICONV_UTF8CHAR_SIZE[Byte(X)] of
         2: begin
              // X := ((X and $1F) shl 6) or ((X shr 8) and $3F);
              V := X;
@@ -3503,14 +3505,289 @@ begin
   end;
 end;
 
-function ByteString._PosIgnoreCaseUTF8(const S: ByteString; const From: NativeUInt): NativeInt;
+function DetectUTF8LowerUpperChars(S: PByte; L: NativeUInt): NativeInt;
+label
+  done;
+var
+  V1, V2: NativeUInt;
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo};
+  V1 := S^;
+  V2 := V1;
+
+  X := UNICONV_UTF8CHAR_SIZE[V1];
+  if (X > L) then goto done;
+  case X of
+    2:
+    begin
+      X := PWord(S)^;
+      if (X and $C0E0 <> $80C0) then goto done;
+      Y := X;
+      X := X and $1F;
+      Y := Y shr 8;
+      X := X shl 6;
+      Y := Y and $3F;
+      Inc(X, Y);
+    end;
+    3:
+    begin
+      Inc(S);
+      X := PWord(S)^;
+      X := (X shl 8) + V1;
+      if (X and $C0C000 <> $808000) then goto done;
+      Y := (X and $0F) shl 12;
+      Y := Y + (X shr 16) and $3F;
+      X := (X and $3F00) shr 2;
+      Inc(X, Y);
+    end;
+  else
+    goto done;
+  end;
+
+  V1 := UNICONV_CHARCASE.VALUES[X];
+  V2 := UNICONV_CHARCASE.VALUES[$10000 + X];
+  begin
+    if (V1 <= $7ff) then
+    begin
+      V1 := (V1 shr 6) + $C0;
+    end else
+    begin
+      V1 := (V1 shr 12) + $E0;
+    end;
+
+    if (V2 <= $7ff) then
+    begin
+      V2 := (V2 shr 6) + $C0;
+    end else
+    begin
+      V2 := (V2 shr 12) + $E0;
+    end;
+  end;
+done:
+  Result := (Byte(V1) shl 8) + Byte(V2);
+end;
+
+function ByteString._PosIgnoreCaseUTF8(const S: ByteString; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Byte;
+  PChar = ^TChar;
+  TCharArray = TByteArray;
+  PCharArray = ^TCharArray;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
+  SUB_MASK  = Integer(-$01010101);
+  OVERFLOW_MASK = Integer($80808080);
+var
+  L: NativeUInt;
+  X, T, V, U, LowerCharMask, UpperCharMask: NativeInt;
+  P, Top{$ifNdef CPUX86},TopCardinal{$endif}: PChar;
+  Store: record
+    Comp: TUniConvCompareOptions;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+    {$ifdef CPUX86}TopCardinal: Pointer;{$endif}
+    UpperCharMask: NativeInt;
+    case Boolean of
+      False: (D: Double);
+       True: (I: Integer);
+  end;
+begin
+  Store.Comp.Length := From{store};
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPosIgnoreCase(PAnsiChar(Store.StrChars)^, Store.Comp.Length);
+    Exit;
+  end;
+  Store.Comp.Length_2 := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  L := Self.FLength;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[L]);
+  Store.D := (Store.Comp.Length_2 * (2/3)) + DBLROUND_CONST;
+  {$ifdef CPUX86}Store.{$endif}TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-Store.I - (CHARS_IN_CARDINAL - 1)]);
+  Inc(P, Store.Comp.Length{From});
+
+  LowerCharMask := PChar(Store.StrChars)^;
+  if (LowerCharMask <= $7f) then
+  begin
+    UpperCharMask := UNICONV_CHARCASE.VALUES[$10000 + LowerCharMask];
+    LowerCharMask := UNICONV_CHARCASE.VALUES[LowerCharMask];
+  end else
+  begin
+    if (Self.Ascii) then goto failure;
+    LowerCharMask := DetectUTF8LowerUpperChars(Store.StrChars, Store.Comp.Length_2);
+    UpperCharMask := LowerCharMask shr 8;
+    LowerCharMask := TChar(LowerCharMask);
+  end;
+
+  LowerCharMask := LowerCharMask * $01010101;
+  UpperCharMask := UpperCharMask * $01010101;
+  repeat
+    if (NativeUInt(P) > NativeUInt({$ifdef CPUX86}Store.{$endif}TopCardinal)) then Break;
+    X := PCardinal(P)^;
+    Inc(P, CHARS_IN_CARDINAL);
+
+    T := (X xor LowerCharMask);
+    U := (X xor UpperCharMask);
+    V := T + SUB_MASK;
+    T := not T;
+    T := T and V;
+    V := U + SUB_MASK;
+    U := not U;
+    U := U and V;
+
+    T := T or U;
+    if (T and OVERFLOW_MASK = 0) then Continue;
+    Dec(P, CHARS_IN_CARDINAL);
+    Inc(P, Byte(Byte(T and $80 = 0) + Byte(T and $8080 = 0) + Byte(T and $808080 = 0)));
+  char_found:
+    Store.UpperCharMask := UpperCharMask;
+      Store.Comp.Length := (NativeUInt(Store.SelfCharsTop) - NativeUInt(P)) or {compare flag}NativeUInt(1 shl {$ifdef LARGEINT}63{$else}31{$endif});
+      U := __uniconv_utf8_compare_utf8(Pointer(P), Store.StrChars, Store.Comp);
+    UpperCharMask := Store.UpperCharMask;
+    Inc(P);
+    if (U <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Exit;
+  until (False);
+
+  LowerCharMask := TChar(LowerCharMask);
+  UpperCharMask := TChar(UpperCharMask);
+  Top := Pointer(@PCharArray({$ifdef CPUX86}Store.{$endif}TopCardinal)[CHARS_IN_CARDINAL]);
+  while (NativeUInt(P) < NativeUInt(Top)) do
+  begin
+    X := P^;
+    if (X = LowerCharMask) then goto char_found;
+    if (X = UpperCharMask) then goto char_found;
+    Inc(P);
+  end;
+
+failure:
+  Result := -1;
+end;
+
+procedure UpdateSBCSLowerUpperLookups(var Comp: TUniConvCompareOptions; const SBCS: PUniConvSBCS);
+begin
+  Comp.Lookup := SBCS.LowerCase;
+  Comp.Lookup_2 := SBCS.UpperCase;
 end;
 
 function ByteString._PosIgnoreCase(const S: ByteString; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Byte;
+  PChar = ^TChar;
+  TCharArray = TByteArray;
+  PCharArray = ^TCharArray;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
+  SUB_MASK  = Integer(-$01010101);
+  OVERFLOW_MASK = Integer($80808080);
+var
+  L: NativeUInt;
+  X, T, V, U, LowerCharMask, UpperCharMask: NativeInt;
+  P, Top{$ifNdef CPUX86},TopCardinal{$endif}: PChar;
+  Store: record
+    Comp: TUniConvCompareOptions;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+    {$ifdef CPUX86}TopCardinal: Pointer;{$endif}
+    UpperCharMask: NativeInt;
+  end;
 begin
-  Result := -1{todo};
+  Store.Comp.Length_2 := From{store};
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPosIgnoreCase(PAnsiChar(Store.StrChars)^, Store.Comp.Length_2);
+    Exit;
+  end;
+  Store.Comp.Length := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
+  {$ifdef CPUX86}Store.{$endif}TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-L - (CHARS_IN_CARDINAL - 1)]);
+  Inc(P, Store.Comp.Length_2{From});
+
+  UpperCharMask := Self.F.Flags;
+  LowerCharMask := UpperCharMask;
+  UpperCharMask := UpperCharMask shr 24;
+  UpperCharMask := UpperCharMask * SizeOf(TUniConvSBCS);
+  Inc(UpperCharMask, NativeInt(@UNICONV_SUPPORTED_SBCS));
+  Store.Comp.Lookup := PUniConvSBCSEx(UpperCharMask).FLowerCase;
+  Store.Comp.Lookup_2 := PUniConvSBCSEx(UpperCharMask).FUpperCase;
+  if (Store.Comp.Lookup = nil) or (Store.Comp.Lookup_2 = nil) then
+    UpdateSBCSLowerUpperLookups(Store.Comp, PUniConvSBCS(UpperCharMask));
+
+  U := PChar(Store.StrChars)^;
+  if (U <= $7f) then
+  begin
+    UpperCharMask := UNICONV_CHARCASE.VALUES[$10000 + U];
+    LowerCharMask := UNICONV_CHARCASE.VALUES[U];
+  end else
+  begin
+    if (LowerCharMask and 1 <> 0{Ascii}) then goto failure;
+    UpperCharMask := PUniConvBB(Store.Comp.Lookup_2)[U];
+    LowerCharMask := PUniConvBB(Store.Comp.Lookup)[U];
+  end;
+
+  LowerCharMask := LowerCharMask * $01010101;
+  UpperCharMask := UpperCharMask * $01010101;
+  repeat
+    if (NativeUInt(P) > NativeUInt({$ifdef CPUX86}Store.{$endif}TopCardinal)) then Break;
+    X := PCardinal(P)^;
+    Inc(P, CHARS_IN_CARDINAL);
+
+    T := (X xor LowerCharMask);
+    U := (X xor UpperCharMask);
+    V := T + SUB_MASK;
+    T := not T;
+    T := T and V;
+    V := U + SUB_MASK;
+    U := not U;
+    U := U and V;
+
+    T := T or U;
+    if (T and OVERFLOW_MASK = 0) then Continue;
+    Dec(P, CHARS_IN_CARDINAL);
+    Inc(P, Byte(Byte(T and $80 = 0) + Byte(T and $8080 = 0) + Byte(T and $808080 = 0)));
+  char_found:
+    Store.UpperCharMask := UpperCharMask;
+      U := __uniconv_sbcs_compare_sbcs_1(Pointer(P), Store.StrChars, Store.Comp);
+    UpperCharMask := Store.UpperCharMask;
+    Inc(P);
+    if (U <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Exit;
+  until (False);
+
+  LowerCharMask := TChar(LowerCharMask);
+  UpperCharMask := TChar(UpperCharMask);
+  Top := Pointer(@PCharArray({$ifdef CPUX86}Store.{$endif}TopCardinal)[CHARS_IN_CARDINAL]);
+  while (NativeUInt(P) < NativeUInt(Top)) do
+  begin
+    X := P^;
+    if (X = LowerCharMask) then goto char_found;
+    if (X = UpperCharMask) then goto char_found;
+    Inc(P);
+  end;
+
+failure:
+  Result := -1;
 end;
 
 function ByteString.PosIgnoreCase(const S: ByteString; const From: NativeUInt): NativeInt;
@@ -13451,7 +13728,7 @@ begin
       Exit;
     end;
 
-    X := UNICONV_UTF8_SIZE[X];
+    X := UNICONV_UTF8CHAR_SIZE[X];
     Inc(P, X);
     Dec(P, Byte(X <> 0));
     if (NativeUInt(P) > NativeUInt(FOverflow)) then goto buffer_too_small;

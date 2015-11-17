@@ -7429,8 +7429,96 @@ begin
 end;
 
 function UTF16String.PosIgnoreCase(const S: UTF16String; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Word;
+  PChar = ^TChar;
+  TCharArray = TWordArray;
+  PCharArray = ^TCharArray;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
+  SUB_MASK  = Integer(-$00010001);
+  OVERFLOW_MASK = Integer($80008000);
+var
+  L: NativeUInt;
+  X, T, V, U, LowerCharMask, UpperCharMask: NativeInt;
+  P, Top{$ifNdef CPUX86},TopCardinal{$endif}: PChar;
+  Store: record
+    StrLength: NativeUInt;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+    {$ifdef CPUX86}TopCardinal: Pointer;{$endif}
+    UpperCharMask: NativeInt;
+  end;
 begin
-  Result := -1{todo};
+  UpperCharMask := From{store};
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPosIgnoreCase(PUnicodeChar(Store.StrChars)^, UpperCharMask);
+    Exit;
+  end;
+  Store.StrLength := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
+  {$ifdef CPUX86}Store.{$endif}TopCardinal := Pointer(@PCharArray(Store.SelfCharsTop)[-L - (CHARS_IN_CARDINAL - 1)]);
+  Inc(P, UpperCharMask{From});
+
+  U := PChar(Store.StrChars)^;
+  if (Self.Ascii > (U <= $7f)) then goto failure;
+  LowerCharMask := UNICONV_CHARCASE.VALUES[U];
+  UpperCharMask := UNICONV_CHARCASE.VALUES[$10000 + U];
+  LowerCharMask := LowerCharMask + LowerCharMask shl 16;
+  UpperCharMask := UpperCharMask + UpperCharMask shl 16;
+
+  repeat
+    if (NativeUInt(P) > NativeUInt({$ifdef CPUX86}Store.{$endif}TopCardinal)) then Break;
+    X := PCardinal(P)^;
+    Inc(P, CHARS_IN_CARDINAL);
+
+    T := (X xor LowerCharMask);
+    U := (X xor UpperCharMask);
+    V := T + SUB_MASK;
+    T := not T;
+    T := T and V;
+    V := U + SUB_MASK;
+    U := not U;
+    U := U and V;
+
+    T := T or U;
+    if (T and OVERFLOW_MASK = 0) then Continue;
+    Dec(P, CHARS_IN_CARDINAL);
+    Inc(P, Byte(T and $8000 = 0));
+  char_found:
+    Store.UpperCharMask := UpperCharMask;
+      U := __uniconv_utf16_compare_utf16(Pointer(P), Store.StrChars, Store.StrLength);
+    UpperCharMask := Store.UpperCharMask;
+    Inc(P);
+    if (U <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Result := Result shr 1;
+    Exit;
+  until (False);
+
+  LowerCharMask := TChar(LowerCharMask);
+  UpperCharMask := TChar(UpperCharMask);
+  Top := Pointer(@PCharArray({$ifdef CPUX86}Store.{$endif}TopCardinal)[CHARS_IN_CARDINAL]);
+  if (NativeUInt(P) < NativeUInt(Top)) then
+  begin
+    X := P^;
+    if (X = LowerCharMask) then goto char_found;
+    if (X = UpperCharMask) then goto char_found;
+  end;
+
+failure:
+  Result := -1;
 end;
 
 function UTF16String.PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
@@ -10501,9 +10589,136 @@ begin
   end;
 end;
 
-function UTF32String.PosIgnoreCase(const S: UTF32String; const From: NativeUInt): NativeInt;
+function utf32_compare_utf32(S1, S2: PCardinal; L: NativeUInt): NativeInt;
+label
+  make_result;
+var
+  X, Y, i: NativeUInt;
 begin
-  Result := -1{todo};
+  for i := 1 to L do
+  begin
+    X := S1^;
+    Y := S2^;
+    Inc(S1);
+    Inc(S2);
+    if (X <> Y) then goto make_result;
+  end;
+
+  X := 0;
+  Y := 0;    
+  Result := 0;
+  Exit;
+
+make_result:
+  Result := Ord(X > Y)*2 - 1;
+end;
+
+function utf32_compare_utf32_ignorecase(S1, S2: PCardinal; L: NativeUInt): NativeInt;
+label
+  make_result;
+var
+  X, Y: NativeUInt;
+  CaseLookup: PUniConvWW;
+begin
+  CaseLookup := Pointer(@UNICONV_CHARCASE.LOWER);
+
+  repeat
+    if (L = 0) then Break;
+    X := S1^;
+    Y := S2^;
+    Dec(L);
+    Inc(S1);
+    Inc(S2);
+
+    if (X = Y) then Continue;
+    if (X or Y > $ffff) then goto make_result;
+    X := CaseLookup[X];
+    Y := CaseLookup[Y];
+    if (X <> Y) then goto make_result;
+  until (False);
+
+  X := 0;
+  Y := 0;    
+  Result := 0;
+  Exit;
+
+make_result:
+  Result := Ord(X > Y)*2 - 1;
+end;
+
+function UTF32String.PosIgnoreCase(const S: UTF32String; const From: NativeUInt): NativeInt;
+label
+  failure, char_found;
+type
+  TChar = Cardinal;
+  PChar = ^TChar;
+  TCharArray = TCardinalArray;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+  X, LowerChar, UpperChar: NativeInt;
+  P, Top: PChar;
+  Store: record
+    StrLength: NativeUInt;
+    StrChars: Pointer;
+    SelfChars: Pointer;
+    SelfCharsTop: Pointer;
+    Top: Pointer;
+    UpperChar: NativeInt;
+  end;
+begin
+  UpperChar := From{store};
+  Store.StrChars := S.Chars;
+  L := S.Length;
+  if (L <= 1) then
+  begin
+    if (L = 0) then goto failure;
+    Result := Self.CharPosIgnoreCase(PUCS4Char(Store.StrChars)^, UpperChar);
+    Exit;
+  end;
+  Store.StrLength := L;
+  P := Pointer(Self.FChars);
+  Store.SelfChars := P;
+  Store.SelfCharsTop := Pointer(@PCharArray(P)[Self.FLength]);
+  Top := Pointer(@PCharArray(Store.SelfCharsTop)[-L + 1]);
+  Inc(P, UpperChar{From});
+
+  LowerChar := PChar(Store.StrChars)^;
+  if (Self.Ascii > (LowerChar <= $7f)) then goto failure;
+  UpperChar := LowerChar;
+  if (LowerChar <= $ffff) then
+  begin
+    LowerChar := UNICONV_CHARCASE.VALUES[LowerChar];
+    UpperChar := UNICONV_CHARCASE.VALUES[UpperChar + $10000];
+  end;
+
+  repeat
+    while (NativeUInt(P) < NativeUInt(Top)) do
+    begin
+      X := P^;
+      if (X = LowerChar) then goto char_found;
+      if (X = UpperChar) then goto char_found;
+      Inc(P);
+    end;
+    Break;
+
+  char_found:
+    Store.Top := Top;
+    Store.UpperChar := UpperChar;
+      X := utf32_compare_utf32_ignorecase(Pointer(P), Store.StrChars, Store.StrLength);
+    UpperChar := Store.UpperChar;
+    Top := Store.Top;  
+    Inc(P);
+    if (X <> 0) then Continue;
+    Dec(P);
+    Pointer(Result) := P;
+    Dec(Result, NativeInt(Store.SelfChars));
+    Result := Result shr 2;
+    Exit;
+  until (False);
+
+failure:
+  Result := -1;
 end;
 
 function UTF32String.PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;

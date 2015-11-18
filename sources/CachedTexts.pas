@@ -391,15 +391,15 @@ type
     procedure ToAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
     procedure ToLowerAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
     procedure ToUpperAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
-    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
-    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
-    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0);
+    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0);
+    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0);
     procedure ToUTF8String(var S: UTF8String); overload;
     procedure ToLowerUTF8String(var S: UTF8String); overload;
     procedure ToUpperUTF8String(var S: UTF8String); overload;
-    procedure ToUTF8ShortString(var S: ShortString); overload;
-    procedure ToLowerUTF8ShortString(var S: ShortString); overload;
-    procedure ToUpperUTF8ShortString(var S: ShortString); overload;
+    procedure ToUTF8ShortString(var S: ShortString);
+    procedure ToLowerUTF8ShortString(var S: ShortString);
+    procedure ToUpperUTF8ShortString(var S: ShortString);
     procedure ToWideString(var S: WideString); overload;
     procedure ToLowerWideString(var S: WideString); overload;
     procedure ToUpperWideString(var S: WideString); overload;
@@ -477,7 +477,7 @@ type
     property Flags: Cardinal read F.Flags write F.Flags;
 
     procedure Assign(const AChars: PUnicodeChar; const ALength: NativeUInt); overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure Assign(const S: WideString); {$ifdef UNICODE}overload;{$endif}{$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const S: WideString); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     procedure Assign(const S: UnicodeString); overload; inline;
     {$endif}
@@ -540,15 +540,15 @@ type
     procedure ToAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
     procedure ToLowerAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
     procedure ToUpperAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
-    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
-    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
-    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0);
+    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0);
+    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0);
     procedure ToUTF8String(var S: UTF8String); overload;
     procedure ToLowerUTF8String(var S: UTF8String); overload;
     procedure ToUpperUTF8String(var S: UTF8String); overload;
-    procedure ToUTF8ShortString(var S: ShortString); overload;
-    procedure ToLowerUTF8ShortString(var S: ShortString); overload;
-    procedure ToUpperUTF8ShortString(var S: ShortString); overload;
+    procedure ToUTF8ShortString(var S: ShortString);
+    procedure ToLowerUTF8ShortString(var S: ShortString);
+    procedure ToUpperUTF8ShortString(var S: ShortString);
     procedure ToWideString(var S: WideString); overload;
     procedure ToLowerWideString(var S: WideString); overload;
     procedure ToUpperWideString(var S: WideString); overload;
@@ -686,15 +686,15 @@ type
     procedure ToAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
     procedure ToLowerAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
     procedure ToUpperAnsiString(var S: AnsiString; const CodePage: Word = 0); overload;
-    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
-    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
-    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0); overload;
+    procedure ToAnsiShortString(var S: ShortString; const CodePage: Word = 0);
+    procedure ToLowerAnsiShortString(var S: ShortString; const CodePage: Word = 0);
+    procedure ToUpperAnsiShortString(var S: ShortString; const CodePage: Word = 0);
     procedure ToUTF8String(var S: UTF8String); overload;
     procedure ToLowerUTF8String(var S: UTF8String); overload;
     procedure ToUpperUTF8String(var S: UTF8String); overload;
-    procedure ToUTF8ShortString(var S: ShortString); overload;
-    procedure ToLowerUTF8ShortString(var S: ShortString); overload;
-    procedure ToUpperUTF8ShortString(var S: ShortString); overload;
+    procedure ToUTF8ShortString(var S: ShortString);
+    procedure ToLowerUTF8ShortString(var S: ShortString);
+    procedure ToUpperUTF8ShortString(var S: ShortString);
     procedure ToWideString(var S: WideString); overload;
     procedure ToLowerWideString(var S: WideString); overload;
     procedure ToUpperWideString(var S: WideString); overload;
@@ -6657,7 +6657,6 @@ asm
 end;
 {$endif}
 
-{$ifdef UNICODE}
 function ByteString.ToUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
@@ -6665,7 +6664,11 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToUnicodeString
+  {$ifdef UNICODE}
+    jmp ToUnicodeString
+  {$else}
+    jmp ToWideString
+  {$endif}
 end;
 {$endif}
 
@@ -6676,7 +6679,11 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToLowerUnicodeString
+  {$ifdef UNICODE}
+    jmp ToLowerUnicodeString
+  {$else}
+    jmp ToLowerWideString
+  {$endif}
 end;
 {$endif}
 
@@ -6687,9 +6694,12 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToUpperUnicodeString
+  {$ifdef UNICODE}
+    jmp ToUpperUnicodeString
+  {$else}
+    jmp ToUpperWideString
+  {$endif}
 end;
-{$endif}
 {$endif}
 
 function ByteString.ToString: string;
@@ -7544,6 +7554,7 @@ begin
     X := X shr 16;
     Inc(P);    
     if (Word(X) <> CValue) then Continue;
+    Dec(P);
   char_found:
     Inc(P);
     L := Store.StrLength - 1;    
@@ -7613,7 +7624,7 @@ begin
   end else
   begin
     Dec(P);
-    Buffer.Length := P^;
+    Buffer.Length := P^{$if Defined(WIDE_STR_SHIFT) and not Defined(UNICODE)} shr 1{$ifend};
     Result := Self.Pos(PUTF16String(@Buffer)^, From);
   end;
 end;
@@ -7734,7 +7745,7 @@ begin
   P := Pointer(S);
   Buffer.Chars := P;
   Dec(P);
-  Buffer.Length := P^;
+  Buffer.Length := P^{$if Defined(WIDE_STR_SHIFT) and not Defined(UNICODE)} shr 1{$ifend};
   Result := Self.PosIgnoreCase(PUTF16String(@Buffer)^, From);
 end;
 
@@ -10030,7 +10041,6 @@ asm
 end;
 {$endif}
 
-{$ifdef UNICODE}
 function UTF16String.ToUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
@@ -10038,7 +10048,11 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToUnicodeString
+  {$ifdef UNICODE}
+    jmp ToUnicodeString
+  {$else}
+    jmp ToWideString
+  {$endif}
 end;
 {$endif}
 
@@ -10049,7 +10063,11 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToLowerUnicodeString
+  {$ifdef UNICODE}
+    jmp ToLowerUnicodeString
+  {$else}
+    jmp ToLowerWideString
+  {$endif}
 end;
 {$endif}
 
@@ -10060,9 +10078,12 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToUpperUnicodeString
+  {$ifdef UNICODE}
+    jmp ToUpperUnicodeString
+  {$else}
+    jmp ToUpperWideString
+  {$endif}
 end;
-{$endif}
 {$endif}
 
 function UTF16String.ToString: string;
@@ -13786,7 +13807,6 @@ asm
 end;
 {$endif}
 
-{$ifdef UNICODE}
 function UTF32String.ToUnicodeString: UnicodeString;
 {$ifNdef CPUINTEL}
 begin
@@ -13794,7 +13814,11 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToUnicodeString
+  {$ifdef UNICODE}
+    jmp ToUnicodeString
+  {$else}
+    jmp ToWideString
+  {$endif}
 end;
 {$endif}
 
@@ -13805,7 +13829,11 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToLowerUnicodeString
+  {$ifdef UNICODE}
+    jmp ToLowerUnicodeString
+  {$else}
+    jmp ToLowerWideString
+  {$endif}
 end;
 {$endif}
 
@@ -13816,9 +13844,12 @@ begin
 end;
 {$else .CPUX86/CPUX64}
 asm
-  jmp ToUpperUnicodeString
+  {$ifdef UNICODE}
+    jmp ToUpperUnicodeString
+  {$else}
+    jmp ToUpperWideString
+  {$endif}
 end;
-{$endif}
 {$endif}
 
 function UTF32String.ToString: string;

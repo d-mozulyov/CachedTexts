@@ -1,2 +1,2 @@
 # CachedTexts
-The fastest text parsing (Delphi)
+The fastest text parsing (Delphi) 

@@ -315,6 +315,9 @@ type
     function _GetInt64(S: PByte; L: NativeInt): Int64;
     function _GetFloat(S: PByte; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+  {todo}public
+    function _CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+    function _CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
   public
     property Chars: PAnsiChar read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
@@ -617,6 +620,10 @@ type
     function _GetInt64(S: PCardinal; L: NativeInt): Int64;
     function _GetFloat(S: PCardinal; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+  {todo}public
+    function _CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+    function _CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+    function _CompareUTF32String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
   public
     property Chars: PUCS4Char read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
@@ -6802,6 +6809,146 @@ end;
 {$endif}
 {$endif}
 {$endif}
+
+function ByteString._CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+label
+  diffsbcs_compare, binary_compare, same_modify;
+var
+  F, F1, F2: NativeUInt;
+  CharCase: NativeUInt;
+  Comp: TUniConvCompareOptions;
+  Store: record
+    SelfChars: Pointer;
+    SChars: Pointer;
+    SameLength: NativeUInt;
+    SameModifier: NativeUInt;
+  end;
+begin
+  Comp.Lookup := CaseLookup;
+  Store.SelfChars := Self.FChars;
+  Store.SChars := S.FChars;
+
+  // lengths
+  F1 := Self.Length;
+  F2 := S.Length;
+  Comp.Length := F1;
+  Comp.Length_2 := F2;
+  if (F1 <= F2) then
+  begin
+    Store.SameLength := F1;
+    Store.SameModifier := (-(F2 - F1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+  end else
+  begin
+    Store.SameLength := F2;
+    Store.SameModifier := NativeUInt(-1);
+  end;
+
+  // flags, SBCS
+  F1 := Self.Flags;
+  F2 := S.Flags;
+  F := ((F1 shr 29) and 4) + ((F2 shr 30) and 2) + NativeUInt(Comp.Lookup <> nil);
+  F1 := F1 shr 24;
+  F2 := F2 shr 24;
+  F1 := F1 * SizeOf(TUniConvSBCS);
+  F2 := F2 * SizeOf(TUniConvSBCS);
+  Inc(F1, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+  Inc(F2, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+  case F of
+    6:
+    begin
+      // utf8-utf8 sensitive
+      goto binary_compare;
+    end;
+    7:
+    begin
+      // utf8-utf8 insensitive
+      Result := __uniconv_utf8_compare_utf8(Store.SelfChars, Store.SChars, Comp);
+    end;
+    4, 5:
+    begin
+      // utf8-sbcs sensitive/insensitive
+      CharCase := NativeUInt(Comp.Lookup <> nil);
+      Comp.Lookup_2 := PUniConvSBCSEx(F2).FUCS2.NumericItems[CharCase];
+      if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F2).AllocFillUCS2(PUniConvSBCSEx(F2).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+      Result := __uniconv_utf8_compare_sbcs(Store.SelfChars, Store.SChars, Comp);
+    end;
+    2, 3:
+    begin
+      // sbcs-utf8 sensitive/insensitive
+      CharCase := NativeUInt(Comp.Lookup <> nil);
+      Comp.Lookup_2 := PUniConvSBCSEx(F1).FUCS2.NumericItems[CharCase];
+      if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F1).AllocFillUCS2(PUniConvSBCSEx(F1).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+      F1 := Comp.Length;
+      F2 := Comp.Length_2;
+      Comp.Length := F1;
+      Comp.Length_2 := F2;
+      Result := __uniconv_utf8_compare_sbcs(Store.SChars, Store.SelfChars, Comp);
+      Result := -Result;
+    end;
+    0:
+    begin
+      // sbcs-sbcs sensitive
+      if (F1 = F2) then goto binary_compare;
+      goto diffsbcs_compare;
+    end;
+    1:
+    begin
+      // sbcs-sbcs insensitive
+      if (F1 = F2) then
+      begin
+        Comp.Lookup := PUniConvSBCSEx(F1).FLowerCase;
+        if (Comp.Lookup = nil) then Comp.Lookup := PUniConvSBCS(F1).FromSBCS(PUniConvSBCS(F1), ccLower);
+        Result := __uniconv_sbcs_compare_sbcs_1(Store.SelfChars, Store.SChars, Comp);
+      end else
+      begin
+      diffsbcs_compare:
+        Comp.Lookup := PUniConvSBCSEx(F1).FUCS2.Items[ccLower];
+        if (Comp.Lookup = nil) then Comp.Lookup := PUniConvSBCSEx(F1).AllocFillUCS2(PUniConvSBCSEx(F1).FUCS2.Items[ccLower], ccLower);
+        Comp.Lookup_2 := PUniConvSBCSEx(F2).FUCS2.Items[ccLower];
+        if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F2).AllocFillUCS2(PUniConvSBCSEx(F2).FUCS2.Items[ccLower], ccLower);
+        Result := __uniconv_sbcs_compare_sbcs_2(Store.SelfChars, Store.SChars, Comp);
+      end;
+      goto same_modify;
+    end;
+  else
+  binary_compare:
+    Result := __uniconv_compare_bytes(Store.SelfChars, Store.SChars, Store.SameLength);
+  same_modify:
+    Inc(Result, Result);
+    Dec(Result, Store.SameModifier);
+  end;
+end;
+
+function ByteString._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+var
+  F, CharCase: NativeUInt;
+  Comp: TUniConvCompareOptions;
+begin
+  Comp.Lookup := CaseLookup;
+  F := Self.Flags;
+  if (Integer(F) < 0) then
+  begin
+    // utf8-utf16
+    Comp.Length := Self.Length;
+    Comp.Length_2 := S.Length;
+    Result := __uniconv_utf8_compare_utf16(Pointer(Self.FChars), Pointer(S.FChars), Comp);
+  end else
+  begin
+    // sbcs-utf16
+    F := F shr 24;
+    F := F * SizeOf(TUniConvSBCS);
+    Inc(F, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+    CharCase := NativeUInt(Comp.Lookup = nil);
+    Comp.Lookup_2 := PUniConvSBCSEx(F).FUCS2.NumericItems[CharCase];
+    if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F).AllocFillUCS2(PUniConvSBCSEx(F).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+
+    Comp.Length := S.Length;
+    Comp.Length_2 := Self.Length;
+    Result := __uniconv_utf16_compare_sbcs(Pointer(S.FChars), Pointer(Self.FChars), Comp);
+    Result := -Result;
+  end;
+end;
 
 
 { UTF16String }
@@ -13952,6 +14099,21 @@ end;
 {$endif}
 {$endif}
 {$endif}
+
+function UTF32String._CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function UTF32String._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+begin
+  Result := -1{todo};
+end;
+
+function UTF32String._CompareUTF32String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+begin
+  Result := -1{todo};
+end;
 
 
 { TCachedTextReader }

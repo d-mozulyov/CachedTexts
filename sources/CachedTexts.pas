@@ -623,7 +623,7 @@ type
   {todo}public
     function _CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
     function _CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
-    function _CompareUTF32String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+    function _CompareUTF32String(const S: PUTF32String; const CaseLookup: PUniConvWW): NativeInt;
   public
     property Chars: PUCS4Char read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
@@ -6939,7 +6939,7 @@ begin
     F := F * SizeOf(TUniConvSBCS);
     Inc(F, NativeUInt(@UNICONV_SUPPORTED_SBCS));
 
-    CharCase := NativeUInt(Comp.Lookup = nil);
+    CharCase := NativeUInt(Comp.Lookup <> nil);
     Comp.Lookup_2 := PUniConvSBCSEx(F).FUCS2.NumericItems[CharCase];
     if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F).AllocFillUCS2(PUniConvSBCSEx(F).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
 
@@ -14101,18 +14101,240 @@ end;
 {$endif}
 
 function UTF32String._CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+label
+  ret_default;
+var
+  P1: PCardinal;
+  P2: PByte;
+  P1Length, P2Length: NativeUInt;
+  i, X, Y: NativeUInt;
+  UCS2Chars: PUniConvWB;
+  Store: record
+    Modifier: NativeUInt;
+  end;
 begin
-  Result := -1{todo};
+  P1 := Pointer(Self.FChars);
+  P1Length := Self.FLength;
+  P2 := Pointer(S.FChars);
+  P2Length := S.Length;
+
+  if (Integer(S.Flags) < 0) then
+  begin
+    // utf8
+    Store.Modifier := NativeUInt(-1);
+    for i := P1Length downto 1 do
+    begin
+      X := UNICONV_UTF8CHAR_SIZE[P2^];
+      Dec(P2Length, X);
+      if (NativeInt(P2Length) < 0) then goto ret_default{greather};
+
+      case X of
+        0: goto ret_default{greather};
+        1:
+        begin
+          X := P2^;
+          Inc(P2, 1);
+        end;
+        2:
+        begin
+          X := PWord(P2)^;
+          Inc(P2, 2);
+          if (X and $C0E0 = $80C0) then
+          begin
+            Y := X;
+            X := X and $1F;
+            Y := Y shr 8;
+            X := X shl 6;
+            Y := Y and $3F;
+            Inc(X, Y);
+          end else
+          begin
+            goto ret_default{greather};
+          end;
+        end;
+        3:
+        begin
+          X := P4Bytes(P2)[2];
+          Y := PWord(P2)^;
+          X := (X shl 16) or Y;
+          Inc(P2, 3);
+
+          if (X and $C0C000 = $808000) then
+          begin
+            Y := (X and $0F) shl 12;
+            Y := Y + (X shr 16) and $3F;
+            X := (X and $3F00) shr 2;
+            Inc(X, Y);
+          end else
+          begin
+            goto ret_default{greather};
+          end;
+        end;
+        4:
+        begin
+          X := PCardinal(P2)^;
+          Inc(P2, 4);
+          if (X and $C0C0C000 = $80808000) then
+          begin
+            Y := (X and $07) shl 18;
+            Y := Y + (X and $3f00) shl 4;
+            Y := Y + (X shr 10) and $0fc0;
+            X := (X shr 24) and $3f;
+            Inc(X, Y);
+          end else
+          begin
+            goto ret_default{greather};
+          end;
+        end;
+      else
+        // 5, 6 (less)
+        Break;
+      end;
+
+      Y := P1^;
+      Inc(P1);
+      if (X = Y) then Continue;
+      if (X or Y <= $ffff) and (CaseLookup <> nil) then
+      begin
+        X := CaseLookup[X];
+        Y := CaseLookup[Y];
+        if (X = Y) then Continue;
+      end;
+
+      Result := Ord(X > Y)*2 - 1;
+      Exit;
+    end;
+
+    Result := -Ord(P2Length <> 0);
+    Exit;
+  end else
+  begin
+    // sbcs
+    if (P1Length <= P2Length) then
+    begin
+      Store.Modifier := (-(P2Length - P1Length)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+    end else
+    begin
+      P1Length := P2Length;
+      Store.Modifier := NativeUInt(-1);
+    end;
+
+    P2Length := Self.Flags;
+    P2Length := P2Length shr 24;
+    P2Length := P2Length * SizeOf(TUniConvSBCS);
+    Inc(P2Length, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    UCS2Chars := Pointer(PUniConvSBCSEx(P2Length).FUCS2.Original);
+    if (UCS2Chars = nil) then UCS2Chars := Pointer(PUniConvSBCSEx(P2Length).AllocFillUCS2(PUniConvSBCSEx(P2Length).FUCS2.Original, ccOriginal));
+
+    for i := P1Length downto 1 do
+    begin
+      X := P1^;
+      Y := UCS2Chars[P2^];
+      Inc(P1);
+      Inc(P2);
+
+      if (X = Y) then Continue;
+      if (X <= $ffff) and (CaseLookup <> nil) then
+      begin
+        X := CaseLookup[X];
+        Y := CaseLookup[Y];
+        if (X = Y) then Continue;
+      end;
+
+      Result := Ord(X > Y)*2 - 1;
+      Exit;
+    end;
+  end;
+
+ret_default:
+  Result := Store.Modifier;
+  Result := -Result;
 end;
 
 function UTF32String._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+label
+  ret_greather;
+var
+  P1: PCardinal;
+  P2: PWord;
+  P1Length, P2Length: NativeUInt;
+  i, X, Y: NativeUInt;
 begin
-  Result := -1{todo};
+  P1 := Pointer(Self.FChars);
+  P1Length := Self.FLength;
+  P2 := Pointer(S.FChars);
+  P2Length := S.Length;
+
+  for i := P1Length downto 1 do
+  begin
+    X := P2^;
+    Inc(P2);
+    if (P2Length = 0) then goto ret_greather;
+    Dec(P2Length);
+
+    if (X >= $d800) and (X < $e000) then
+    begin
+      if (P2Length = 0) then goto ret_greather;
+      if (X >= $dc00) then goto ret_greather;
+
+      Y := P2^;
+      Inc(P2);
+      Dec(P2Length);
+      if (Y < $dc00) then goto ret_greather;
+      if (Y >= $e000) then goto ret_greather;
+
+      Dec(X, $d800);
+      Dec(Y, $dc00);
+      X := X shl 10;
+      Inc(Y, $10000);
+      Inc(X, Y);
+    end;
+
+    Y := P1^;
+    Inc(P1);
+    if (X = Y) then Continue;
+    if (X or Y <= $ffff) and (CaseLookup <> nil) then
+    begin
+      X := CaseLookup[X];
+      Y := CaseLookup[Y];
+      if (X = Y) then Continue;
+    end;
+
+    Result := Ord(X > Y)*2 - 1;
+    Exit;
+  end;
+
+  Result := -Ord(P2Length <> 0);
+  Exit;
+ret_greather:
+  Result := 1;
 end;
 
-function UTF32String._CompareUTF32String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+function UTF32String._CompareUTF32String(const S: PUTF32String; const CaseLookup: PUniConvWW): NativeInt;
+var
+  L1, L2: NativeUInt;
 begin
-  Result := -1{todo};
+  L1 := Self.FLength;
+  L2 := S.FLength;
+
+  if (L1 <= L2) then
+  begin
+    L2 := (-(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+  end else
+  begin
+    L1 := L2;
+    L2 := NativeUInt(-1);
+  end;
+
+  if (CaseLookup = nil) then
+  begin
+    L1 := utf32_compare_utf32(Pointer(Self.FChars), Pointer(S.FChars), L1);
+  end else
+  begin
+    L1 := utf32_compare_utf32_ignorecase(Pointer(Self.FChars), Pointer(S.FChars), L1);
+  end;
+
+  Result := L1 * 2 - L2;
 end;
 
 

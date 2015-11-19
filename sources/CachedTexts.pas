@@ -438,8 +438,59 @@ type
     {$endif}
     {$endif}
   public
-    // compares
-    // todo
+    function Equal(const S: ByteString): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: ByteString): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: ByteString): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: ByteString): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    function Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    {$ifdef OPERATORSUPPORT}
+    class operator Equal(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
   end;
 
 
@@ -587,8 +638,59 @@ type
     {$endif}
     {$endif}
   public
-    // compares
-    // todo
+    function Equal(const S: UTF16String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF16String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF16String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF16String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    function Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    {$ifdef OPERATORSUPPORT}
+    class operator Equal(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
   end;
 
 
@@ -737,8 +839,59 @@ type
     {$endif}
     {$endif}
   public
-    // compares
-    // todo
+    function Equal(const S: UTF32String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF32String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF32String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF32String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    function Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
+    {$ifdef OPERATORSUPPORT}
+    class operator Equal(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
   end;
 
 
@@ -6814,7 +6967,7 @@ function ByteString._CompareByteString(const S: PByteString; const CaseLookup: P
 label
   diffsbcs_compare, binary_compare, same_modify;
 var
-  F, F1, F2: NativeUInt;
+  Kind, F1, F2: NativeUInt;
   CharCase: NativeUInt;
   Comp: TUniConvCompareOptions;
   Store: record
@@ -6846,14 +6999,14 @@ begin
   // flags, SBCS
   F1 := Self.Flags;
   F2 := S.Flags;
-  F := ((F1 shr 29) and 4) + ((F2 shr 30) and 2) + NativeUInt(Comp.Lookup <> nil);
+  Kind := ((F1 shr 29) and 4) + ((F2 shr 30) and 2) + NativeUInt(Comp.Lookup <> nil);
   F1 := F1 shr 24;
   F2 := F2 shr 24;
   F1 := F1 * SizeOf(TUniConvSBCS);
   F2 := F2 * SizeOf(TUniConvSBCS);
   Inc(F1, NativeUInt(@UNICONV_SUPPORTED_SBCS));
   Inc(F2, NativeUInt(@UNICONV_SUPPORTED_SBCS));
-  case F of
+  case Kind of
     6:
     begin
       // utf8-utf8 sensitive
@@ -6921,12 +7074,12 @@ end;
 
 function ByteString._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
 var
-  F, CharCase: NativeUInt;
+  Kind, CharCase: NativeUInt;
   Comp: TUniConvCompareOptions;
 begin
   Comp.Lookup := CaseLookup;
-  F := Self.Flags;
-  if (Integer(F) < 0) then
+  Kind := Self.Flags;
+  if (Integer(Kind) < 0) then
   begin
     // utf8-utf16
     Comp.Length := Self.Length;
@@ -6935,13 +7088,13 @@ begin
   end else
   begin
     // sbcs-utf16
-    F := F shr 24;
-    F := F * SizeOf(TUniConvSBCS);
-    Inc(F, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    Kind := Kind shr 24;
+    Kind := Kind * SizeOf(TUniConvSBCS);
+    Inc(Kind, NativeUInt(@UNICONV_SUPPORTED_SBCS));
 
     CharCase := NativeUInt(Comp.Lookup <> nil);
-    Comp.Lookup_2 := PUniConvSBCSEx(F).FUCS2.NumericItems[CharCase];
-    if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F).AllocFillUCS2(PUniConvSBCSEx(F).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+    Comp.Lookup_2 := PUniConvSBCSEx(Kind).FUCS2.NumericItems[CharCase];
+    if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(Kind).AllocFillUCS2(PUniConvSBCSEx(Kind).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
 
     Comp.Length := S.Length;
     Comp.Length_2 := Self.Length;
@@ -6949,6 +7102,248 @@ begin
     Result := -Result;
   end;
 end;
+
+function ByteString.Equal(const S: ByteString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.EqualIgnoreCase(const S: ByteString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.Compare(const S: ByteString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.CompareIgnoreCase(const S: ByteString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.Equal(const S: UTF8String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.EqualIgnoreCase(const S: UTF8String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.Compare(const S: UTF8String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.CompareIgnoreCase(const S: UTF8String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.Equal(const S: UnicodeString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.EqualIgnoreCase(const S: UnicodeString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.Compare(const S: UnicodeString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.CompareIgnoreCase(const S: UnicodeString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function ByteString.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function ByteString.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+{$ifdef OPERATORSUPPORT}
+class operator ByteString.Equal(const a: ByteString; const b: ByteString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.NotEqual(const a: ByteString; const b: ByteString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThan(const a: ByteString; const b: ByteString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: ByteString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThan(const a: ByteString; const b: ByteString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThanOrEqual(const a: ByteString; const b: ByteString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.Equal(const a: ByteString; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.NotEqual(const a: ByteString; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThan(const a: ByteString; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThan(const a: ByteString; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.Equal(const a: ByteString; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.NotEqual(const a: ByteString; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThan(const a: ByteString; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThan(const a: ByteString; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThanOrEqual(const a: ByteString; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.Equal(const a: ByteString; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.NotEqual(const a: ByteString; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThan(const a: ByteString; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThan(const a: ByteString; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator ByteString.LessThanOrEqual(const a: ByteString; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+{$endif}
 
 
 { UTF16String }
@@ -10332,6 +10727,248 @@ asm
 end;
 {$endif}
 {$endif}
+{$endif}
+
+function UTF16String.Equal(const S: UTF16String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.EqualIgnoreCase(const S: UTF16String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.Compare(const S: UTF16String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.CompareIgnoreCase(const S: UTF16String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.Equal(const S: UTF8String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.EqualIgnoreCase(const S: UTF8String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.Compare(const S: UTF8String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.CompareIgnoreCase(const S: UTF8String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.Equal(const S: UnicodeString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.EqualIgnoreCase(const S: UnicodeString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.Compare(const S: UnicodeString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.CompareIgnoreCase(const S: UnicodeString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF16String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF16String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+{$ifdef OPERATORSUPPORT}
+class operator UTF16String.Equal(const a: UTF16String; const b: UTF16String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.NotEqual(const a: UTF16String; const b: UTF16String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThan(const a: UTF16String; const b: UTF16String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThan(const a: UTF16String; const b: UTF16String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.Equal(const a: UTF16String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.NotEqual(const a: UTF16String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThan(const a: UTF16String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThan(const a: UTF16String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.Equal(const a: UTF16String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.NotEqual(const a: UTF16String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThan(const a: UTF16String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThan(const a: UTF16String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.Equal(const a: UTF16String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.NotEqual(const a: UTF16String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThan(const a: UTF16String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThan(const a: UTF16String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
 {$endif}
 
 
@@ -14336,6 +14973,248 @@ begin
 
   Result := L1 * 2 - L2;
 end;
+
+function UTF32String.Equal(const S: UTF32String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.EqualIgnoreCase(const S: UTF32String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.Compare(const S: UTF32String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.CompareIgnoreCase(const S: UTF32String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.Equal(const S: UTF8String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.EqualIgnoreCase(const S: UTF8String): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.Compare(const S: UTF8String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.CompareIgnoreCase(const S: UTF8String): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.Equal(const S: UnicodeString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.EqualIgnoreCase(const S: UnicodeString): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.Compare(const S: UnicodeString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.CompareIgnoreCase(const S: UnicodeString): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+begin
+  Result := False{todo};
+end;
+
+function UTF32String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+function UTF32String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+begin
+  Result := -1{todo}
+end;
+
+{$ifdef OPERATORSUPPORT}
+class operator UTF32String.Equal(const a: UTF32String; const b: UTF32String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.NotEqual(const a: UTF32String; const b: UTF32String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThan(const a: UTF32String; const b: UTF32String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThan(const a: UTF32String; const b: UTF32String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.Equal(const a: UTF32String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.NotEqual(const a: UTF32String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThan(const a: UTF32String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThan(const a: UTF32String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.Equal(const a: UTF32String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.NotEqual(const a: UTF32String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThan(const a: UTF32String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThan(const a: UTF32String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.Equal(const a: UTF32String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.NotEqual(const a: UTF32String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThan(const a: UTF32String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThan(const a: UTF32String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+
+class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean;
+begin
+  Result := True;
+end;
+{$endif}
 
 
 { TCachedTextReader }

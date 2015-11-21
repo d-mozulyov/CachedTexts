@@ -330,9 +330,13 @@ type
     property UTF8: Boolean read GetUTF8 write SetUTF8;
     property Encoding: Word read GetEncoding write SetEncoding;
 
-    procedure Assign(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     procedure Assign(const S: UTF8String); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$else}
+    procedure AssignUTF8(const S: UTF8String);
+    {$endif}
     procedure Assign(const S: ShortString; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: TBytes; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function DetermineAscii: Boolean;
@@ -2696,7 +2700,7 @@ begin
   end;
 end;
 
-procedure ByteString.Assign(const S: UTF8String);
+procedure ByteString.{$ifdef UNICODE}Assign{$else}AssignUTF8{$endif}(const S: UTF8String);
 var
   P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
 begin

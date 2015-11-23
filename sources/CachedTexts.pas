@@ -315,7 +315,6 @@ type
     function _GetInt64(S: PByte; L: NativeInt): Int64;
     function _GetFloat(S: PByte; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
-  {todo}public
     function _CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
     function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
   public
@@ -451,6 +450,7 @@ type
     function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -459,11 +459,21 @@ type
     function EqualIgnoreCase(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function CompareIgnoreCase(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$else .AmbiguousOverloadedFix}
+    function EqualUTF8(const S: UTF8String): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualUTF8IgnoreCase(const S: UTF8String): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareUTF8(const S: UTF8String): NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareUTF8IgnoreCase(const S: UTF8String): NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
+    function Equal(const S: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: WideString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: WideString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean; overload;
+    function EqualIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean; overload;
+    function Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt; overload;
+    function CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt; overload;
     function Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -476,24 +486,59 @@ type
     class operator GreaterThanOrEqual(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: ByteString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator Equal(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator NotEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator GreaterThan(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator GreaterThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator LessThan(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator LessThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
     class operator Equal(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator NotEqual(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThan(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThanOrEqual(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: ByteString; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: ByteString; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: ByteString; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: ByteString; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: ByteString; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: ByteString; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: ByteString; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     class operator Equal(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator NotEqual(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThan(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThanOrEqual(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: ByteString; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
+    class operator Equal(const a: AnsiString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: AnsiString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: AnsiString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: AnsiString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: AnsiString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: AnsiString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: WideString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: WideString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: WideString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: WideString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: WideString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: WideString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
+    class operator Equal(const a: UTF8String; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF8String; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF8String; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF8String; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF8String; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF8String; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UnicodeString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UnicodeString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UnicodeString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UnicodeString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UnicodeString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UnicodeString; const b: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
     {$endif}
   end;
 
@@ -526,7 +571,6 @@ type
     function _GetInt64(S: PWord; L: NativeInt): Int64;
     function _GetFloat(S: PWord; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
-  {todo}public
     function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
   public
     property Chars: PUnicodeChar read FChars write FChars;
@@ -653,6 +697,7 @@ type
     function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -661,11 +706,21 @@ type
     function EqualIgnoreCase(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function CompareIgnoreCase(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$else .AmbiguousOverloadedFix}
+    function EqualUTF8(const S: UTF8String): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualUTF8IgnoreCase(const S: UTF8String): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareUTF8(const S: UTF8String): NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareUTF8IgnoreCase(const S: UTF8String): NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
+    function Equal(const S: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: WideString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: WideString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean; overload;
+    function EqualIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean; overload;
+    function Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt; overload;
+    function CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt; overload;
     function Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -678,24 +733,59 @@ type
     class operator GreaterThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator Equal(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator NotEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator GreaterThan(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator GreaterThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator LessThan(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator LessThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
     class operator Equal(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator NotEqual(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThan(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF16String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF16String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF16String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF16String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF16String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF16String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     class operator Equal(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator NotEqual(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThan(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
+    class operator Equal(const a: AnsiString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: AnsiString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: AnsiString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: AnsiString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: AnsiString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: AnsiString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: WideString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: WideString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: WideString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: WideString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: WideString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: WideString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
+    class operator Equal(const a: UTF8String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF8String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF8String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF8String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF8String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF8String; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UnicodeString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UnicodeString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UnicodeString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UnicodeString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UnicodeString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UnicodeString; const b: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
     {$endif}
   end;
 
@@ -728,7 +818,6 @@ type
     function _GetInt64(S: PCardinal; L: NativeInt): Int64;
     function _GetFloat(S: PCardinal; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
-  {todo}public
     function _CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
     function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
     function _CompareUTF32String(const S: PUTF32String; const IgnoreCase: Boolean): NativeInt;
@@ -854,6 +943,7 @@ type
     function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: UTF8String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -862,11 +952,21 @@ type
     function EqualIgnoreCase(const S: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function CompareIgnoreCase(const S: UnicodeString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$else .AmbiguousOverloadedFix}
+    function EqualUTF8(const S: UTF8String): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualUTF8IgnoreCase(const S: UTF8String): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareUTF8(const S: UTF8String): NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareUTF8IgnoreCase(const S: UTF8String): NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
+    function Equal(const S: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: WideString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: WideString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word = 0): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean; overload;
+    function EqualIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean; overload;
+    function Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt; overload;
+    function CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt; overload;
     function Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -879,24 +979,59 @@ type
     class operator GreaterThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator Equal(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator NotEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator GreaterThan(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator GreaterThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator LessThan(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    class operator LessThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+
     class operator Equal(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator NotEqual(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThan(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF32String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF32String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF32String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF32String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF32String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF32String; const b: WideString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
     class operator Equal(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator NotEqual(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThan(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator GreaterThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThan(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     class operator LessThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
+    class operator Equal(const a: AnsiString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: AnsiString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: AnsiString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: AnsiString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: AnsiString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: AnsiString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: WideString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: WideString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: WideString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: WideString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: WideString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: WideString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$ifdef UNICODE}
+    class operator Equal(const a: UTF8String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UTF8String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UTF8String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UTF8String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UTF8String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UTF8String; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator Equal(const a: UnicodeString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator NotEqual(const a: UnicodeString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThan(const a: UnicodeString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator GreaterThanOrEqual(const a: UnicodeString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThan(const a: UnicodeString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    class operator LessThanOrEqual(const a: UnicodeString; const b: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    {$endif}
     {$endif}
   end;
 
@@ -1158,6 +1293,51 @@ end;
   {$else}
     {$undef WIDE_STR_SHIFT}
   {$ifend}
+
+const
+  {$if Defined(FPC) or (not Defined(UNICODE))}
+    ASTR_OFFSET_LENGTH = SizeOf(Integer);
+  {$else}
+    {$ifdef NEXTGEN}
+      ASTR_OFFSET_LENGTH = {$ifdef SMALLINT}4{$else}8{$endif}{SizeOf(NativeInt), inline bug fix};
+    {$else}
+      ASTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
+    {$endif}
+  {$ifend}
+
+{$ifdef UNICODE}
+  {$ifdef FPC}
+    USTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
+  {$else}
+    USTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
+  {$endif}
+{$else}
+  // UnicodeString = WideString
+  USTR_OFFSET_LENGTH = SizeOf(Integer);
+{$endif}
+
+  {$ifdef MSWINDOWS}
+    WSTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
+  {$else}
+  {$ifdef FPC}
+    WSTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
+  {$else}
+  {$ifdef NEXTGEN}
+    WSTR_OFFSET_LENGTH = {$ifdef SMALLINT}4{$else}8{$endif}{SizeOf(NativeInt), inline bug fix};
+  {$else}
+    {$if CompilerVersion >= 22}
+       WSTR_OFFSET_LENGTH = USTR_OFFSET_LENGTH;
+    {$else}
+       WSTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
+    {$ifend}
+  {$endif}
+  {$endif}
+  {$endif}
+
+  {$ifdef INTERNALCODEPAGE}
+    ASTR_OFFSET_CODEPAGE = ASTR_OFFSET_LENGTH + {RefCount}SizeOf(Integer) + {ElemSize}SizeOf(Word) + {CodePage}SizeOf(Word);
+  {$endif}
+
 
 type
   {$ifdef NEXTGEN}
@@ -7129,247 +7309,4072 @@ begin
   end;
 end;
 
-function ByteString.Equal(const S: ByteString): Boolean;
+{inline} function ByteString.Equal(const S: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := False{todo};
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PByte(Self.Chars)^;
+    X := PByte(S.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Self.Length;
+      Y := S.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (Integer(S.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+      end else
+      begin
+        if (Integer(S.Flags) >= 0) then
+        begin
+          if (X < Y) then goto ret_non_equal;
+          Y := Y * 3;
+          if (X > Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end;
+      end;
+      Ret := Self._CompareByteString(@S, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = S.Length);
 end;
 
-function ByteString.EqualIgnoreCase(const S: ByteString): Boolean;
+{inline} function ByteString.EqualIgnoreCase(const S: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := False{todo};
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PByte(Self.Chars)^;
+    X := PByte(S.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Self.Length;
+      Y := S.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (Integer(S.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+      end else
+      begin
+        if (Integer(S.Flags) >= 0) then
+        begin
+          if (X < Y) then goto ret_non_equal;
+          Y := Y * 3;
+          if (X > Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X >= Y) then
+          begin
+            Y := Y * 3;
+            Y := Y shr 1;
+            if (X > Y) then goto ret_non_equal;
+          end else
+          begin
+            X := X * 3;
+            X := X shr 1;
+            if (Y > X) then goto ret_non_equal;
+          end;
+        end;
+      end;
+      Ret := Self._CompareByteString(@S, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = S.Length);
 end;
 
-function ByteString.Compare(const S: ByteString): NativeInt;
+{inline} function ByteString.Compare(const S: ByteString): NativeInt;
+var
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo}
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PByte(Self.Chars)^;
+    X := PByte(S.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Result := Self._CompareByteString(@S, False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      X := PByte(S.Chars)^;
+      {$endif}
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(S.Length));
 end;
 
-function ByteString.CompareIgnoreCase(const S: ByteString): NativeInt;
+{inline} function ByteString.CompareIgnoreCase(const S: ByteString): NativeInt;
+var
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo}
-end;
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PByte(Self.Chars)^;
+    X := PByte(S.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Result := Self._CompareByteString(@S, True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
 
-function ByteString.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.Equal(const S: UTF8String): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.EqualIgnoreCase(const S: UTF8String): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.Compare(const S: UTF8String): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.CompareIgnoreCase(const S: UTF8String): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.Equal(const S: UnicodeString): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.EqualIgnoreCase(const S: UnicodeString): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.Compare(const S: UnicodeString): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.CompareIgnoreCase(const S: UnicodeString): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function ByteString.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function ByteString.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
-begin
-  Result := -1{todo}
+  Result := (NativeInt(Self.Length) - NativeInt(S.Length));
 end;
 
 {$ifdef OPERATORSUPPORT}
-class operator ByteString.Equal(const a: ByteString; const b: ByteString): Boolean;
+{inline} class operator ByteString.Equal(const a: ByteString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := True;
-end;
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PByte(a.Chars)^;
+    X := PByte(b.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := a.Length;
+      Y := b.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (Integer(b.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+      end else
+      begin
+        if (Integer(b.Flags) >= 0) then
+        begin
+          if (X < Y) then goto ret_non_equal;
+          Y := Y * 3;
+          if (X > Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end;
+      end;
+      Ret := a._CompareByteString(@b, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
 
-class operator ByteString.NotEqual(const a: ByteString; const b: ByteString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThan(const a: ByteString; const b: ByteString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: ByteString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThan(const a: ByteString; const b: ByteString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThanOrEqual(const a: ByteString; const b: ByteString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.Equal(const a: ByteString; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.NotEqual(const a: ByteString; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThan(const a: ByteString; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThan(const a: ByteString; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.Equal(const a: ByteString; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.NotEqual(const a: ByteString; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThan(const a: ByteString; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThan(const a: ByteString; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThanOrEqual(const a: ByteString; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.Equal(const a: ByteString; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.NotEqual(const a: ByteString; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThan(const a: ByteString; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThan(const a: ByteString; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator ByteString.LessThanOrEqual(const a: ByteString; const b: UTF8String): Boolean;
-begin
-  Result := True;
+  Result := (a.Length = b.Length);
 end;
 {$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.NotEqual(const a: ByteString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PByte(a.Chars)^;
+    X := PByte(b.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := a.Length;
+      Y := b.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (Integer(b.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+      end else
+      begin
+        if (Integer(b.Flags) >= 0) then
+        begin
+          if (X < Y) then goto ret_non_equal;
+          Y := Y * 3;
+          if (X > Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end;
+      end;
+      Ret := a._CompareByteString(@b, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThan(const a: ByteString; const b: ByteString): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PByte(a.Chars)^;
+    X := PByte(b.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareByteString(@b, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      X := PByte(b.Chars)^;
+      {$endif}
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: ByteString): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PByte(a.Chars)^;
+    X := PByte(b.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareByteString(@b, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      X := PByte(b.Chars)^;
+      {$endif}
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThan(const a: ByteString; const b: ByteString): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PByte(a.Chars)^;
+    X := PByte(b.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareByteString(@b, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      X := PByte(b.Chars)^;
+      {$endif}
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThanOrEqual(const a: ByteString; const b: ByteString): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PByte(a.Chars)^;
+    X := PByte(b.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareByteString(@b, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      X := PByte(b.Chars)^;
+      {$endif}
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= b.Length);
+end;
+{$endif}
+
+{inline} function ByteString.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X < Y) then goto ret_non_equal;
+        Y := Y * 3;
+        if (X > Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function ByteString.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X < Y) then goto ret_non_equal;
+        Y := Y * 3;
+        if (X > Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareByteString(@Buffer, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function ByteString.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Result := Self._CompareByteString(@Buffer, False);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function ByteString.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Result := Self._CompareByteString(@Buffer, True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.Equal(const a: ByteString; const b: AnsiString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+
+      X := a.Length;
+      Y := Buffer.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X < Y) then goto ret_non_equal;
+        Y := Y * 3;
+        if (X > Y) then goto ret_non_equal;
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.Equal(const a: AnsiString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+
+      X := b.Length;
+      Y := Buffer.Length;
+      if (Integer(b.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X < Y) then goto ret_non_equal;
+        Y := Y * 3;
+        if (X > Y) then goto ret_non_equal;
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.NotEqual(const a: ByteString; const b: AnsiString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+
+      X := a.Length;
+      Y := Buffer.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X < Y) then goto ret_non_equal;
+        Y := Y * 3;
+        if (X > Y) then goto ret_non_equal;
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.NotEqual(const a: AnsiString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+
+      X := b.Length;
+      Y := Buffer.Length;
+      if (Integer(b.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X < Y) then goto ret_non_equal;
+        Y := Y * 3;
+        if (X > Y) then goto ret_non_equal;
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThan(const a: ByteString; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThan(const a: AnsiString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: AnsiString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThan(const a: ByteString; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThan(const a: AnsiString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThanOrEqual(const a: ByteString; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThanOrEqual(const a: AnsiString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{inline} function ByteString.{$ifdef UNICODE}Equal{$else}EqualUTF8{$endif}(const S: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function ByteString.{$ifdef UNICODE}EqualIgnoreCase{$else}EqualUTF8IgnoreCase{$endif}(const S: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X >= Y) then
+        begin
+          Y := Y * 3;
+          Y := Y shr 1;
+          if (X > Y) then goto ret_non_equal;
+        end else
+        begin
+          X := X * 3;
+          X := X shr 1;
+          if (Y > X) then goto ret_non_equal;
+        end;
+      end;
+      Ret := Self._CompareByteString(@Buffer, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function ByteString.{$ifdef UNICODE}Compare{$else}CompareUTF8{$endif}(const S: UTF8String): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Result := Self._CompareByteString(@Buffer, False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(Self.Chars)^;
+      {$endif}
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function ByteString.{$ifdef UNICODE}CompareIgnoreCase{$else}CompareUTF8IgnoreCase{$endif}(const S: UTF8String): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Result := Self._CompareByteString(@Buffer, True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.Equal(const a: ByteString; const b: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := a.Length;
+      Y := Buffer.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.Equal(const a: UTF8String; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := b.Length;
+      Y := Buffer.Length;
+      if (Integer(b.Flags) >= 0) then
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.NotEqual(const a: ByteString; const b: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := a.Length;
+      Y := Buffer.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.NotEqual(const a: UTF8String; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := b.Length;
+      Y := Buffer.Length;
+      if (Integer(b.Flags) >= 0) then
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThan(const a: ByteString; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThan(const a: UTF8String; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: UTF8String; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThan(const a: ByteString; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThan(const a: UTF8String; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThanOrEqual(const a: ByteString; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThanOrEqual(const a: UTF8String; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{inline} function ByteString.Equal(const S: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(Self.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        X := Buffer.Length;
+        Y := Self.Length;
+        if (Integer(Self.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+        Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function ByteString.EqualIgnoreCase(const S: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(Self.Chars)^;
+      X := PWord(P)^;
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        X := Buffer.Length;
+        Y := Self.Length;
+        if (Integer(Self.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+        Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function ByteString.Compare(const S: WideString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := L + 1;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(Self.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(Self.Chars)^;
+        {$endif}
+        Result := (NativeInt(Y) - NativeInt(X));
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function ByteString.CompareIgnoreCase(const S: WideString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := L + 1;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(Self.Chars)^;
+      X := PWord(P)^;
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+        Exit;
+      end else
+      begin
+        Result := (NativeInt(Y) - NativeInt(X));
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.Equal(const a: ByteString; const b: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        X := Buffer.Length;
+        Y := a.Length;
+        if (Integer(a.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.Equal(const a: WideString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        X := Buffer.Length;
+        Y := b.Length;
+        if (Integer(b.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.NotEqual(const a: ByteString; const b: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        X := Buffer.Length;
+        Y := a.Length;
+        if (Integer(a.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <> 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := True;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.NotEqual(const a: WideString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        X := Buffer.Length;
+        Y := b.Length;
+        if (Integer(b.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end;
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <> 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := True;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThan(const a: ByteString; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret > 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(a.Chars)^;
+        {$endif}
+        Result := (Y > X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThan(const a: WideString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret < 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(b.Chars)^;
+        {$endif}
+        Result := (X > Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret >= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(a.Chars)^;
+        {$endif}
+        Result := (Y >= X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: WideString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(b.Chars)^;
+        {$endif}
+        Result := (X >= Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThan(const a: ByteString; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret < 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(a.Chars)^;
+        {$endif}
+        Result := (Y < X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThan(const a: WideString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret > 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(b.Chars)^;
+        {$endif}
+        Result := (X < Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThanOrEqual(const a: ByteString; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(a.Chars)^;
+        {$endif}
+        Result := (Y <= X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator ByteString.LessThanOrEqual(const a: WideString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PByte(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y > $7f) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret >= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PByte(b.Chars)^;
+        {$endif}
+        Result := (X <= Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function ByteString.Equal(const S: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := Self.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function ByteString.EqualIgnoreCase(const S: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PWord(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := Self.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function ByteString.Compare(const S: UnicodeString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(Self.Chars)^;
+      {$endif}
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function ByteString.CompareIgnoreCase(const S: UnicodeString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(Self.Chars)^;
+    X := PWord(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.Equal(const a: ByteString; const b: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := a.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.Equal(const a: UnicodeString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := b.Length;
+      if (Integer(b.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.NotEqual(const a: ByteString; const b: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := a.Length;
+      if (Integer(a.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.NotEqual(const a: UnicodeString; const b: ByteString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := b.Length;
+      if (Integer(b.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThan(const a: ByteString; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThan(const a: UnicodeString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.GreaterThanOrEqual(const a: UnicodeString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThan(const a: ByteString; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThan(const a: UnicodeString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThanOrEqual(const a: ByteString; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(a.Chars)^;
+      {$endif}
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator ByteString.LessThanOrEqual(const a: UnicodeString; const b: ByteString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PByte(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(b.Chars)^;
+      {$endif}
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+function ByteString.Equal(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PByte(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (Integer(Self.Flags) >= 0) then
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (Integer(Self.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X < Y) then goto ret_non_equal;
+          Y := Y * 3;
+          if (X > Y) then goto ret_non_equal;
+        end;
+      end;
+      Ret := Self._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+function ByteString.EqualIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PByte(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (Integer(Self.Flags) >= 0) then
+        begin
+          if (X > Y) then goto ret_non_equal;
+          X := X * 3;
+          if (X < Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X >= Y) then
+          begin
+            Y := Y * 3;
+            Y := Y shr 1;
+            if (X > Y) then goto ret_non_equal;
+          end else
+          begin
+            X := X * 3;
+            X := X shr 1;
+            if (Y > X) then goto ret_non_equal;
+          end;
+        end;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (Integer(Self.Flags) >= 0) then
+        begin
+          if (X <> Y) then goto ret_non_equal;
+        end else
+        begin
+          if (X < Y) then goto ret_non_equal;
+          Y := Y * 3;
+          if (X > Y) then goto ret_non_equal;
+        end;
+      end;
+      Ret := Self._CompareByteString(@Buffer, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+function ByteString.Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PByte(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+      end;
+      Result := Self._CompareByteString(@Buffer, False);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+function ByteString.CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PByte(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+      end;
+      Result := Self._CompareByteString(@Buffer, True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+{inline} function ByteString.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PByte(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := Self.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+{inline} function ByteString.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PByte(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      X := Buffer.Length;
+      Y := Self.Length;
+      if (Integer(Self.Flags) >= 0) then
+      begin
+        if (X <> Y) then goto ret_non_equal;
+      end else
+      begin
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+{inline} function ByteString.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+var
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PByte(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PByte(Self.Chars)^;
+      {$endif}
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+{inline} function ByteString.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+var
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PByte(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
 
 
 { UTF16String }
@@ -10782,247 +14787,3560 @@ begin
   Result := L1 * 2 - L2;
 end;
 
-function UTF16String.Equal(const S: UTF16String): Boolean;
+{inline} function UTF16String.Equal(const S: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := False{todo};
+  if (S.Length <> 0) and (Self.Length = S.Length) then
+  begin
+    Y := PWord(Self.Chars)^;
+    X := PWord(S.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF16String(@S, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = S.Length);
 end;
 
-function UTF16String.EqualIgnoreCase(const S: UTF16String): Boolean;
+{inline} function UTF16String.EqualIgnoreCase(const S: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := False{todo};
+  if (S.Length <> 0) and (Self.Length = S.Length) then
+  begin
+    Y := PWord(Self.Chars)^;
+    X := PWord(S.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF16String(@S, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = S.Length);
 end;
 
-function UTF16String.Compare(const S: UTF16String): NativeInt;
+{inline} function UTF16String.Compare(const S: UTF16String): NativeInt;
+var
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo}
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PWord(Self.Chars)^;
+    X := PWord(S.Chars)^;
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF16String(@S, False);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(S.Length));
 end;
 
-function UTF16String.CompareIgnoreCase(const S: UTF16String): NativeInt;
+{inline} function UTF16String.CompareIgnoreCase(const S: UTF16String): NativeInt;
+var
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo}
-end;
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PWord(Self.Chars)^;
+    X := PWord(S.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF16String(@S, True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
 
-function UTF16String.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.Equal(const S: UTF8String): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.EqualIgnoreCase(const S: UTF8String): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.Compare(const S: UTF8String): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.CompareIgnoreCase(const S: UTF8String): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.Equal(const S: UnicodeString): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.EqualIgnoreCase(const S: UnicodeString): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.Compare(const S: UnicodeString): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.CompareIgnoreCase(const S: UnicodeString): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF16String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF16String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
-begin
-  Result := -1{todo}
+  Result := (NativeInt(Self.Length) - NativeInt(S.Length));
 end;
 
 {$ifdef OPERATORSUPPORT}
-class operator UTF16String.Equal(const a: UTF16String; const b: UTF16String): Boolean;
+{inline} class operator UTF16String.Equal(const a: UTF16String; const b: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := True;
-end;
+  if (b.Length <> 0) and (a.Length = b.Length) then
+  begin
+    Y := PWord(a.Chars)^;
+    X := PWord(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(@b, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
 
-class operator UTF16String.NotEqual(const a: UTF16String; const b: UTF16String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThan(const a: UTF16String; const b: UTF16String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThan(const a: UTF16String; const b: UTF16String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.Equal(const a: UTF16String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.NotEqual(const a: UTF16String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThan(const a: UTF16String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThan(const a: UTF16String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.Equal(const a: UTF16String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.NotEqual(const a: UTF16String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThan(const a: UTF16String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThan(const a: UTF16String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.Equal(const a: UTF16String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.NotEqual(const a: UTF16String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThan(const a: UTF16String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThan(const a: UTF16String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean;
-begin
-  Result := True;
+  Result := (a.Length = b.Length);
 end;
 {$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.NotEqual(const a: UTF16String; const b: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (b.Length <> 0) and (a.Length = b.Length) then
+  begin
+    Y := PWord(a.Chars)^;
+    X := PWord(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(@b, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThan(const a: UTF16String; const b: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PWord(a.Chars)^;
+    X := PWord(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(@b, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PWord(a.Chars)^;
+    X := PWord(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(@b, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThan(const a: UTF16String; const b: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PWord(a.Chars)^;
+    X := PWord(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(@b, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UTF16String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PWord(a.Chars)^;
+    X := PWord(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(@b, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= b.Length);
+end;
+{$endif}
+
+{inline} function UTF16String.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Pointer(Self.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (Self.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@Self, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF16String.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Pointer(Self.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (Self.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@Self, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF16String.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Result := Buffer._CompareUTF16String(@Self, False);
+      Result := -Result;
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function UTF16String.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Result := Buffer._CompareUTF16String(@Self, True);
+      Result := -Result;
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.Equal(const a: UTF16String; const b: AnsiString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (Pointer(a.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (a.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.Equal(const a: AnsiString; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (Pointer(b.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (b.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.NotEqual(const a: UTF16String; const b: AnsiString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (Pointer(a.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (a.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.NotEqual(const a: AnsiString; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (Pointer(b.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (b.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThan(const a: UTF16String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThan(const a: AnsiString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: AnsiString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThan(const a: UTF16String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThan(const a: AnsiString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThanOrEqual(const a: AnsiString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{inline} function UTF16String.{$ifdef UNICODE}Equal{$else}EqualUTF8{$endif}(const S: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 3;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Buffer._CompareUTF16String(@Self, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF16String.{$ifdef UNICODE}EqualIgnoreCase{$else}EqualUTF8IgnoreCase{$endif}(const S: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 3;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Buffer._CompareUTF16String(@Self, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF16String.{$ifdef UNICODE}Compare{$else}CompareUTF8{$endif}(const S: UTF8String): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Result := Buffer._CompareUTF16String(@Self, False);
+      Result := -Result;
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(Self.Chars)^;
+      {$endif}
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function UTF16String.{$ifdef UNICODE}CompareIgnoreCase{$else}CompareUTF8IgnoreCase{$endif}(const S: UTF8String): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PByte(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Result := Buffer._CompareUTF16String(@Self, True);
+      Result := -Result;
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.Equal(const a: UTF16String; const b: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := a.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 3;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.Equal(const a: UTF8String; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := b.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 3;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.NotEqual(const a: UTF16String; const b: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := a.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 3;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.NotEqual(const a: UTF8String; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := b.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 3;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThan(const a: UTF16String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(a.Chars)^;
+      {$endif}
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThan(const a: UTF8String; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(b.Chars)^;
+      {$endif}
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(a.Chars)^;
+      {$endif}
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UTF8String; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(b.Chars)^;
+      {$endif}
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThan(const a: UTF16String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(a.Chars)^;
+      {$endif}
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThan(const a: UTF8String; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(b.Chars)^;
+      {$endif}
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@a, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(a.Chars)^;
+      {$endif}
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UTF8String; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := Buffer._CompareUTF16String(@b, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PWord(b.Chars)^;
+      {$endif}
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{inline} function UTF16String.Equal(const S: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Pointer(Self.Length) <> nil) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      if (Self.Length <> L) then goto ret_non_equal;
+      Buffer.Length := L;
+
+      Y := PWord(Self.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF16String.EqualIgnoreCase(const S: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Pointer(Self.Length) <> nil) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      if (Self.Length <> L) then goto ret_non_equal;
+      Buffer.Length := L;
+
+      Y := PWord(Self.Chars)^;
+      X := PWord(P)^;
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+      if (X = Y) then
+      begin
+        Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF16String.Compare(const S: WideString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := L + 1;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(Self.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+        Exit;
+      end else
+      begin
+        Result := (NativeInt(Y) - NativeInt(X));
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function UTF16String.CompareIgnoreCase(const S: WideString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := L + 1;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(Self.Chars)^;
+      X := PWord(P)^;
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+      if (X = Y) then
+      begin
+        Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+        Exit;
+      end else
+      begin
+        Result := (NativeInt(Y) - NativeInt(X));
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.Equal(const a: UTF16String; const b: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (Pointer(a.Length) <> nil) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      if (a.Length <> L) then goto ret_non_equal;
+      Buffer.Length := L;
+
+      Y := PWord(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.Equal(const a: WideString; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (Pointer(b.Length) <> nil) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      if (b.Length <> L) then goto ret_non_equal;
+      Buffer.Length := L;
+
+      Y := PWord(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.NotEqual(const a: UTF16String; const b: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (Pointer(a.Length) <> nil) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      if (a.Length <> L) then goto ret_non_equal;
+      Buffer.Length := L;
+
+      Y := PWord(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <> 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := True;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.NotEqual(const a: WideString; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (Pointer(b.Length) <> nil) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      if (b.Length <> L) then goto ret_non_equal;
+      Buffer.Length := L;
+
+      Y := PWord(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <> 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := True;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThan(const a: UTF16String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret > 0);
+        Exit;
+      end else
+      begin
+        Result := (Y > X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThan(const a: WideString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret < 0);
+        Exit;
+      end else
+      begin
+        Result := (X > Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret >= 0);
+        Exit;
+      end else
+      begin
+        Result := (Y >= X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: WideString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <= 0);
+        Exit;
+      end else
+      begin
+        Result := (X >= Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThan(const a: UTF16String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret < 0);
+        Exit;
+      end else
+      begin
+        Result := (Y < X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThan(const a: WideString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret > 0);
+        Exit;
+      end else
+      begin
+        Result := (X < Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <= 0);
+        Exit;
+      end else
+      begin
+        Result := (Y <= X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF16String.LessThanOrEqual(const a: WideString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PWord(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret >= 0);
+        Exit;
+      end else
+      begin
+        Result := (X <= Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF16String.Equal(const S: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Pointer(Self.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    if (Self.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF16String.EqualIgnoreCase(const S: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Pointer(Self.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    if (Self.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PWord(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF16String.Compare(const S: UnicodeString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF16String.CompareIgnoreCase(const S: UnicodeString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(Self.Chars)^;
+    X := PWord(P)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.Equal(const a: UTF16String; const b: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (Pointer(a.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    if (a.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.Equal(const a: UnicodeString; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (Pointer(b.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    if (b.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.NotEqual(const a: UTF16String; const b: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (Pointer(a.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    if (a.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.NotEqual(const a: UnicodeString; const b: UTF16String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (Pointer(b.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    if (b.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThan(const a: UTF16String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThan(const a: UnicodeString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.GreaterThanOrEqual(const a: UnicodeString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThan(const a: UTF16String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThan(const a: UnicodeString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UTF16String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF16String.LessThanOrEqual(const a: UnicodeString; const b: UTF16String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PWord(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+function UTF16String.Equal(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PWord(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
+      end;
+      Ret := Buffer._CompareUTF16String(@Self, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+function UTF16String.EqualIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PWord(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (X > Y) then goto ret_non_equal;
+        X := X * 3;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
+      end;
+      Ret := Buffer._CompareUTF16String(@Self, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+function UTF16String.Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PWord(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+      end;
+      Result := Buffer._CompareUTF16String(@Self, False);
+      Result := -Result;
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+function UTF16String.CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PWord(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+      end;
+      Result := Buffer._CompareUTF16String(@Self, True);
+      Result := -Result;
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+{inline} function UTF16String.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (ALength <> 0) and (Self.Length = ALength) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PWord(Self.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+{inline} function UTF16String.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (ALength <> 0) and (Self.Length = ALength) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PWord(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+{inline} function UTF16String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+var
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PWord(Self.Chars)^;
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+{inline} function UTF16String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+var
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PWord(Self.Chars)^;
+    X := UNICONV_CHARCASE.VALUES[X];
+    Y := UNICONV_CHARCASE.VALUES[Y];
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Exit;
+    end else
+    begin
+      Result := (NativeInt(Y) - NativeInt(X));
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
 
 
 { UTF32String }
@@ -15041,247 +22359,3665 @@ begin
   Result := L1 * 2 - L2;
 end;
 
-function UTF32String.Equal(const S: UTF32String): Boolean;
+{inline} function UTF32String.Equal(const S: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := False{todo};
+  if (S.Length <> 0) and (Self.Length = S.Length) then
+  begin
+    Y := PCardinal(Self.Chars)^;
+    X := PCardinal(S.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF32String(@S, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = S.Length);
 end;
 
-function UTF32String.EqualIgnoreCase(const S: UTF32String): Boolean;
+{inline} function UTF32String.EqualIgnoreCase(const S: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := False{todo};
+  if (S.Length <> 0) and (Self.Length = S.Length) then
+  begin
+    Y := PCardinal(Self.Chars)^;
+    X := PCardinal(S.Chars)^;
+    if (X or Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) then
+    begin
+      Ret := Self._CompareUTF32String(@S, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = S.Length);
 end;
 
-function UTF32String.Compare(const S: UTF32String): NativeInt;
+{inline} function UTF32String.Compare(const S: UTF32String): NativeInt;
+var
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo}
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PCardinal(Self.Chars)^;
+    X := PCardinal(S.Chars)^;
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF32String(@S, False);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(S.Length));
 end;
 
-function UTF32String.CompareIgnoreCase(const S: UTF32String): NativeInt;
+{inline} function UTF32String.CompareIgnoreCase(const S: UTF32String): NativeInt;
+var
+  X, Y: NativeUInt;
 begin
-  Result := -1{todo}
-end;
+  if (Self.Length <> 0) and (S.Length <> 0) then
+  begin
+    Y := PCardinal(Self.Chars)^;
+    X := PCardinal(S.Chars)^;
+    if (X or Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) then
+    begin
+      Result := Self._CompareUTF32String(@S, True);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
 
-function UTF32String.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.Equal(const S: UTF8String): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.EqualIgnoreCase(const S: UTF8String): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.Compare(const S: UTF8String): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.CompareIgnoreCase(const S: UTF8String): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.Equal(const S: UnicodeString): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.EqualIgnoreCase(const S: UnicodeString): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.Compare(const S: UnicodeString): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.CompareIgnoreCase(const S: UnicodeString): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.Equal(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.EqualIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.Compare(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.CompareIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
-begin
-  Result := False{todo};
-end;
-
-function UTF32String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
-begin
-  Result := -1{todo}
-end;
-
-function UTF32String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
-begin
-  Result := -1{todo}
+  Result := (NativeInt(Self.Length) - NativeInt(S.Length));
 end;
 
 {$ifdef OPERATORSUPPORT}
-class operator UTF32String.Equal(const a: UTF32String; const b: UTF32String): Boolean;
+{inline} class operator UTF32String.Equal(const a: UTF32String; const b: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
 begin
-  Result := True;
-end;
+  if (b.Length <> 0) and (a.Length = b.Length) then
+  begin
+    Y := PCardinal(a.Chars)^;
+    X := PCardinal(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF32String(@b, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
 
-class operator UTF32String.NotEqual(const a: UTF32String; const b: UTF32String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThan(const a: UTF32String; const b: UTF32String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThan(const a: UTF32String; const b: UTF32String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.Equal(const a: UTF32String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.NotEqual(const a: UTF32String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThan(const a: UTF32String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThan(const a: UTF32String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.Equal(const a: UTF32String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.NotEqual(const a: UTF32String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThan(const a: UTF32String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThan(const a: UTF32String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.Equal(const a: UTF32String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.NotEqual(const a: UTF32String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThan(const a: UTF32String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThan(const a: UTF32String; const b: UTF8String): Boolean;
-begin
-  Result := True;
-end;
-
-class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean;
-begin
-  Result := True;
+  Result := (a.Length = b.Length);
 end;
 {$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.NotEqual(const a: UTF32String; const b: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (b.Length <> 0) and (a.Length = b.Length) then
+  begin
+    Y := PCardinal(a.Chars)^;
+    X := PCardinal(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF32String(@b, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThan(const a: UTF32String; const b: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PCardinal(a.Chars)^;
+    X := PCardinal(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF32String(@b, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PCardinal(a.Chars)^;
+    X := PCardinal(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF32String(@b, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThan(const a: UTF32String; const b: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PCardinal(a.Chars)^;
+    X := PCardinal(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF32String(@b, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UTF32String): Boolean;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+begin
+  if (a.Length <> 0) and (b.Length <> 0) then
+  begin
+    Y := PCardinal(a.Chars)^;
+    X := PCardinal(b.Chars)^;
+    if (X = Y) then
+    begin
+      Ret := a._CompareUTF32String(@b, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= b.Length);
+end;
+{$endif}
+
+{inline} function UTF32String.Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Pointer(Self.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (Self.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Self._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF32String.EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Pointer(Self.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (Self.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := Self._CompareByteString(@Buffer, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF32String.Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Result := Self._CompareByteString(@Buffer, False);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function UTF32String.CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif}): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := Buffer.Flags;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Result := Self._CompareByteString(@Buffer, True);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.Equal(const a: UTF32String; const b: AnsiString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (Pointer(a.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (a.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.Equal(const a: AnsiString; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (Pointer(b.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (b.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.NotEqual(const a: UTF32String; const b: AnsiString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (Pointer(a.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (a.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.NotEqual(const a: AnsiString; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (Pointer(b.Length) <> nil) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    if (b.Length <> L) then goto ret_non_equal;
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThan(const a: UTF32String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThan(const a: AnsiString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: AnsiString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThan(const a: UTF32String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThan(const a: AnsiString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: AnsiString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThanOrEqual(const a: AnsiString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      {$ifdef INTERNALCODEPAGE}
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
+      {$else}
+      CP := 0;
+      {$endif}
+      if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+      begin
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+      end else
+      begin
+        Buffer.Flags := 0;
+        Buffer.SetEncoding(CP);
+      end;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{inline} function UTF32String.{$ifdef UNICODE}Equal{$else}EqualUTF8{$endif}(const S: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 4;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Self._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF32String.{$ifdef UNICODE}EqualIgnoreCase{$else}EqualUTF8IgnoreCase{$endif}(const S: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := Self.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 4;
+      if (X < Y) then goto ret_non_equal;
+      Ret := Self._CompareByteString(@Buffer, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF32String.{$ifdef UNICODE}Compare{$else}CompareUTF8{$endif}(const S: UTF8String): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Result := Self._CompareByteString(@Buffer, False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(Self.Chars)^;
+      {$endif}
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function UTF32String.{$ifdef UNICODE}CompareIgnoreCase{$else}CompareUTF8IgnoreCase{$endif}(const S: UTF8String): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PByte(P)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Result := Self._CompareByteString(@Buffer, True);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.Equal(const a: UTF32String; const b: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := a.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 4;
+      if (X < Y) then goto ret_non_equal;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.Equal(const a: UTF8String; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := b.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 4;
+      if (X < Y) then goto ret_non_equal;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.NotEqual(const a: UTF32String; const b: UTF8String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := a.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 4;
+      if (X < Y) then goto ret_non_equal;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.NotEqual(const a: UTF8String; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      X := b.Length;
+      Y := Buffer.Length;
+      if (X > Y) then goto ret_non_equal;
+      X := X * 4;
+      if (X < Y) then goto ret_non_equal;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThan(const a: UTF32String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThan(const a: UTF8String; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UTF8String; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThan(const a: UTF32String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThan(const a: UTF8String; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UTF8String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := a._CompareByteString(@Buffer, False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UTF8String; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, ASTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, ASTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PByte(P)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      Buffer.Flags := $ff000000;
+      Ret := b._CompareByteString(@Buffer, False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{inline} function UTF32String.Equal(const S: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(Self.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF32String.EqualIgnoreCase(const S: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(Self.Chars)^;
+      X := PWord(P)^;
+      if (Y <= $ffff) then
+      begin
+        X := UNICONV_CHARCASE.VALUES[X];
+        Y := UNICONV_CHARCASE.VALUES[Y];
+      end;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+
+{inline} function UTF32String.Compare(const S: WideString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := L + 1;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(Self.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(Self.Chars)^;
+        {$endif}
+        Result := Ord(Y > X) * 2 - 1;
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{inline} function UTF32String.CompareIgnoreCase(const S: WideString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (P <> nil) then
+  begin
+    if (Self.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := L + 1;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(Self.Chars)^;
+      X := PWord(P)^;
+      if (Y <= $ffff) then
+      begin
+        X := UNICONV_CHARCASE.VALUES[X];
+        Y := UNICONV_CHARCASE.VALUES[Y];
+      end;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+        Exit;
+      end else
+      begin
+        Result := Ord(Y > X) * 2 - 1;
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.Equal(const a: UTF32String; const b: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.Equal(const a: WideString; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret = 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := False;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.NotEqual(const a: UTF32String; const b: WideString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <> 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := True;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.NotEqual(const a: WideString; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then goto ret_non_equal;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <> 0);
+        Exit;
+      end else
+      begin
+      ret_non_equal:
+      {$ifdef MSWINDOWS}
+        Result := True;
+        Exit;
+      {$else}
+        P := nil;
+      {$endif}
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThan(const a: UTF32String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret > 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(a.Chars)^;
+        {$endif}
+        Result := (Y > X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThan(const a: WideString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret < 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(b.Chars)^;
+        {$endif}
+        Result := (X > Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret >= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(a.Chars)^;
+        {$endif}
+        Result := (Y >= X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: WideString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(b.Chars)^;
+        {$endif}
+        Result := (X >= Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThan(const a: UTF32String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret < 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(a.Chars)^;
+        {$endif}
+        Result := (Y < X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThan(const a: WideString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret > 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(b.Chars)^;
+        {$endif}
+        Result := (X < Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: WideString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (P <> nil) then
+  begin
+    if (a.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(a.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret <= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(a.Chars)^;
+        {$endif}
+        Result := (Y <= X);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef OPERATORSUPPORT}
+{inline} class operator UTF32String.LessThanOrEqual(const a: WideString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (P <> nil) then
+  begin
+    if (b.Length <> 0) then
+    begin
+      Buffer.Chars := Pointer(P);
+      Dec(P, WSTR_OFFSET_LENGTH);
+      L := PCardinal(P)^;
+      Inc(P, WSTR_OFFSET_LENGTH);
+      {$ifdef MSWINDOWS}
+      if (L = 0) then
+      begin
+        Result := True;
+        Exit;
+      end;
+      {$endif}
+      {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
+      Buffer.Length := L;
+
+      Y := PCardinal(b.Chars)^;
+      X := PWord(P)^;
+      if (X = Y) or (X or Y >= $d800) then
+      begin
+        Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+        Result := (Ret >= 0);
+        Exit;
+      end else
+      begin
+        {$ifdef CPUX86}
+        Y := PCardinal(b.Chars)^;
+        {$endif}
+        Result := (X <= Y);
+        Exit;
+      end;
+    end else
+    begin
+    {$ifdef MSWINDOWS}
+      P := Pointer(PCardinal(PByteArray(P) - WSTR_OFFSET_LENGTH)^ <> 0);
+    {$endif}
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF32String.Equal(const S: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF32String.EqualIgnoreCase(const S: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PWord(P)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (Self.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF32String.Compare(const S: UnicodeString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(Self.Chars)^;
+      {$endif}
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} function UTF32String.CompareIgnoreCase(const S: UnicodeString): NativeInt;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(S);
+  if (Self.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(Self.Chars)^;
+    X := PWord(P)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.Equal(const a: UTF32String; const b: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length = NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.Equal(const a: UnicodeString; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) = b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.NotEqual(const a: UTF32String; const b: UnicodeString): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (a.Length <> NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.NotEqual(const a: UnicodeString; const b: UTF32String): Boolean;
+label
+  ret_non_equal;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <> 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      P := nil;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <> b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThan(const a: UTF32String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y > X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length > NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThan(const a: UnicodeString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X > Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) > b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y >= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length >= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.GreaterThanOrEqual(const a: UnicodeString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X >= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) >= b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThan(const a: UTF32String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret < 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y < X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length < NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThan(const a: UnicodeString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret > 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X < Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) < b.Length);
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UTF32String; const b: UnicodeString): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(b);
+  if (a.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(a.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := a._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret <= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(a.Chars)^;
+      {$endif}
+      Result := (Y <= X);
+      Exit;
+    end;
+  end;
+
+  Result := (a.Length <= NativeUInt(P));
+end;
+{$endif}
+
+{$ifdef UNICODE}
+{inline} class operator UTF32String.LessThanOrEqual(const a: UnicodeString; const b: UTF32String): Boolean;
+var
+  P: PByte;
+  L: NativeUInt;
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  P := Pointer(a);
+  if (b.Length <> 0) and (P <> nil) then
+  begin
+    Buffer.Chars := Pointer(P);
+    Dec(P, USTR_OFFSET_LENGTH);
+    L := PCardinal(P)^;
+    Inc(P, USTR_OFFSET_LENGTH);
+    Buffer.Length := L;
+
+    Y := PCardinal(b.Chars)^;
+    X := PWord(P)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := b._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret >= 0);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(b.Chars)^;
+      {$endif}
+      Result := (X <= Y);
+      Exit;
+    end;
+  end;
+
+  Result := (NativeUInt(P) <= b.Length);
+end;
+{$endif}
+
+function UTF32String.Equal(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (X > Y) then goto ret_non_equal;
+        X := X * 4;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareByteString(@Buffer, False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+function UTF32String.EqualIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Ret: NativeInt;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+        X := Self.Length;
+        Y := Buffer.Length;
+        if (X > Y) then goto ret_non_equal;
+        X := X * 4;
+        if (X < Y) then goto ret_non_equal;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
+      end;
+      Ret := Self._CompareByteString(@Buffer, True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+function UTF32String.Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+      end;
+      Result := Self._CompareByteString(@Buffer, False);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+function UTF32String.CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word): NativeInt;
+var
+  X, Y: NativeUInt;
+  CP: Word;
+  Buffer: ByteString;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PByte(Buffer.Chars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y > $7f) then
+    begin
+      CP := CodePage;
+      if (CP = CODEPAGE_UTF8) then
+      begin
+        Buffer.Flags := $ff000000;
+      end else
+      begin
+        if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
+        begin
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        end else
+        begin
+          Buffer.Flags := 0;
+          Buffer.SetEncoding(CP);
+        end;
+      end;
+      Result := Self._CompareByteString(@Buffer, True);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+{inline} function UTF32String.Equal(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+{inline} function UTF32String.EqualIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): Boolean;
+label
+  ret_non_equal;
+var
+  X, Y: NativeUInt;
+  Ret: NativeInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Ret := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Result := (Ret = 0);
+      Exit;
+    end else
+    begin
+    ret_non_equal:
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := (Self.Length = ALength);
+end;
+
+{inline} function UTF32String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+var
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), False);
+      Exit;
+    end else
+    begin
+      {$ifdef CPUX86}
+      Y := PCardinal(Self.Chars)^;
+      {$endif}
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
+
+{inline} function UTF32String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
+var
+  X, Y: NativeUInt;
+  Buffer: packed record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+begin
+  if (Self.Length <> 0) and (ALength <> 0) then
+  begin
+    Buffer.Length := ALength;
+    Buffer.Chars := Pointer(AChars);
+    X := PWord(AChars)^;
+    Y := PCardinal(Self.Chars)^;
+    if (Y <= $ffff) then
+    begin
+      X := UNICONV_CHARCASE.VALUES[X];
+      Y := UNICONV_CHARCASE.VALUES[Y];
+    end;
+    if (X = Y) or (X or Y >= $d800) then
+    begin
+      Result := Self._CompareUTF16String(PUTF16String(@Buffer), True);
+      Exit;
+    end else
+    begin
+      Result := Ord(Y > X) * 2 - 1;
+      Exit;
+    end;
+  end;
+
+  Result := (NativeInt(Self.Length) - NativeInt(ALength));
+end;
 
 
 { TCachedTextReader }

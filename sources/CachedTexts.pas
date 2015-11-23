@@ -330,7 +330,7 @@ type
     property UTF8: Boolean read GetUTF8 write SetUTF8;
     property Encoding: Word read GetEncoding write SetEncoding;
 
-    procedure Assign(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word); overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure Assign(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     procedure Assign(const S: UTF8String); overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -2643,7 +2643,7 @@ begin
   end;
 end;
 
-procedure ByteString.Assign(const AChars: PAnsiChar;
+procedure ByteString.Assign(const AChars: PAnsiChar{/PUTF8Char};
   const ALength: NativeUInt; const CodePage: Word);
 {$ifdef CPUX86}
 var
@@ -14858,7 +14858,7 @@ begin
         if (X = Y) then Continue;
       end;
 
-      Result := Ord(X > Y)*2 - 1;
+      Result := Ord(Y > X)*2 - 1;
       Exit;
     end;
 
@@ -14876,7 +14876,7 @@ begin
       Store.Modifier := NativeUInt(-1);
     end;
 
-    P2Length := Self.Flags;
+    P2Length := S.Flags;
     P2Length := P2Length shr 24;
     P2Length := P2Length * SizeOf(TUniConvSBCS);
     Inc(P2Length, NativeUInt(@UNICONV_SUPPORTED_SBCS));
@@ -14957,7 +14957,7 @@ begin
       if (X = Y) then Continue;
     end;
 
-    Result := Ord(X > Y)*2 - 1;
+    Result := Ord(Y > X)*2 - 1;
     Exit;
   end;
 

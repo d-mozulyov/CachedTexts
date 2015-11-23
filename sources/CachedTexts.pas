@@ -316,8 +316,8 @@ type
     function _GetFloat(S: PByte; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   {todo}public
-    function _CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
-    function _CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+    function _CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
+    function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
   public
     property Chars: PAnsiChar read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
@@ -526,6 +526,8 @@ type
     function _GetInt64(S: PWord; L: NativeInt): Int64;
     function _GetFloat(S: PWord; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+  {todo}public
+    function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
   public
     property Chars: PUnicodeChar read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
@@ -727,9 +729,9 @@ type
     function _GetFloat(S: PCardinal; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
   {todo}public
-    function _CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
-    function _CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
-    function _CompareUTF32String(const S: PUTF32String; const CaseLookup: PUniConvWW): NativeInt;
+    function _CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
+    function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
+    function _CompareUTF32String(const S: PUTF32String; const IgnoreCase: Boolean): NativeInt;
   public
     property Chars: PUCS4Char read FChars write FChars;
     property Length: NativeUInt read FLength write FLength;
@@ -6967,9 +6969,11 @@ end;
 {$endif}
 {$endif}
 
-function ByteString._CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+function ByteString._CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
 label
   diffsbcs_compare, binary_compare, same_modify;
+const
+  CASE_LOOKUPS: array[Boolean] of Pointer = (nil, @UNICONV_CHARCASE);
 var
   Kind, F1, F2: NativeUInt;
   CharCase: NativeUInt;
@@ -6981,7 +6985,7 @@ var
     SameModifier: NativeUInt;
   end;
 begin
-  Comp.Lookup := CaseLookup;
+  Comp.Lookup := CASE_LOOKUPS[IgnoreCase];
   Store.SelfChars := Self.FChars;
   Store.SChars := S.FChars;
 
@@ -7079,13 +7083,15 @@ begin
   end;
 end;
 
-function ByteString._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+function ByteString._CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
+const
+  CASE_LOOKUPS: array[Boolean] of Pointer = (nil, @UNICONV_CHARCASE);
 var
   Kind, CharCase: NativeUInt;
   L1, L2: NativeUInt;
   Comp: TUniConvCompareOptions;
 begin
-  Comp.Lookup := CaseLookup;
+  Comp.Lookup := CASE_LOOKUPS[IgnoreCase];
   Kind := Self.Flags;
   if (Integer(Kind) < 0) then
   begin
@@ -10748,6 +10754,33 @@ end;
 {$endif}
 {$endif}
 {$endif}
+
+function UTF16String._CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
+var
+  L1, L2: NativeUInt;
+begin
+  L1 := Self.FLength;
+  L2 := S.FLength;
+
+  if (L1 <= L2) then
+  begin
+    L2 := (-(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+  end else
+  begin
+    L1 := L2;
+    L2 := NativeUInt(-1);
+  end;
+
+  if (not IgnoreCase) then
+  begin
+    L1 := __uniconv_compare_words(Pointer(Self.FChars), Pointer(S.FChars), L1);
+  end else
+  begin
+    L1 := __uniconv_utf16_compare_utf16(Pointer(Self.FChars), Pointer(S.FChars), L1);
+  end;
+
+  Result := L1 * 2 - L2;
+end;
 
 function UTF16String.Equal(const S: UTF16String): Boolean;
 begin
@@ -14757,10 +14790,13 @@ end;
 {$endif}
 {$endif}
 
-function UTF32String._CompareByteString(const S: PByteString; const CaseLookup: PUniConvWW): NativeInt;
+function UTF32String._CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
 label
   ret_default;
+const
+  CASE_LOOKUPS: array[Boolean] of Pointer = (nil, @UNICONV_CHARCASE);
 var
+  CaseLookup: PUniConvWW;
   P1: PCardinal;
   P2: PByte;
   P1Length, P2Length: NativeUInt;
@@ -14770,6 +14806,7 @@ var
     Modifier: NativeUInt;
   end;
 begin
+  CaseLookup := CASE_LOOKUPS[IgnoreCase];
   P1 := Pointer(Self.FChars);
   P1Length := Self.FLength;
   P2 := Pointer(S.FChars);
@@ -14908,15 +14945,25 @@ ret_default:
   Result := -Result;
 end;
 
-function UTF32String._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
+function UTF32String._CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
 label
   ret_greather;
+const
+  CASE_LOOKUPS: array[Boolean] of Pointer = (nil, @UNICONV_CHARCASE);
 var
   P1: PCardinal;
   P2: PWord;
   P1Length, P2Length: NativeUInt;
   i, X, Y: NativeUInt;
+  {$ifdef CPUX86}
+  Store: record
+    CaseLookup: PUniConvWW;
+  end;
+  {$else}
+    CaseLookup: PUniConvWW;
+  {$endif}
 begin
+  {$ifdef CPUX86}Store.{$endif}CaseLookup := CASE_LOOKUPS[IgnoreCase];
   P1 := Pointer(Self.FChars);
   P1Length := Self.FLength;
   P2 := Pointer(S.FChars);
@@ -14950,10 +14997,10 @@ begin
     Y := P1^;
     Inc(P1);
     if (X = Y) then Continue;
-    if (X or Y <= $ffff) and (CaseLookup <> nil) then
+    if (X or Y <= $ffff) and ({$ifdef CPUX86}Store.{$endif}CaseLookup <> nil) then
     begin
-      X := CaseLookup[X];
-      Y := CaseLookup[Y];
+      X := {$ifdef CPUX86}Store.{$endif}CaseLookup[X];
+      Y := {$ifdef CPUX86}Store.{$endif}CaseLookup[Y];
       if (X = Y) then Continue;
     end;
 
@@ -14967,7 +15014,7 @@ ret_greather:
   Result := 1;
 end;
 
-function UTF32String._CompareUTF32String(const S: PUTF32String; const CaseLookup: PUniConvWW): NativeInt;
+function UTF32String._CompareUTF32String(const S: PUTF32String; const IgnoreCase: Boolean): NativeInt;
 var
   L1, L2: NativeUInt;
 begin
@@ -14983,7 +15030,7 @@ begin
     L2 := NativeUInt(-1);
   end;
 
-  if (CaseLookup = nil) then
+  if (not IgnoreCase) then
   begin
     L1 := utf32_compare_utf32(Pointer(Self.FChars), Pointer(S.FChars), L1);
   end else

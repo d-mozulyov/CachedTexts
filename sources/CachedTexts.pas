@@ -7037,8 +7037,8 @@ begin
       if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F1).AllocFillUCS2(PUniConvSBCSEx(F1).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
       F1 := Comp.Length;
       F2 := Comp.Length_2;
-      Comp.Length := F1;
-      Comp.Length_2 := F2;
+      Comp.Length := F2;
+      Comp.Length_2 := F1;
       Result := __uniconv_utf8_compare_sbcs(Store.SChars, Store.SelfChars, Comp);
       Result := -Result;
     end;
@@ -7055,14 +7055,17 @@ begin
       begin
         Comp.Lookup := PUniConvSBCSEx(F1).FLowerCase;
         if (Comp.Lookup = nil) then Comp.Lookup := PUniConvSBCS(F1).FromSBCS(PUniConvSBCS(F1), ccLower);
+        Comp.Length := Store.SameLength;
         Result := __uniconv_sbcs_compare_sbcs_1(Store.SelfChars, Store.SChars, Comp);
       end else
       begin
       diffsbcs_compare:
-        Comp.Lookup := PUniConvSBCSEx(F1).FUCS2.Items[ccLower];
-        if (Comp.Lookup = nil) then Comp.Lookup := PUniConvSBCSEx(F1).AllocFillUCS2(PUniConvSBCSEx(F1).FUCS2.Items[ccLower], ccLower);
-        Comp.Lookup_2 := PUniConvSBCSEx(F2).FUCS2.Items[ccLower];
-        if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F2).AllocFillUCS2(PUniConvSBCSEx(F2).FUCS2.Items[ccLower], ccLower);
+        CharCase := NativeUInt(Comp.Lookup <> nil);
+        Comp.Lookup := PUniConvSBCSEx(F1).FUCS2.NumericItems[CharCase];
+        if (Comp.Lookup = nil) then Comp.Lookup := PUniConvSBCSEx(F1).AllocFillUCS2(PUniConvSBCSEx(F1).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+        Comp.Lookup_2 := PUniConvSBCSEx(F2).FUCS2.NumericItems[CharCase];
+        if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(F2).AllocFillUCS2(PUniConvSBCSEx(F2).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+        Comp.Length := Store.SameLength;
         Result := __uniconv_sbcs_compare_sbcs_2(Store.SelfChars, Store.SChars, Comp);
       end;
       goto same_modify;
@@ -7079,6 +7082,7 @@ end;
 function ByteString._CompareUTF16String(const S: PUTF16String; const CaseLookup: PUniConvWW): NativeInt;
 var
   Kind, CharCase: NativeUInt;
+  L1, L2: NativeUInt;
   Comp: TUniConvCompareOptions;
 begin
   Comp.Lookup := CaseLookup;
@@ -7100,10 +7104,22 @@ begin
     Comp.Lookup_2 := PUniConvSBCSEx(Kind).FUCS2.NumericItems[CharCase];
     if (Comp.Lookup_2 = nil) then Comp.Lookup_2 := PUniConvSBCSEx(Kind).AllocFillUCS2(PUniConvSBCSEx(Kind).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
 
-    Comp.Length := S.Length;
-    Comp.Length_2 := Self.Length;
+    L1 := Self.Length;
+    L2 := S.Length;
+    if (L1 <= L2) then
+    begin
+      Comp.Length := L1;
+      Comp.Length_2 := (-(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+    end else
+    begin
+      Comp.Length := L2;
+      Comp.Length_2 := NativeUInt(-1);
+    end;
+
     Result := __uniconv_utf16_compare_sbcs(Pointer(S.FChars), Pointer(Self.FChars), Comp);
     Result := -Result;
+    Inc(Result, Result);
+    Dec(Result, Comp.Length_2);
   end;
 end;
 

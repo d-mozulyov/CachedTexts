@@ -1258,11 +1258,34 @@ type
 
     function BufferCharsCopy(const Destination: Pointer; const ASize: NativeUInt): Pointer;
   public
-    function AllocateShortString(const Length: Byte; const Source: PAnsiChar = nil): PShortString;
-    function AllocateAnsiString(const Length: Cardinal; const Encoding: Word = 0; const Source: PAnsiChar = nil): PAnsiString;
-    function AllocateUTF8String(const Length: Cardinal; const Source: PUTF8Char = nil): PUTF8String;
-    function AllocateWideString(const Length: Cardinal; const Source: PWideChar = nil): PWideString;
-    function AllocateUnicodeString(const Length: Cardinal; const Source: PUnicodeChar = nil): PUnicodeString;
+    function AllocateShortString(const Length: Byte; const Source: PAnsiChar = nil): PShortString; overload;
+    function AllocateShortString(const S: ByteString; const CharCase: TCharCase = ccOriginal): PShortString; overload;
+    function AllocateShortString(const S: ByteString; const Encoding: Word; const CharCase: TCharCase = ccOriginal): PShortString; overload;
+    function AllocateShortString(const S: UTF16String; const Encoding: Word = 0; const CharCase: TCharCase = ccOriginal): PShortString; overload;
+    function AllocateShortString(const S: UTF32String; const Encoding: Word = 0; const CharCase: TCharCase = ccOriginal): PShortString; overload;
+
+    function AllocateAnsiString(const Length: Cardinal; const Encoding: Word = 0; const Source: PAnsiChar = nil): PAnsiString; overload;
+    function AllocateAnsiString(const S: ByteString; const CharCase: TCharCase = ccOriginal): PAnsiString; overload;
+    function AllocateAnsiString(const S: ByteString; const Encoding: Word; const CharCase: TCharCase = ccOriginal): PShortString; overload;
+    function AllocateAnsiString(const S: UTF16String; const Encoding: Word = 0; const CharCase: TCharCase = ccOriginal): PAnsiString; overload;
+    function AllocateAnsiString(const S: UTF32String; const Encoding: Word = 0; const CharCase: TCharCase = ccOriginal): PAnsiString; overload;
+
+    function AllocateUTF8String(const Length: Cardinal; const Source: PUTF8Char = nil): PUTF8String; overload;
+    function AllocateUTF8String(const S: ByteString; const CharCase: TCharCase = ccOriginal): PUTF8String; overload;
+    function AllocateUTF8String(const S: UTF16String; const CharCase: TCharCase = ccOriginal): PUTF8String; overload;
+    function AllocateUTF8String(const S: UTF32String; const CharCase: TCharCase = ccOriginal): PUTF8String; overload;
+
+    function AllocateWideString(const Length: Cardinal; const Source: PWideChar = nil): PWideString; overload;
+    function AllocateWideString(const S: ByteString; const CharCase: TCharCase = ccOriginal): PWideString; overload;
+    function AllocateWideString(const S: UTF16String; const CharCase: TCharCase = ccOriginal): PWideString; overload;
+    function AllocateWideString(const S: UTF32String; const CharCase: TCharCase = ccOriginal): PWideString; overload;
+
+    function AllocateUnicodeString(const Length: Cardinal; const Source: PUnicodeChar = nil): PUnicodeString; overload;
+    function AllocateUnicodeString(const S: ByteString; const CharCase: TCharCase = ccOriginal): PUnicodeString; overload;
+    function AllocateUnicodeString(const S: UTF16String; const CharCase: TCharCase = ccOriginal): PUnicodeString; overload;
+    function AllocateUnicodeString(const S: UTF32String; const CharCase: TCharCase = ccOriginal): PUnicodeString; overload;
+
+
 
 
     property CastByteString: ByteString read FBuffer.CastByteString;
@@ -26965,6 +26988,7 @@ end;
 
 { TTemporaryString }
 
+
 {$if not Defined(FPC) and (CompilerVersion < 21)}
 procedure TTemporaryString.Clear;
 begin
@@ -26995,6 +27019,295 @@ begin
   Result := Destination;
   NcMove(Self.FBuffer.Chars^, Result^, ASize);
 end;
+
+type
+  TConversionProc = function(Dest, Src: Pointer; Length: NativeUInt): {Length}NativeUInt;
+  TConversionProcEx = function(Dest, Src: Pointer; Length: NativeUInt; Converter: Pointer): {Length}NativeUInt;
+
+function MoveBytes(Dest, Src: Pointer; Length: NativeUInt): NativeUInt;
+begin
+  NcMove(Src^, Dest^, Length);
+  Result := Length;
+end;
+
+function MoveWords(Dest, Src: Pointer; Length: NativeUInt): NativeUInt;
+begin
+  NcMove(Src^, Dest^, Length);
+  Result := Length shl 1;
+end;
+
+function MoveCardinals(Dest, Src: Pointer; Length: NativeUInt): NativeUInt;
+begin
+  NcMove(Src^, Dest^, Length);
+  Result := Length shl 1;
+end;
+
+function ConvertByteFromByte(Dest: PByte; const Source: ByteString;
+  Flags{
+         CharCase: TCharCase;
+         DestSBCSIndex: ShortInt;
+       }: NativeUInt): NativeUInt;
+label
+  universal_sbcs_converter, utf8_converter;
+const
+  SBCS_FROM_SBCS: array[0..2{CharCase}] of {TConversionProcEx} Pointer =
+  (
+     @UniConv.sbcs_from_sbcs,
+     @UniConv.sbcs_from_sbcs_lower,
+     @UniConv.sbcs_from_sbcs_upper
+  );
+  UTF8_FROM_SBCS: array[0..2{CharCase}] of {TConversionProcEx} Pointer =
+  (
+     @UniConv.utf8_from_sbcs,
+     @UniConv.utf8_from_sbcs_lower,
+     @UniConv.utf8_from_sbcs_upper
+  );
+  SBCS_FROM_UTF8: array[0..2{CharCase}] of {TConversionProcEx} Pointer =
+  (
+     @UniConv.sbcs_from_utf8,
+     @UniConv.sbcs_from_utf8_lower,
+     @UniConv.sbcs_from_utf8_upper
+  );
+  UTF8_FROM_UTF8: array[0..2{CharCase}] of {TConversionProc} Pointer =
+  (
+     @MoveBytes,
+     @UniConv.utf8_from_utf8_lower,
+     @UniConv.utf8_from_utf8_upper
+  );
+var
+  SrcSBCSIndex, DestSBCSIndex: NativeInt;
+  Converter: Pointer;
+begin
+  DestSBCSIndex := Flags shr 8;
+  Flags := Byte(Flags);
+  SrcSBCSIndex := Source.SBCSIndex;
+
+  if (Source.Ascii) then
+    goto utf8_converter;
+
+  if (SrcSBCSIndex >= 0) then
+  begin
+    SrcSBCSIndex := SrcSBCSIndex * SizeOf(TUniConvSBCS);
+    Inc(SrcSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
+
+    if (DestSBCSIndex <= $7f) then
+    begin
+      // SBCS <-- SBCS
+      DestSBCSIndex := DestSBCSIndex * SizeOf(TUniConvSBCS);
+      Inc(DestSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
+
+      if (SrcSBCSIndex = DestSBCSIndex) then
+      begin
+        case Flags of
+          Ord(ccLower):
+          begin
+            Converter := PUniConvSBCSEx(DestSBCSIndex).FLowerCase;
+            if (Converter = nil) then goto universal_sbcs_converter;
+          end;
+          Ord(ccUpper):
+          begin
+            Converter := PUniConvSBCSEx(DestSBCSIndex).FLowerCase;
+            if (Converter = nil) then goto universal_sbcs_converter;
+          end;
+        else
+          // Ord(ccOriginal):
+          Result := MoveBytes(Dest, Source.Chars, Source.Length);
+          Exit;
+        end;
+
+        Converter := PUniConvSBCSEx(DestSBCSIndex).FUpperCase;
+        if (Converter = nil) then goto universal_sbcs_converter;
+      end else
+      begin
+      universal_sbcs_converter:
+        Converter := PUniConvSBCS(DestSBCSIndex).FromSBCS(PUniConvSBCS(SrcSBCSIndex), TCharCase(Flags));
+      end;
+
+      Result := TConversionProcEx(SBCS_FROM_SBCS[Flags])(Dest, Source.Chars,
+        Source.Length, Converter);
+    end else
+    begin
+      // UTF8 <-- SBCS
+      Converter := PUniConvSBCSEx(SrcSBCSIndex).FUCS2.NumericItems[Flags];
+      if (Converter = nil) then Converter := PUniConvSBCSEx(SrcSBCSIndex).AllocFillUCS2(PUniConvSBCSEx(SrcSBCSIndex).FUCS2.NumericItems[Flags], TCharCase(Flags));
+      Result := TConversionProcEx(UTF8_FROM_SBCS[Flags])(Dest, Source.Chars,
+        Source.Length, Converter);
+    end;
+  end else
+  begin
+    if (DestSBCSIndex <= $7f) then
+    begin
+      // SBCS <-- UTF8
+      Converter := PUniConvSBCSEx(DestSBCSIndex).FUCS2.NumericItems[Flags];
+      if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillUCS2(PUniConvSBCSEx(DestSBCSIndex).FUCS2.NumericItems[Flags], TCharCase(Flags));
+      Result := TConversionProcEx(SBCS_FROM_UTF8[Flags])(Dest, Source.Chars,
+        Source.Length, Converter);
+    end else
+    begin
+      // UTF8 <-- UTF8
+    utf8_converter:
+      Result := TConversionProc(UTF8_FROM_UTF8[Flags])(Dest, Source.Chars, Source.Length);
+    end;
+  end;
+end;
+
+function ConvertByteFromUTF16(Dest: PByte; const Source: UTF16String;
+  Flags{
+         CharCase: TCharCase;
+         DestSBCSIndex: ShortInt;
+       }: NativeUInt): NativeUInt;
+const
+  SBCS_FROM_UTF16: array[0..2{CharCase}] of {TConversionProcEx} Pointer =
+  (
+     @UniConv.sbcs_from_utf16,
+     @UniConv.sbcs_from_utf16_lower,
+     @UniConv.sbcs_from_utf16_upper
+  );
+  UTF8_FROM_UTF16: array[0..2{CharCase}] of {TConversionProc} Pointer =
+  (
+     @UniConv.utf8_from_utf16,
+     @UniConv.utf8_from_utf16_lower,
+     @UniConv.utf8_from_utf16_upper
+  );
+var
+  DestSBCSIndex: NativeInt;
+  Converter: Pointer;
+begin
+  DestSBCSIndex := Flags shr 8;
+  Flags := Byte(Flags);
+
+  if (not Source.Ascii) and (DestSBCSIndex <= $7f) then
+  begin
+    // SBCS <-- UTF16
+    Converter := PUniConvSBCSEx(DestSBCSIndex).FVALUES;
+    if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(DestSBCSIndex).FVALUES);
+    Result := TConversionProcEx(SBCS_FROM_UTF16[Flags])(Dest, Source.Chars,
+      Source.Length, Converter);
+  end else
+  begin
+    // UTF8 <-- UTF16
+    Result := TConversionProc(UTF8_FROM_UTF16[Flags])(Dest, Source.Chars, Source.Length);
+  end;
+end;
+
+function ConvertByteFromUTF32(Dest: PByte; const Source: UTF32String;
+  Flags{
+         CharCase: TCharCase;
+         DestEncoding: Word;
+       }: NativeUInt): NativeUInt;
+const
+  ASCII_FROM_UTF16: array[0..2{CharCase}] of {TConversionProc} Pointer =
+  (
+     @CachedTexts.ascii_from_utf32,
+     @CachedTexts.ascii_from_utf32_lower,
+     @CachedTexts.ascii_from_utf32_upper
+  );
+var
+  SBCSConv: TSBCSConv;
+begin
+  if (Source.Ascii) then
+  begin
+    TConversionProc{procedure}(ASCII_FROM_UTF16[Byte(Flags)])(Dest, Source.Chars, Source.Length);
+  end else
+  begin
+    if (Flags and 3 <> 0) then
+    begin
+      if (Flags and 1 <> 0) then
+      begin
+        SBCSConv.CaseLookup := Pointer(@UNICONV_CHARCASE.LOWER);
+      end else
+      begin
+        SBCSConv.CaseLookup := Pointer(@UNICONV_CHARCASE.UPPER);
+      end;
+    end else
+    begin
+      SBCSConv.CaseLookup := nil;
+    end;
+
+    SBCSConv.CodePage := Flags shr 8;
+    SBCSConv.Length := Source.Length;
+    sbcs_from_utf32(Dest, Pointer(Source.Chars), SBCSConv);
+  end;
+
+  Result := Source.Length;
+end;
+
+function ConvertUTF16FromByte(Dest: PWord; const Source: ByteString;
+  CharCase: NativeUInt): NativeUInt;
+const
+  UTF16_FROM_SBCS: array[0..2{CharCase}] of {TConversionProcEx} Pointer =
+  (
+     @UniConv.utf16_from_sbcs,
+     @UniConv.utf16_from_sbcs_lower,
+     @UniConv.utf16_from_sbcs_upper
+  );
+  UTF16_FROM_UTF8: array[0..2{CharCase}] of {TConversionProc} Pointer =
+  (
+     @UniConv.utf16_from_utf8,
+     @UniConv.utf16_from_utf8_lower,
+     @UniConv.utf16_from_utf8_upper
+  );
+var
+  Index: NativeInt;
+  Converter: Pointer;
+begin
+  Index := Source.Flags;
+  if (Index and 1 = 0{not Ascii}) and (Integer(Index) >= 0) then
+  begin
+    // UTF16 <-- SBCS
+    Index := Index shr 24;
+    Index := Index * SizeOf(TUniConvSBCS);
+    Inc(Index, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+
+    Converter := PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase];
+    if (Converter = nil) then Converter := PUniConvSBCSEx(Index).AllocFillUCS2(PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+
+    Result := TConversionProcEx(UTF16_FROM_SBCS[CharCase])(Dest, Source.Chars, Source.Length, Converter);
+  end else
+  begin
+    // UTF16 <-- UTF8/Ascii
+    Result := TConversionProc(UTF16_FROM_UTF8[CharCase])(Dest, Source.Chars, Source.Length);
+  end;
+end;
+
+function ConvertUTF16FromUTF16(Dest: PWord; const Source: UTF16String;
+  CharCase: NativeUInt): NativeUInt;
+const
+  UTF16_FROM_UTF16: array[0..2{CharCase}] of {TConversionProc} Pointer =
+  (
+     @CachedTexts.MoveWords,
+     @UniConv.utf16_from_utf16_lower,
+     @UniConv.utf16_from_utf16_upper
+  );
+begin
+  TConversionProc{procedure}(UTF16_FROM_UTF16[CharCase])(Dest, Source.Chars, Source.Length);
+  Result := Source.Length;
+end;
+
+function ConvertUTF16FromUTF32(Dest: PWord; const Source: UTF32String;
+  CharCase: NativeUInt): NativeUInt;
+begin
+  Result := 0{todo};
+end;
+
+function ConvertUTF32FromByte(Dest: PCardinal; const Source: ByteString;
+  CharCase: NativeUInt): NativeUInt;
+begin
+  Result := 0{todo};
+end;
+
+function ConvertUTF32FromUTF16(Dest: PCardinal; const Source: UTF16String;
+  CharCase: NativeUInt): NativeUInt;
+begin
+  Result := 0{todo};
+end;
+
+function ConvertUTF32FromUTF32(Dest: PCardinal; const Source: UTF32String;
+  CharCase: NativeUInt): NativeUInt;
+begin
+  Result := 0{todo};
+end;
+
 
 function TTemporaryString.AllocateShortString(const Length: Byte;
   const Source: PAnsiChar): PShortString;
@@ -27220,6 +27533,110 @@ begin
   Self.FBuffer.Chars := P;
   Result := Pointer(@Self.FBuffer.Chars);
 end;
+
+function TTemporaryString.AllocateShortString(const S: ByteString;
+  const CharCase: TCharCase): PShortString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateShortString(const S: ByteString;
+  const Encoding: Word; const CharCase: TCharCase): PShortString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateShortString(const S: UTF16String;
+  const Encoding: Word; const CharCase: TCharCase): PShortString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateShortString(const S: UTF32String;
+  const Encoding: Word; const CharCase: TCharCase): PShortString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateAnsiString(const S: ByteString;
+  const CharCase: TCharCase): PAnsiString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateAnsiString(const S: ByteString;
+  const Encoding: Word; const CharCase: TCharCase): PShortString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateAnsiString(const S: UTF16String;
+  const Encoding: Word; const CharCase: TCharCase): PAnsiString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateAnsiString(const S: UTF32String;
+  const Encoding: Word; const CharCase: TCharCase): PAnsiString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateUTF8String(const S: ByteString;
+  const CharCase: TCharCase): PUTF8String;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateUTF8String(const S: UTF16String;
+  const CharCase: TCharCase): PUTF8String;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateUTF8String(const S: UTF32String;
+  const CharCase: TCharCase): PUTF8String;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateWideString(const S: ByteString;
+  const CharCase: TCharCase): PWideString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateWideString(const S: UTF16String;
+  const CharCase: TCharCase): PWideString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateWideString(const S: UTF32String;
+  const CharCase: TCharCase): PWideString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateUnicodeString(const S: ByteString;
+  const CharCase: TCharCase): PUnicodeString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateUnicodeString(const S: UTF16String;
+  const CharCase: TCharCase): PUnicodeString;
+begin
+  Result := nil{todo};
+end;
+
+function TTemporaryString.AllocateUnicodeString(const S: UTF32String;
+  const CharCase: TCharCase): PUnicodeString;
+begin
+  Result := nil{todo};
+end;
+
+
 
 
 initialization

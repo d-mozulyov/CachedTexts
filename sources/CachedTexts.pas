@@ -1208,6 +1208,55 @@ type
   end;
 
 
+{ TTemporaryAllocator object }
+
+  TTemporaryAllocator = object
+  protected
+    FData: TBytes;
+    FSize: NativeUInt;
+  public
+    function Allocate(const ASize: NativeUInt): Pointer;
+    function Resize(const ASize: NativeUInt; const AMemoryDelta: NativeUInt{Power of 2} = 1024): Pointer;
+    procedure Clear;
+
+    property Data: TBytes read FData;
+    property Size: NativeUInt read FSize;
+  end;
+
+
+{ TTemporaryString object }
+
+  TTemporaryString = object(TTemporaryAllocator)
+  protected
+    FBuffer: packed record
+    case Integer of
+      0: (CastByteString: ByteString);
+      1: (CastUTF16String: UTF16String);
+      2: (CastUTF32String: UTF32String);
+      3: (Chars: Pointer; Length: NativeUInt;
+          case Integer of
+            0: (Flags: Cardinal);
+            1: (Ascii, References: Boolean; Reserved: Byte; SBCSIndex: ShortInt);
+            2: (NativeFlags: NativeUInt);
+         );
+    end;
+
+    function BufferCharsCopy(const Destination: Pointer; const ASize: NativeUInt): Pointer;
+  public
+    function AllocateShortString(const Length: Byte; const Source: PAnsiChar = nil): PShortString;
+    function AllocateAnsiString(const Length: Cardinal; const Encoding: Word = 0; const Source: PAnsiChar = nil): PAnsiString;
+    function AllocateUTF8String(const Length: Cardinal; const Source: PUTF8Char = nil): PUTF8String;
+    function AllocateWideString(const Length: Cardinal; const Source: PWideChar = nil): PWideString;
+    function AllocateUnicodeString(const Length: Cardinal; const Source: PUnicodeChar = nil): PUnicodeString;
+
+
+    property CastByteString: ByteString read FBuffer.CastByteString;
+    property CastUTF16String: UTF16String read FBuffer.CastUTF16String;
+    property CastUTF32String: UTF32String read FBuffer.CastUTF32String;
+  end;
+
+
+
 implementation
 
 { ECachedText }
@@ -1283,9 +1332,9 @@ end;
 {$endif}
 
 
-  {$ifNdef CPUX86}
-    {$define CPUMANYREGS}
-  {$endif}
+const
+  NULL_ANSICHAR = {$ifdef NEXTGEN}0{$else}#0{$endif};
+  NULL_WIDECHAR = #0;
 
   {$if Defined(MSWINDOWS) or Defined(FPC) or (CompilerVersion < 22)}
     {$define WIDE_STR_SHIFT}
@@ -1293,50 +1342,114 @@ end;
     {$undef WIDE_STR_SHIFT}
   {$ifend}
 
-const
+  {$if not Defined(FPC) and (CompilerVersion >= 20)}
+    {$define INTERNALSTRFLAGS}
+  {$ifend}
+
+type
+  PDynArrayRec = ^TDynArrayRec;
+  TDynArrayRec = packed record
+  {$if Defined(LARGEINT) and not Defined(FPC)}
+    _Padding: Integer;
+  {$ifend}
+    RefCount: Integer;
+    Length: NativeInt;
+  end;
+
+  PAnsiStrRec = ^TAnsiStrRec;
   {$if Defined(FPC) or (not Defined(UNICODE))}
-    ASTR_OFFSET_LENGTH = SizeOf(Integer);
+    TAnsiStrRec = packed record
+      RefCount: Integer;
+      Length: Integer;
+    end;
+    const ASTR_OFFSET_LENGTH = SizeOf(Integer);
   {$else}
     {$ifdef NEXTGEN}
-      ASTR_OFFSET_LENGTH = {$ifdef SMALLINT}4{$else}8{$endif}{SizeOf(NativeInt), inline bug fix};
+      TAnsiStrRec = TDynArrayRec;
+      const ASTR_OFFSET_LENGTH = {$ifdef SMALLINT}4{$else}8{$endif}{SizeOf(NativeInt), inline bug fix};
     {$else}
-      ASTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
+      TAnsiStrRec = packed record
+      {$ifdef LARGEINT}
+        _Padding: Integer;
+      {$endif}
+        CodePageElemSize: Integer;
+        RefCount: Integer;
+        Length: Integer;
+      end;
+      const ASTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
     {$endif}
   {$ifend}
 
 {$ifdef UNICODE}
+type
+  PUnicodeStrRec = ^TUnicodeStrRec;
   {$ifdef FPC}
-    USTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
+    TUnicodeStrRec = TAnsiStrRec;
+    const USTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
   {$else}
-    USTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
+    TUnicodeStrRec = packed record
+    {$ifdef LARGEINT}
+      _Padding: Integer;
+    {$endif}
+      CodePageElemSize: Integer;
+      RefCount: Integer;
+      Length: Integer;
+    end;
+    const USTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
   {$endif}
-{$else}
-  // UnicodeString = WideString
-  USTR_OFFSET_LENGTH = SizeOf(Integer);
 {$endif}
 
+type
+  PWideStrRec = ^TWideStrRec;
   {$ifdef MSWINDOWS}
-    WSTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
+    TWideStrRec = packed record
+      Length: Integer; // *2: windows BSTR
+    end;
+    const WSTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
   {$else}
   {$ifdef FPC}
-    WSTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
+    TWideStrRec = TAnsiStrRec;
+    const WSTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
   {$else}
   {$ifdef NEXTGEN}
-    WSTR_OFFSET_LENGTH = {$ifdef SMALLINT}4{$else}8{$endif}{SizeOf(NativeInt), inline bug fix};
+    TWideStrRec = TDynArrayRec;
+    const WSTR_OFFSET_LENGTH = {$ifdef SMALLINT}4{$else}8{$endif}{SizeOf(NativeInt), inline bug fix};
   {$else}
     {$if CompilerVersion >= 22}
-       WSTR_OFFSET_LENGTH = USTR_OFFSET_LENGTH;
+       TWideStrRec = TUnicodeStrRec;
+       const WSTR_OFFSET_LENGTH = USTR_OFFSET_LENGTH;
     {$else}
-       WSTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
+       TWideStrRec = TAnsiStrRec;
+       const WSTR_OFFSET_LENGTH = ASTR_OFFSET_LENGTH;
     {$ifend}
   {$endif}
   {$endif}
   {$endif}
 
+{$ifNdef UNICODE}
+type
+  PUnicodeStrRec = ^TUnicodeStrRec;
+  TUnicodeStrRec = TWideStrRec;
+const
+  USTR_OFFSET_LENGTH = WSTR_OFFSET_LENGTH;
+{$endif}
+
+const
+  ASTR_OFFSET_REFCOUNT = ASTR_OFFSET_LENGTH + SizeOf(Integer);
+  {$ifNdef MSWINDOWS} WSTR_OFFSET_REFCOUNT = WSTR_OFFSET_LENGTH + SizeOf(Integer); {$endif}
+  {$ifdef UNICODE} USTR_OFFSET_REFCOUNT = USTR_OFFSET_LENGTH + SizeOf(Integer); {$endif}
+
   {$ifdef INTERNALCODEPAGE}
-    ASTR_OFFSET_CODEPAGE = ASTR_OFFSET_LENGTH + {RefCount}SizeOf(Integer) + {ElemSize}SizeOf(Word) + {CodePage}SizeOf(Word);
+    ASTR_OFFSET_CODEPAGE = ASTR_OFFSET_REFCOUNT + {ElemSize}SizeOf(Word) + {CodePage}SizeOf(Word);
   {$endif}
 
+  ASTR_REFCOUNT_LITERAL = {$ifdef NEXTGEN}0{$else}-1{$endif};
+  {$ifNdef WINDOWS}
+  WSTR_REFCOUNT_LITERAL = {$ifdef NEXTGEN}0{$else}-1{$endif};
+  {$endif}
+  {$ifdef UNICODE}
+  USTR_REFCOUNT_LITERAL = -1;
+  {$endif}
 
 type
   {$ifdef NEXTGEN}
@@ -1368,6 +1481,10 @@ type
 
   PUniConvContextEx = ^TUniConvContextEx;
   TUniConvContextEx = object(TUniConvContext) end;
+
+  {$ifNdef CPUX86}
+    {$define CPUMANYREGS}
+  {$endif}
 
 const
   DBLROUND_CONST: Double = 6755399441055744.0;
@@ -26803,6 +26920,266 @@ constructor TUTF32TextWriter.CreateDirect(const Context: PUniConvContext;
   const Target: TCachedWriter; const Owner: Boolean);
 begin
   inherited Create(Context, Target, Owner);
+end;
+
+
+{ TTemporaryAllocator }
+
+procedure TTemporaryAllocator.Clear;
+begin
+  FSize := 0;
+  FData := nil;
+end;
+
+function TTemporaryAllocator.Resize(const ASize,
+  AMemoryDelta: NativeUInt): Pointer;
+begin
+  FSize := (ASize + AMemoryDelta - 1) and (-AMemoryDelta);
+  SetLength(FData, FSize);
+  Result := Pointer(FData);
+end;
+
+function TTemporaryAllocator.Allocate(const ASize: NativeUInt): Pointer;
+begin
+  Result := Pointer(FData);
+
+  if (Result = nil) or (ASize > Self.FSize) then
+    Result := Self.Resize(ASize);
+end;
+
+
+{ TTemporaryString }
+
+function TTemporaryString.BufferCharsCopy(const Destination: Pointer;
+  const ASize: NativeUInt): Pointer;
+begin
+  Result := Destination;
+  NcMove(Self.FBuffer.Chars^, Result^, ASize);
+end;
+
+function TTemporaryString.AllocateShortString(const Length: Byte;
+  const Source: PAnsiChar): PShortString;
+var
+  P: PByte;
+  ASize: NativeUInt;
+begin
+  Self.FBuffer.Chars := Source;
+  ASize := Length;
+  Inc(ASize, SizeOf(Byte));
+
+  P := Pointer(FData);
+  if (P = nil) or (ASize > Self.FSize) then
+  begin
+    Self.FBuffer.NativeFlags := ASize;
+      P := Self.Resize(ASize);
+    ASize := Self.FBuffer.NativeFlags;
+  end;
+
+  Dec(ASize, SizeOf(Byte));
+  P^ := ASize;
+  if (Self.FBuffer.Chars <> nil) then
+  begin
+    Inc(P);
+    P := Self.BufferCharsCopy(P, ASize);
+    Dec(P);
+  end;
+
+  Result := Pointer(P);
+end;
+
+function TTemporaryString.AllocateAnsiString(const Length: Cardinal;
+  const Encoding: Word; const Source: PAnsiChar): PAnsiString;
+var
+  P: PAnsiStrRec;
+  ASize: NativeUInt;
+begin
+  if (Length <> 0) then
+  begin
+    FBuffer.Length := Encoding;
+    FBuffer.Chars := Source;
+    ASize := Length + (SizeOf(P^) {$ifNdef NEXTGEN}+1{$endif});
+
+    P := Pointer(FData);
+    if (P = nil) or (ASize > Self.FSize) then
+    begin
+      Self.FBuffer.NativeFlags := ASize;
+        P := Self.Resize(ASize);
+      ASize := Self.FBuffer.NativeFlags;
+    end;
+
+    Dec(ASize, (SizeOf(P^) {$ifNdef NEXTGEN}+1{$endif}));
+    P.RefCount := ASTR_REFCOUNT_LITERAL;
+    P.Length := ASize;
+    {$ifdef INTERNALCODEPAGE}
+      P.CodePageElemSize := FBuffer.Length{Encoding} or $00010000;
+    {$endif}
+    Inc(NativeInt(P), SizeOf(P^));
+    {$ifNdef NEXTGEN}
+    PByteArray(P)[ASize{Length}] := NULL_ANSICHAR;
+    {$endif}
+
+    if (Self.FBuffer.Chars <> nil) then
+    begin
+      P := Self.BufferCharsCopy(P, ASize);
+    end;
+  end else
+  begin
+    P := nil;
+  end;
+
+  Self.FBuffer.Chars := P;
+  Result := Pointer(@Self.FBuffer.Chars);
+end;
+
+function TTemporaryString.AllocateUTF8String(const Length: Cardinal;
+  const Source: PUTF8Char): PUTF8String;
+var
+  P: PAnsiStrRec;
+  ASize: NativeUInt;
+begin
+  if (Length <> 0) then
+  begin
+    FBuffer.Chars := Source;
+    ASize := Length + (SizeOf(P^) {$ifNdef NEXTGEN}+1{$endif});
+
+    P := Pointer(FData);
+    if (P = nil) or (ASize > Self.FSize) then
+    begin
+      Self.FBuffer.NativeFlags := ASize;
+        P := Self.Resize(ASize);
+      ASize := Self.FBuffer.NativeFlags;
+    end;
+
+    Dec(ASize, (SizeOf(P^) {$ifNdef NEXTGEN}+1{$endif}));
+    P.RefCount := ASTR_REFCOUNT_LITERAL;
+    P.Length := ASize;
+    {$ifdef INTERNALCODEPAGE}
+      P.CodePageElemSize := CODEPAGE_UTF8 or $00010000;
+    {$endif}
+    Inc(NativeInt(P), SizeOf(P^));
+    {$ifNdef NEXTGEN}
+    PByteArray(P)[ASize{Length}] := NULL_ANSICHAR;
+    {$endif}
+
+    if (Self.FBuffer.Chars <> nil) then
+    begin
+      P := Self.BufferCharsCopy(P, ASize);
+    end;
+  end else
+  begin
+    P := nil;
+  end;
+
+  Self.FBuffer.Chars := P;
+  Result := Pointer(@Self.FBuffer.Chars);
+end;
+
+function TTemporaryString.AllocateWideString(const Length: Cardinal;
+  const Source: PWideChar): PWideString;
+var
+  P: PWideStrRec;
+  ASize: NativeUInt;
+begin
+  if (Length <> 0) then
+  begin
+    FBuffer.Chars := Source;
+    ASize := Length + Length + (SizeOf(P^) {$ifNdef NEXTGEN}+SizeOf(WideChar){$endif});
+
+    P := Pointer(FData);
+    if (P = nil) or (ASize > Self.FSize) then
+    begin
+      Self.FBuffer.NativeFlags := ASize;
+        P := Self.Resize(ASize);
+      ASize := Self.FBuffer.NativeFlags;
+    end;
+
+    Dec(ASize, (SizeOf(P^) {$ifNdef NEXTGEN}+SizeOf(WideChar){$endif}));
+    {$ifNdef MSWINDOWS}
+    P.RefCount := WSTR_REFCOUNT_LITERAL;
+    {$endif}
+    {$ifNdef WIDE_STR_SHIFT}
+      ASize := ASize shr 1;
+    {$endif}
+    P.Length := ASize;
+    {$ifdef WIDE_STR_SHIFT}
+      ASize := ASize shr 1;
+    {$endif}
+    {$if Defined(INTERNALSTRFLAGS) and not Defined(MSWINDOWS)}
+      {$if CompilerVersion >= 22}
+         // Delphi >= XE (WideString = UnicodeString)
+         P.CodePageElemSize := CODEPAGE_UTF16 or $00020000;
+      {$else}
+         // Delphi < XE (WideString = double AnsiString, CodePage default)
+         P.CodePageElemSize := DefaultSystemCodePage or $00010000;
+      {$ifend}
+    {$ifend}
+    Inc(NativeInt(P), SizeOf(P^));
+    {$ifNdef NEXTGEN}
+    PWideChar(P)[ASize{Length}] := NULL_WIDECHAR;
+    {$endif}
+
+    if (Self.FBuffer.Chars <> nil) then
+    begin
+      P := Self.BufferCharsCopy(P, ASize + ASize);
+    end;
+  end else
+  begin
+    P := nil;
+  end;
+
+  Self.FBuffer.Chars := P;
+  Result := Pointer(@Self.FBuffer.Chars);
+end;
+
+function TTemporaryString.AllocateUnicodeString(const Length: Cardinal;
+  const Source: PUnicodeChar): PUnicodeString;
+var
+  P: PUnicodeStrRec;
+  ASize: NativeUInt;
+begin
+  if (Length <> 0) then
+  begin
+    FBuffer.Chars := Source;
+    ASize := Length + Length + (SizeOf(P^) {$ifNdef NEXTGEN}+SizeOf(WideChar){$endif});
+
+    P := Pointer(FData);
+    if (P = nil) or (ASize > Self.FSize) then
+    begin
+      Self.FBuffer.NativeFlags := ASize;
+        P := Self.Resize(ASize);
+      ASize := Self.FBuffer.NativeFlags;
+    end;
+
+    Dec(ASize, (SizeOf(P^) {$ifNdef NEXTGEN}+SizeOf(WideChar){$endif}));
+    {$ifdef UNICODE}
+    P.RefCount := USTR_REFCOUNT_LITERAL;
+    {$endif}
+    {$ifdef UNICODE}
+      ASize := ASize shr 1;
+    {$endif}
+    P.Length := ASize;
+    {$ifNdef UNICODE}
+      ASize := ASize shr 1;
+    {$endif}
+    {$ifdef INTERNALSTRFLAGS}
+      P.CodePageElemSize := CODEPAGE_UTF16 or $00020000;
+    {$endif}
+    Inc(NativeInt(P), SizeOf(P^));
+    {$ifNdef NEXTGEN}
+    PWideChar(P)[ASize{Length}] := NULL_WIDECHAR;
+    {$endif}
+
+    if (Self.FBuffer.Chars <> nil) then
+    begin
+      P := Self.BufferCharsCopy(P, ASize + ASize);
+    end;
+  end else
+  begin
+    P := nil;
+  end;
+
+  Self.FBuffer.Chars := P;
+  Result := Pointer(@Self.FBuffer.Chars);
 end;
 
 

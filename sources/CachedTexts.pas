@@ -1222,11 +1222,26 @@ type
     property Data: TBytes read FData;
     property Size: NativeUInt read FSize;
   end;
+  PTemporaryAllocator = ^TTemporaryAllocator;
 
 
 { TTemporaryString object }
 
+  {$if Defined(FPC) or (CompilerVersion >= 21)}
   TTemporaryString = object(TTemporaryAllocator)
+  {$else}
+  TTemporaryString = object
+  protected
+    FData: TBytes;
+    FSize: NativeUInt;
+  public
+    function Allocate(const ASize: NativeUInt): Pointer;
+    function Resize(const ASize: NativeUInt; const AMemoryDelta: NativeUInt{Power of 2} = 1024): Pointer;
+    procedure Clear;
+
+    property Data: TBytes read FData;
+    property Size: NativeUInt read FSize;
+  {$ifend}
   protected
     FBuffer: packed record
     case Integer of
@@ -1254,7 +1269,7 @@ type
     property CastUTF16String: UTF16String read FBuffer.CastUTF16String;
     property CastUTF32String: UTF32String read FBuffer.CastUTF32String;
   end;
-
+  PTemporaryString = ^TTemporaryString;
 
 
 implementation
@@ -26949,6 +26964,30 @@ end;
 
 
 { TTemporaryString }
+
+{$if not Defined(FPC) and (CompilerVersion < 21)}
+procedure TTemporaryString.Clear;
+begin
+  FSize := 0;
+  FData := nil;
+end;
+
+function TTemporaryString.Resize(const ASize,
+  AMemoryDelta: NativeUInt): Pointer;
+begin
+  FSize := (ASize + AMemoryDelta - 1) and (-AMemoryDelta);
+  SetLength(FData, FSize);
+  Result := Pointer(FData);
+end;
+
+function TTemporaryString.Allocate(const ASize: NativeUInt): Pointer;
+begin
+  Result := Pointer(FData);
+
+  if (Result = nil) or (ASize > Self.FSize) then
+    Result := Self.Resize(ASize);
+end;
+{$ifend}
 
 function TTemporaryString.BufferCharsCopy(const Destination: Pointer;
   const ASize: NativeUInt): Pointer;

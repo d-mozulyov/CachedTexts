@@ -1272,14 +1272,14 @@ type
 
     procedure InternalAppend(const MaxAppendSize: NativeUInt; const Source; const Flags: NativeUInt; const Conversion: Pointer);
   public
-    procedure InitSBCS(const CodePage: Word = 0);
-    procedure InitUTF8; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure InitUTF16; {$ifdef INLINESUPPORT}inline;{$endif}
-    procedure InitUTF32; {$ifdef INLINESUPPORT}inline;{$endif}
+    function InitByteString(const CodePage: Word = 0; const Length: NativeUInt = 0): PByteString;
+    function InitUTF16String(const Length: NativeUInt = 0): PUTF16String;
+    function InitUTF32String(const Length: NativeUInt = 0): PUTF32String;
 
     procedure Append(const S: ByteString; const CharCase: TCharCase = ccOriginal); overload;
     procedure Append(const S: UTF16String; const CharCase: TCharCase = ccOriginal); overload;
     procedure Append(const S: UTF32String; const CharCase: TCharCase = ccOriginal); overload;
+    procedure AppendAscii(const S: PAnsiChar; const Length: NativeUInt);
 
     function EmulateShortString: PShortString;
     function EmulateAnsiString: PAnsiString;
@@ -1777,6 +1777,7 @@ end;
 resourcestring
   SInvalidHex = '''%s'' is not a valid hex value';
   SIncompatibleStringType = 'Incompatible type of string';
+  SStringNotInitialized = 'String not initialized';
 
 const
   TEN = 10;
@@ -20920,9 +20921,13 @@ end;
 
 type
   TSBCSConv = record
-    CodePage: Word;
-    Length: NativeInt;
-    CaseLookup: PUniConvWW;
+  case Integer of
+    0: (
+          CodePageIndex: NativeUInt;
+          Length: NativeInt;
+          CaseLookup: PUniConvWW;
+       );
+    1: (CP: Word);
   end;
 
 procedure sbcs_from_utf32(Dest: PByte; Src: PCardinal; const SBCSConv: TSBCSConv);
@@ -20933,13 +20938,19 @@ var
   CaseLookup: PUniConvWW;
 begin
   // DestSBCS
-  Index := NativeUInt(SBCSConv.CodePage);
-  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
-  repeat
-    if (Word(Value) = SBCSConv.CodePage) or (Value < 0) then Break;
-    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
-  until (False);
-  Index := Byte(Value shr 16);
+  Index := SBCSConv.CodePageIndex;
+  if (Index <= $ffff) then
+  begin
+    Index := Index shr 24;
+  end else
+  begin
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+    repeat
+      if (Word(Value) = SBCSConv.CP) or (Value < 0) then Break;
+      Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+    until (False);
+    Index := Byte(Value shr 16);
+  end;
   Index := Index * SizeOf(TUniConvSBCS) + NativeInt(@UNICONV_SUPPORTED_SBCS);
 
   // converter (Index)
@@ -21001,7 +21012,7 @@ begin
     ToUTF8ShortString(S);
     Exit;
   end;
-  SBCSConv.CodePage := CodePage;
+  SBCSConv.CodePageIndex := CodePage;
 
   L := Self.Length;
   if (L > NativeUInt(High(S))) then L := High(S);
@@ -21031,7 +21042,7 @@ begin
     ToLowerUTF8ShortString(S);
     Exit;
   end;
-  SBCSConv.CodePage := CodePage;
+  SBCSConv.CodePageIndex := CodePage;
 
   L := Self.Length;
   if (L > NativeUInt(High(S))) then L := High(S);
@@ -21061,7 +21072,7 @@ begin
     ToUpperUTF8ShortString(S);
     Exit;
   end;
-  SBCSConv.CodePage := CodePage;
+  SBCSConv.CodePageIndex := CodePage;
 
   L := Self.Length;
   if (L > NativeUInt(High(S))) then L := High(S);
@@ -27115,11 +27126,105 @@ begin
 end;
 {$ifend}
 
+function TTemporaryString.InitByteString(const CodePage: Word;
+  const Length: NativeUInt): PByteString;
+var
+  Index: NativeUInt;
+  Value: Integer;
+  SBCS: PUniConvSBCS;
+
+  P: PStrRec;
+  ASize: NativeUInt;
+begin
+  Self.FBuffer.Length := Length;
+
+  if (CodePage = CODEPAGE_UTF8) then
+  begin
+    Self.F.Flags := $ff000000 or CODEPAGE_UTF8 or (Ord(csByte) shl 16);
+    Self.FBuffer.Flags := $ff000000;
+    ASize := Length;
+  end else
+  begin
+    Index := NativeUInt(CodePage);
+    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+    repeat
+      if (Word(Value) = CodePage) or (Value < 0) then Break;
+      Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+    until (False);
+
+    Index := Byte(Value shr 16);
+    SBCS := Pointer(Index * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    Index := Index shl 24;
+    Self.FBuffer.NativeFlags := Index;
+
+    Inc(Index, SBCS.CodePage);
+    Inc(Index, Ord(csByte) shl 16);
+    Self.F.NativeFlags := Index;
+
+    ASize := Self.FBuffer.Length;
+  end;
+
+  if (ASize <> 0) then
+  begin
+    P := Pointer(Self.FData);
+    ASize := ASize + (SizeOf(TStrRec) + SizeOf(UCS4Char));
+    if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+
+    Inc(P);
+    Self.FBuffer.Chars := P;
+  end;
+
+  Result := @Self.FBuffer.CastByteString;
+end;
+
+function TTemporaryString.InitUTF16String(const Length: NativeUInt): PUTF16String;
+var
+  P: PStrRec;
+  ASize: NativeUInt;
+begin
+  Self.FBuffer.Length := Length;
+  Self.F.Flags := CODEPAGE_UTF16 or (Ord(csUTF16) shl 16);
+  Self.FBuffer.NativeFlags := 0;
+
+  if (Length <> 0) then
+  begin
+    P := Pointer(Self.FData);
+    ASize := Length + Length + (SizeOf(TStrRec) + SizeOf(UCS4Char));
+    if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+
+    Inc(P);
+    Self.FBuffer.Chars := P;
+  end;
+
+  Result := @Self.FBuffer.CastUTF16String;
+end;
+
+function TTemporaryString.InitUTF32String(const Length: NativeUInt): PUTF32String;
+var
+  P: PStrRec;
+  ASize: NativeUInt;
+begin
+  Self.FBuffer.Length := Length;
+  Self.F.Flags := CODEPAGE_UTF32 or (Ord(csUTF32) shl 16);
+  Self.FBuffer.NativeFlags := 0;
+
+  if (Length <> 0) then
+  begin
+    P := Pointer(Self.FData);
+    ASize := (Length shl 2) + (SizeOf(TStrRec) + SizeOf(UCS4Char));
+    if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+
+    Inc(P);
+    Self.FBuffer.Chars := P;
+  end;
+
+  Result := @Self.FBuffer.CastUTF32String;
+end;
+
 type
+  TCachedStringConversion = function(const Dest: Pointer; const Source{CachedString}; Flags: NativeUInt): {Length}NativeUInt;
   TCharactersConversion = function(Dest, Src: Pointer; Length: NativeUInt): {Length}NativeUInt;
   TCharactersConversionEx = function(Dest, Src: Pointer; Length: NativeUInt; Converter: Pointer): {Length}NativeUInt;
-  TCachedStringConversion = function(const Dest: Pointer; const Source{CachedString}; Flags: NativeUInt): {Length}NativeUInt;
-
 
 function MoveBytes(Dest, Src: Pointer; Length: NativeUInt): NativeUInt;
 begin
@@ -27129,13 +27234,84 @@ end;
 
 function MoveWords(Dest, Src: Pointer; Length: NativeUInt): NativeUInt;
 begin
-  NcMove(Src^, Dest^, Length);
+  NcMove(Src^, Dest^, Length shl 1);
   Result := Length shl 1;
+end;
+
+procedure utf32_from_ascii(Dest: PCardinal; Src: PByte; Length: NativeUInt);
+var
+  i: NativeUInt;
+begin
+  if (Length <> 0) then
+  for i := 0 to NativeInt(Length) - 1 do
+    PCardinalArray(Dest)[i] := Byte(PByteArray(Src)[i]);
+end;
+
+procedure TTemporaryString.InternalAppend(const MaxAppendSize: NativeUInt;
+  const Source; const Flags: NativeUInt; const Conversion: Pointer);
+const
+  SHIFT_VALUES: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
+var
+  P: PByte;
+  ASize, AOffset: NativeUInt;
+begin
+  ASize := SizeOf(UCS4Char) + MaxAppendSize;
+  AOffset := SizeOf(TStrRec) + (Self.FBuffer.Length shl SHIFT_VALUES[Self.F.StringKind]);
+  ASize := ASize + AOffset;
+
+  P := Pointer(Self.FData);
+  if (P = nil) or (ASize > Self.FSize) then
+  begin
+    NativeUInt(Self.FString) := AOffset;
+      P := Self.Resize(ASize);
+    AOffset := NativeUInt(Self.FString);
+  end;
+  Inc(P, AOffset);
+
+  Inc(Self.FBuffer.Length, TCachedStringConversion(Conversion)(P, Source, Flags));
+end;
+
+procedure TTemporaryString.AppendAscii(const S: PAnsiChar; const Length: NativeUInt);
+const
+  SHIFT_VALUES: array[0..2] of Byte = (0, 1, 2);
+  CALLBACKS: array[0..2] of {TCharactersConversion} Pointer =
+  (
+     @CachedTexts.MoveBytes,
+     @UniConv.utf16_from_utf8,
+     @CachedTexts.utf32_from_ascii
+  );
+var
+  P: PByte;
+  AKind, ASize, AOffset: NativeUInt;
+begin
+  AOffset := Self.FBuffer.Length;
+  Inc(AOffset, Length);
+  Self.FBuffer.Length := AOffset;
+  Dec(AOffset, Length);
+
+  AKind := Byte(Self.F.StringKind);
+  Dec(AKind);
+
+  if (AKind > High(SHIFT_VALUES)) then
+    raise ECachedString.Create(Pointer(@SStringNotInitialized));
+
+  AOffset := AOffset shl SHIFT_VALUES[AKind];
+  ASize := Length shl SHIFT_VALUES[AKind];
+  Inc(AOffset, SizeOf(TStrRec));
+  Inc(ASize, SizeOf(UCS4Char));
+  Inc(ASize, AOffset);
+
+  P := Pointer(Self.FData);
+  if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+  Inc(P, AOffset);
+
+  TCharactersConversion(CALLBACKS[AKind])(P, S, Length);
 end;
 
 function ConvertByteFromByte(Dest: PByte; const Source: ByteString;
   Flags{
          CharCase: TCharCase;
+         Align: Word;
          DestSBCSIndex: ShortInt;
        }: NativeUInt): NativeUInt;
 label
@@ -27169,7 +27345,7 @@ var
   SrcSBCSIndex, DestSBCSIndex: NativeInt;
   Converter: Pointer;
 begin
-  DestSBCSIndex := Flags shr 8;
+  DestSBCSIndex := Flags shr 24;
   Flags := Byte(Flags);
   SrcSBCSIndex := Source.SBCSIndex;
 
@@ -27245,6 +27421,7 @@ end;
 function ConvertByteFromUTF16(Dest: PByte; const Source: UTF16String;
   Flags{
          CharCase: TCharCase;
+         Align: Word;
          DestSBCSIndex: ShortInt;
        }: NativeUInt): NativeUInt;
 const
@@ -27264,7 +27441,7 @@ var
   DestSBCSIndex: NativeInt;
   Converter: Pointer;
 begin
-  DestSBCSIndex := Flags shr 8;
+  DestSBCSIndex := Flags shr 24;
   Flags := Byte(Flags);
 
   if (not Source.Ascii) and (DestSBCSIndex <= $7f) then
@@ -27284,21 +27461,33 @@ end;
 function ConvertByteFromUTF32(Dest: PByte; const Source: UTF32String;
   Flags{
          CharCase: TCharCase;
-         DestEncoding: Word;
+         Align: Word;
+         DestSBCSIndex: ShortInt;
        }: NativeUInt): NativeUInt;
 const
-  ASCII_FROM_UTF16: array[0..2{CharCase}] of {TCharactersConversion} Pointer =
+  ASCII_FROM_UTF32: array[0..2{CharCase}] of {TCharactersConversion} Pointer =
   (
      @CachedTexts.ascii_from_utf32,
      @CachedTexts.ascii_from_utf32_lower,
      @CachedTexts.ascii_from_utf32_upper
+  );
+  UTF8_FROM_UTF32: array[0..2{CharCase}] of {TCharactersConversion} Pointer =
+  (
+     @CachedTexts.utf8_from_utf32,
+     @CachedTexts.utf8_from_utf32_lower,
+     @CachedTexts.utf8_from_utf32_upper
   );
 var
   SBCSConv: TSBCSConv;
 begin
   if (Source.Ascii) then
   begin
-    TCharactersConversion{procedure}(ASCII_FROM_UTF16[Byte(Flags)])(Dest, Source.Chars, Source.Length);
+    TCharactersConversion{procedure}(ASCII_FROM_UTF32[Byte(Flags)])(Dest, Source.Chars, Source.Length);
+  end else
+  if (Integer(Flags) < 0) then
+  begin
+    Result := TCharactersConversion(UTF8_FROM_UTF32[Byte(Flags)])(Dest, Source.Chars, Source.Length);
+    Exit;
   end else
   begin
     if (Flags and 3 <> 0) then
@@ -27315,7 +27504,7 @@ begin
       SBCSConv.CaseLookup := nil;
     end;
 
-    SBCSConv.CodePage := Flags shr 8;
+    SBCSConv.CodePageIndex := Flags or $10000;
     SBCSConv.Length := Source.Length;
     sbcs_from_utf32(Dest, Pointer(Source.Chars), SBCSConv);
   end;
@@ -27487,127 +27676,142 @@ begin
   end;
 end;
 
-procedure TTemporaryString.InitSBCS(const CodePage: Word);
-var
-  Index: NativeUInt;
-  Value: Integer;
-  SBCS: PUniConvSBCS;
-begin
-  Index := NativeUInt(CodePage);
-  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
-  repeat
-    if (Word(Value) = CodePage) or (Value < 0) then Break;
-    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
-  until (False);
-
-  Index := Byte(Value shr 16);
-  SBCS := Pointer(Index * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
-
-  Index := Index shl 24;
-  Inc(Index, SBCS.CodePage);
-  Inc(Index, Ord(csByte) shl 16);
-  Self.F.NativeFlags := Index;
-end;
-
-procedure TTemporaryString.InitUTF8;
-begin
-  F.Flags := $ff000000 or CODEPAGE_UTF8 or (Ord(csByte) shl 16);
-  FBuffer.Length := 0;
-  FBuffer.NativeFlags := 0;
-end;
-
-procedure TTemporaryString.InitUTF16;
-begin
-  F.Flags := CODEPAGE_UTF16 or (Ord(csUTF16) shl 16);
-  FBuffer.Length := 0;
-  FBuffer.NativeFlags := 0;
-end;
-
-procedure TTemporaryString.InitUTF32;
-begin
-  F.Flags := CODEPAGE_UTF32 or (Ord(csUTF32) shl 16);
-  FBuffer.Length := 0;
-  FBuffer.NativeFlags := 0;
-end;
-
-procedure TTemporaryString.InternalAppend(const MaxAppendSize: NativeUInt;
-  const Source; const Flags: NativeUInt; const Conversion: Pointer);
-const
-  SHIFT_VALUES: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
-var
-  P: PByte;
-  ASize, AOffset: NativeUInt;
-begin
-  ASize := SizeOf(UCS4Char) + MaxAppendSize;
-  AOffset := SizeOf(TStrRec) + (Self.FBuffer.Length shl SHIFT_VALUES[Self.F.StringKind]);
-  ASize := ASize + AOffset;
-
-  P := Pointer(Self.FData);
-  if (P = nil) or (ASize > Self.FSize) then
-  begin
-    NativeUInt(Self.FString) := AOffset;
-      P := Self.Resize(ASize);
-    AOffset := NativeUInt(Self.FString);
-  end;
-  Inc(P, AOffset);
-
-  Inc(Self.FBuffer.Length, TCachedStringConversion(Conversion)(P, Source, Flags));
-end;
-
-(*
-function ConvertByteFromByte(Dest: PByte; const Source: ByteString;
-  Flags{
-         CharCase: TCharCase;
-         DestSBCSIndex: ShortInt;
-       }: NativeUInt): NativeUInt;
-
-function ConvertByteFromUTF16(Dest: PByte; const Source: UTF16String;
-  Flags{
-         CharCase: TCharCase;
-         DestSBCSIndex: ShortInt;
-       }: NativeUInt): NativeUInt;
-
-function ConvertByteFromUTF32(Dest: PByte; const Source: UTF32String;
-  Flags{
-         CharCase: TCharCase;
-         DestEncoding: Word;
-       }: NativeUInt): NativeUInt;
-
-function ConvertUTF16FromByte(Dest: PWord; const Source: ByteString;
-  CharCase: NativeUInt): NativeUInt;
-
-function ConvertUTF16FromUTF16(Dest: PWord; const Source: UTF16String;
-  CharCase: NativeUInt): NativeUInt;
-
-function ConvertUTF16FromUTF32(Dest: PWord; const Source: UTF32String;
-  CharCase: NativeUInt): NativeUInt;
-
-function ConvertUTF32FromByte(Dest: PCardinal; const Source: ByteString;
-  CharCase: NativeUInt): NativeUInt;
-
-function ConvertUTF32FromUTF16(Dest: PCardinal; const Source: UTF16String;
-  CharCase: NativeUInt): NativeUInt;
-
-function ConvertUTF32FromUTF32(Dest: PCardinal; const Source: UTF32String;
-  CharCase: NativeUInt): NativeUInt; *)
-
-
 procedure TTemporaryString.Append(const S: ByteString;
   const CharCase: TCharCase);
+const
+  CONVERSIONS: array[0..3{TCachedStringKind}] of {TCachedStringConversion} Pointer =
+  (
+     nil,
+     @CachedTexts.ConvertByteFromByte,
+     @CachedTexts.ConvertUTF16FromByte,
+     @CachedTexts.ConvertUTF32FromByte
+  );
+var
+  MaxAppendSize: NativeUInt;
+  Flags, SourceFlags, Kind: NativeUInt;
 begin
-  // InternalAppend todo
+  Flags := Byte(CharCase);
+  MaxAppendSize := S.Length;
+  Kind := Byte(StringKind);
+
+  case Kind of
+    Ord(csByte):
+    begin
+      Flags := Flags + (Self.FBuffer.Flags and $ff000000);
+
+      if (Integer(Flags) < 0) then
+      begin
+        SourceFlags := S.Flags;
+        if (SourceFlags and 1 = 0{not Ascii}) then
+        begin
+          if (Integer(SourceFlags) >= 0) then
+          begin
+            // UTF8 <-- SBCS
+            MaxAppendSize := MaxAppendSize * 3;
+          end else
+          begin
+            // UTF8 <-- UTF8
+            if (Flags and 3 <> 0) then
+            begin
+              MaxAppendSize := MaxAppendSize * 3;
+              MaxAppendSize := MaxAppendSize shr 1;
+            end;
+          end;
+        end;
+      end;
+    end;
+    Ord(csUTF16):
+    begin
+      MaxAppendSize := MaxAppendSize shl 1;
+    end;
+    Ord(csUTF32):
+    begin
+      MaxAppendSize := MaxAppendSize shl 2;
+    end
+  else
+    raise ECachedString.Create(Pointer(@SStringNotInitialized));
+  end;
+
+  Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF16String;
   const CharCase: TCharCase);
+const
+  CONVERSIONS: array[0..3{TCachedStringKind}] of {TCachedStringConversion} Pointer =
+  (
+     nil,
+     @CachedTexts.ConvertByteFromUTF16,
+     @CachedTexts.ConvertUTF16FromUTF16,
+     @CachedTexts.ConvertUTF32FromUTF16
+  );
+var
+  MaxAppendSize: NativeUInt;
+  Flags, Kind: NativeUInt;
 begin
-  // InternalAppend todo
+  Flags := Byte(CharCase);
+  MaxAppendSize := S.Length;
+  Kind := Byte(StringKind);
+
+  case Kind of
+    Ord(csByte):
+    begin
+      Flags := Flags + (Self.FBuffer.Flags and $ff000000);
+    end;
+    Ord(csUTF16):
+    begin
+      MaxAppendSize := MaxAppendSize shl 1;
+    end;
+    Ord(csUTF32):
+    begin
+      MaxAppendSize := MaxAppendSize shl 2;
+    end
+  else
+    raise ECachedString.Create(Pointer(@SStringNotInitialized));
+  end;
+
+  Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF32String;
   const CharCase: TCharCase);
+const
+  CONVERSIONS: array[0..3{TCachedStringKind}] of {TCachedStringConversion} Pointer =
+  (
+     nil,
+     @CachedTexts.ConvertByteFromUTF32,
+     @CachedTexts.ConvertUTF16FromUTF32,
+     @CachedTexts.ConvertUTF32FromUTF32
+  );
+var
+  MaxAppendSize: NativeUInt;
+  Flags, Kind: NativeUInt;
 begin
-  // InternalAppend todo
+  Flags := Byte(CharCase);
+  MaxAppendSize := S.Length;
+  Kind := Byte(StringKind);
+
+  case Kind of
+    Ord(csByte):
+    begin
+      Flags := Flags + (Self.FBuffer.Flags and $ff000000);
+
+      if (Integer(Flags) < 0) and (not S.Ascii) then
+        MaxAppendSize := MaxAppendSize shl 2;
+    end;
+    Ord(csUTF16):
+    begin
+      MaxAppendSize := MaxAppendSize shl (1 + Byte(not S.Ascii));
+    end;
+    Ord(csUTF32):
+    begin
+      MaxAppendSize := MaxAppendSize shl 2;
+    end
+  else
+    raise ECachedString.Create(Pointer(@SStringNotInitialized));
+  end;
+
+  Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
 end;
 
 function TTemporaryString.EmulateShortString: PShortString;

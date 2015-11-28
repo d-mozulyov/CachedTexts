@@ -120,7 +120,7 @@ type
   {$ifend}
   TBytes = array of Byte;
   PBytes = ^TBytes;
-  PUCS4String = ^System.UCS4String;
+  PUCS4String = ^UCS4String;
 
   // exception class
   ECachedText = class(Exception)
@@ -1290,13 +1290,14 @@ type
 
     property StringKind: TCachedStringKind read F.StringKind;
     property Encoding: Word read F.Encoding;
+    property SBCSIndex: ShortInt read F.SBCSIndex;
     property CastByteString: ByteString read FBuffer.CastByteString;
     property CastUTF16String: UTF16String read FBuffer.CastUTF16String;
     property CastUTF32String: UTF32String read FBuffer.CastUTF32String;
   public
     // high level ByteString.Assign + Append
     procedure Append(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word; const CharCase: TCharCase = ccOriginal); overload;
-    procedure Append(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: AnsiString; const CharCase: TCharCase = ccOriginal{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
     {$ifdef UNICODE}
     procedure Append(const S: UTF8String; const CharCase: TCharCase = ccOriginal); overload;
     {$else}
@@ -20933,13 +20934,13 @@ type
 procedure sbcs_from_utf32(Dest: PByte; Src: PCardinal; const SBCSConv: TSBCSConv);
 var
   i, X: NativeUInt;
-  Index: NativeInt;
+  Index: NativeUInt;
   Value: Integer;
   CaseLookup: PUniConvWW;
 begin
   // DestSBCS
   Index := SBCSConv.CodePageIndex;
-  if (Index <= $ffff) then
+  if (Index > $ffff) then
   begin
     Index := Index shr 24;
   end else
@@ -20951,7 +20952,7 @@ begin
     until (False);
     Index := Byte(Value shr 16);
   end;
-  Index := Index * SizeOf(TUniConvSBCS) + NativeInt(@UNICONV_SUPPORTED_SBCS);
+  Index := Index * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS);
 
   // converter (Index)
   if (PUniConvSBCSEx(Index).FVALUES <> nil) then
@@ -27183,7 +27184,7 @@ var
   ASize: NativeUInt;
 begin
   Self.FBuffer.Length := Length;
-  Self.F.Flags := CODEPAGE_UTF16 or (Ord(csUTF16) shl 16);
+  Self.F.Flags := $ff000000 or CODEPAGE_UTF16 or (Ord(csUTF16) shl 16);
   Self.FBuffer.NativeFlags := 0;
 
   if (Length <> 0) then
@@ -27205,7 +27206,7 @@ var
   ASize: NativeUInt;
 begin
   Self.FBuffer.Length := Length;
-  Self.F.Flags := CODEPAGE_UTF32 or (Ord(csUTF32) shl 16);
+  Self.F.Flags := $ff000000 or CODEPAGE_UTF32 or (Ord(csUTF32) shl 16);
   Self.FBuffer.NativeFlags := 0;
 
   if (Length <> 0) then
@@ -27266,8 +27267,12 @@ begin
       P := Self.Resize(ASize);
     AOffset := NativeUInt(Self.FString);
   end;
-  Inc(P, AOffset);
 
+  Inc(P, SizeOf(TStrRec));
+  Dec(AOffset, SizeOf(TStrRec));
+  Self.FBuffer.Chars := P;
+
+  Inc(P, AOffset);
   Inc(Self.FBuffer.Length, TCachedStringConversion(Conversion)(P, Source, Flags));
 end;
 
@@ -27283,11 +27288,19 @@ const
 var
   P: PByte;
   AKind, ASize, AOffset: NativeUInt;
+  Store: record
+    S: PAnsiChar;
+    Length: NativeUInt;
+  end;
 begin
+  Store.S := S;
+  Store.Length := Length;
+
+  ASize := Length;
   AOffset := Self.FBuffer.Length;
-  Inc(AOffset, Length);
+  Inc(AOffset, ASize{Length});
   Self.FBuffer.Length := AOffset;
-  Dec(AOffset, Length);
+  Dec(AOffset, ASize{Length});
 
   AKind := Byte(Self.F.StringKind);
   Dec(AKind);
@@ -27296,16 +27309,20 @@ begin
     raise ECachedString.Create(Pointer(@SStringNotInitialized));
 
   AOffset := AOffset shl SHIFT_VALUES[AKind];
-  ASize := Length shl SHIFT_VALUES[AKind];
+  ASize := ASize{Length} shl SHIFT_VALUES[AKind];
   Inc(AOffset, SizeOf(TStrRec));
   Inc(ASize, SizeOf(UCS4Char));
   Inc(ASize, AOffset);
 
   P := Pointer(Self.FData);
   if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
-  Inc(P, AOffset);
 
-  TCharactersConversion(CALLBACKS[AKind])(P, S, Length);
+  Inc(P, SizeOf(TStrRec));
+  Dec(AOffset, SizeOf(TStrRec));
+  Self.FBuffer.Chars := P;
+
+  Inc(P, AOffset);
+  TCharactersConversion(CALLBACKS[AKind])(P, Store.S, Store.Length);
 end;
 
 function ConvertByteFromByte(Dest: PByte; const Source: ByteString;
@@ -27373,7 +27390,7 @@ begin
           end;
           Ord(ccUpper):
           begin
-            Converter := PUniConvSBCSEx(DestSBCSIndex).FLowerCase;
+            Converter := PUniConvSBCSEx(DestSBCSIndex).FUpperCase;
             if (Converter = nil) then goto universal_sbcs_converter;
           end;
         else
@@ -27381,22 +27398,20 @@ begin
           Result := MoveBytes(Dest, Source.Chars, Source.Length);
           Exit;
         end;
-
-        Converter := PUniConvSBCSEx(DestSBCSIndex).FUpperCase;
-        if (Converter = nil) then goto universal_sbcs_converter;
       end else
       begin
       universal_sbcs_converter:
         Converter := PUniConvSBCS(DestSBCSIndex).FromSBCS(PUniConvSBCS(SrcSBCSIndex), TCharCase(Flags));
       end;
 
-      Result := TCharactersConversionEx(SBCS_FROM_SBCS[Flags])(Dest, Source.Chars,
+      TCharactersConversionEx{procedure}(SBCS_FROM_SBCS[Flags])(Dest, Source.Chars,
         Source.Length, Converter);
+      Result := Source.Length;
     end else
     begin
       // UTF8 <-- SBCS
-      Converter := PUniConvSBCSEx(SrcSBCSIndex).FUCS2.NumericItems[Flags];
-      if (Converter = nil) then Converter := PUniConvSBCSEx(SrcSBCSIndex).AllocFillUCS2(PUniConvSBCSEx(SrcSBCSIndex).FUCS2.NumericItems[Flags], TCharCase(Flags));
+      Converter := PUniConvSBCSEx(SrcSBCSIndex).FUTF8.NumericItems[Flags];
+      if (Converter = nil) then Converter := PUniConvSBCSEx(SrcSBCSIndex).AllocFillUTF8(PUniConvSBCSEx(SrcSBCSIndex).FUTF8.NumericItems[Flags], TCharCase(Flags));
       Result := TCharactersConversionEx(UTF8_FROM_SBCS[Flags])(Dest, Source.Chars,
         Source.Length, Converter);
     end;
@@ -27405,8 +27420,10 @@ begin
     if (DestSBCSIndex <= $7f) then
     begin
       // SBCS <-- UTF8
-      Converter := PUniConvSBCSEx(DestSBCSIndex).FUCS2.NumericItems[Flags];
-      if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillUCS2(PUniConvSBCSEx(DestSBCSIndex).FUCS2.NumericItems[Flags], TCharCase(Flags));
+      DestSBCSIndex := DestSBCSIndex * SizeOf(TUniConvSBCS);
+      Inc(DestSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
+      Converter := PUniConvSBCSEx(DestSBCSIndex).FVALUES;
+      if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(DestSBCSIndex).FVALUES);
       Result := TCharactersConversionEx(SBCS_FROM_UTF8[Flags])(Dest, Source.Chars,
         Source.Length, Converter);
     end else
@@ -27447,6 +27464,8 @@ begin
   if (not Source.Ascii) and (DestSBCSIndex <= $7f) then
   begin
     // SBCS <-- UTF16
+    DestSBCSIndex := DestSBCSIndex * SizeOf(TUniConvSBCS);
+    Inc(DestSBCSIndex, NativeUInt(@UNICONV_SUPPORTED_SBCS));
     Converter := PUniConvSBCSEx(DestSBCSIndex).FVALUES;
     if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(DestSBCSIndex).FVALUES);
     Result := TCharactersConversionEx(SBCS_FROM_UTF16[Flags])(Dest, Source.Chars,
@@ -27542,7 +27561,8 @@ begin
     Converter := PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase];
     if (Converter = nil) then Converter := PUniConvSBCSEx(Index).AllocFillUCS2(PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
 
-    Result := TCharactersConversionEx(UTF16_FROM_SBCS[CharCase])(Dest, Source.Chars, Source.Length, Converter);
+    TCharactersConversionEx{procedure}(UTF16_FROM_SBCS[CharCase])(Dest, Source.Chars, Source.Length, Converter);
+    Result := Source.Length;
   end else
   begin
     // UTF16 <-- UTF8/Ascii
@@ -28019,7 +28039,7 @@ begin
   Length := Self.FBuffer.Length;
   if (P <> nil) then
   begin
-    if (StringKind = csUTF16) then
+    if (StringKind = csUTF32) then
     begin
       if (Length <> 0) then
       begin
@@ -28055,8 +28075,8 @@ begin
 end;
 
 procedure TTemporaryString.Append(const S: AnsiString;
-  {$ifNdef INTERNALCODEPAGE}const CodePage: Word;{$endif}
-  const CharCase: TCharCase);
+  const CharCase: TCharCase
+  {$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
 var
   Buffer: ByteString;
 begin

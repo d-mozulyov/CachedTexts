@@ -291,7 +291,7 @@ type
     F: packed record
     case Integer of
       0: (Flags: Cardinal);
-      1: (Ascii, References: Boolean; Reserved: Byte; SBCSIndex: ShortInt);
+      1: (Ascii, References: Boolean; Tag: Byte; SBCSIndex: ShortInt);
       2: (NativeFlags: NativeUInt);
     end;
 
@@ -327,6 +327,7 @@ type
     property Empty: Boolean read GetEmpty write SetEmpty;
     property Ascii: Boolean read F.Ascii write F.Ascii;
     property References: Boolean read F.References write F.References;
+    property Tag: Byte read F.Tag write F.Tag;
     property Flags: Cardinal read F.Flags write F.Flags;
     property SBCSIndex: ShortInt read F.SBCSIndex write F.SBCSIndex;
     property SBCS: PUniConvSBCS read GetSBCS write SetSBCS;
@@ -342,8 +343,9 @@ type
     {$endif}
     procedure Assign(const S: ShortString; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: TBytes; const CodePage: Word = 0); overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function DetermineAscii: Boolean;
+    procedure Delete(const From, Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
+    function DetermineAscii: Boolean;
     function TrimLeft: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function TrimRight: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Trim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -556,7 +558,7 @@ type
     F: packed record
     case Integer of
       0: (Flags: Cardinal);
-      1: (Ascii, References: Boolean; Reserved: Word);
+      1: (Ascii, References: Boolean; Tag: Byte);
       2: (NativeFlags: NativeUInt);
     end;
 
@@ -582,6 +584,7 @@ type
     property Empty: Boolean read GetEmpty write SetEmpty;
     property Ascii: Boolean read F.Ascii write F.Ascii;
     property References: Boolean read F.References write F.References;
+    property Tag: Byte read F.Tag write F.Tag;
     property Flags: Cardinal read F.Flags write F.Flags;
 
     procedure Assign(const AChars: PUnicodeChar; const ALength: NativeUInt); overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -589,8 +592,9 @@ type
     {$ifdef UNICODE}
     procedure Assign(const S: UnicodeString); overload; inline;
     {$endif}
-    function DetermineAscii: Boolean;
+    procedure Delete(const From, Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
+    function DetermineAscii: Boolean;
     function TrimLeft: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function TrimRight: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Trim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -803,7 +807,7 @@ type
     F: packed record
     case Integer of
       0: (Flags: Cardinal);
-      1: (Ascii, References: Boolean; Reserved: Word);
+      1: (Ascii, References: Boolean; Tag: Byte);
       2: (NativeFlags: NativeUInt);
     end;
 
@@ -831,12 +835,14 @@ type
     property Empty: Boolean read GetEmpty write SetEmpty;
     property Ascii: Boolean read F.Ascii write F.Ascii;
     property References: Boolean read F.References write F.References;
+    property Tag: Byte read F.Tag write F.Tag;
     property Flags: Cardinal read F.Flags write F.Flags;
 
     procedure Assign(const AChars: PUCS4Char; const ALength: NativeUInt); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure Assign(const S: UCS4String; const NullTerminated: Boolean = True); overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function DetermineAscii: Boolean;
+    procedure Delete(const From, Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
+    function DetermineAscii: Boolean;
     function TrimLeft: Boolean;
     function TrimRight: Boolean;
     function Trim: Boolean;
@@ -3177,6 +3183,34 @@ begin
     begin
       Self.Flags := $ff000000;
       if (CodePage <> CODEPAGE_UTF8) then SetEncoding(CodePage);
+    end;
+  end;
+end;
+
+procedure ByteString.Delete(const From, Count: NativeUInt);
+type
+  TCharArray = array[0..0] of Byte;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+  S: PCharArray;
+begin
+  L := Length;
+  if (From < L) and (Count <> 0) then
+  begin
+    Dec(L, From);
+    if (L <= Count) then
+    begin
+      Length := From;
+    end else
+    begin
+      Inc(L, From);
+      Dec(L, Count);
+      Length := L;
+      Dec(L, From);
+
+      S := Pointer(Self.FChars);
+      NcMove(S[From + Count], S[From], L);
     end;
   end;
 end;
@@ -11563,6 +11597,35 @@ begin
 end;
 {$endif}
 
+procedure UTF16String.Delete(const From, Count: NativeUInt);
+type
+  TCharArray = array[0..0] of Word;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+  S: PCharArray;
+begin
+  L := Length;
+  if (From < L) and (Count <> 0) then
+  begin
+    Dec(L, From);
+    if (L <= Count) then
+    begin
+      Length := From;
+    end else
+    begin
+      Inc(L, From);
+      Dec(L, Count);
+      Length := L;
+      Dec(L, From);
+
+      S := Pointer(Self.FChars);
+      Inc(L, L);
+      NcMove(S[From + Count], S[From], L);
+    end;
+  end;
+end;
+
 function UTF16String.DetermineAscii: Boolean;
 label
   fail;
@@ -18399,6 +18462,35 @@ begin
     Dec(P);
     Self.FLength := P^ - Ord(NullTerminated){$ifdef FPC}+1{$endif};
     Self.F.NativeFlags := 0;
+  end;
+end;
+
+procedure UTF32String.Delete(const From, Count: NativeUInt);
+type
+  TCharArray = array[0..0] of Cardinal;
+  PCharArray = ^TCharArray;
+var
+  L: NativeUInt;
+  S: PCharArray;
+begin
+  L := Length;
+  if (From < L) and (Count <> 0) then
+  begin
+    Dec(L, From);
+    if (L <= Count) then
+    begin
+      Length := From;
+    end else
+    begin
+      Inc(L, From);
+      Dec(L, Count);
+      Length := L;
+      Dec(L, From);
+
+      S := Pointer(Self.FChars);
+      L := L shl 2;
+      NcMove(S[From + Count], S[From], L);
+    end;
   end;
 end;
 

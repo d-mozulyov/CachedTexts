@@ -1046,6 +1046,45 @@ type
   end;
 
 
+{ TMemoryItems record }
+
+  HugeByteArray = array[0..High(Integer) div SizeOf(Byte) - 1] of Byte;
+  HugeWordArray = array[0..High(Integer) div SizeOf(Word) - 1] of Word;
+  HugeCardinalArray = array[0..High(Integer) div SizeOf(Cardinal) - 1] of Cardinal;
+  HugeNativeUIntArray = array[0..High(Integer) div SizeOf(NativeUInt) - 1] of NativeUInt;
+
+  PMemoryItems = ^TMemoryItems;
+  TMemoryItems = packed record
+  case Integer of
+    0: (Bytes: HugeByteArray);
+    1: (Words: HugeWordArray);
+    2: (Cardinals: HugeCardinalArray);
+    3: (NativeUInts: HugeNativeUIntArray);
+    4: (A1: array[1..1] of Byte;
+        case Integer of
+          0: (Words1: HugeWordArray);
+          1: (Cardinals1: HugeCardinalArray);
+          2: (NativeUInts1: HugeNativeUIntArray);
+        );
+    5: (A2: array[1..2] of Byte;
+        case Integer of
+          0: (Cardinals2: HugeCardinalArray);
+          1: (NativeUInts2: HugeNativeUIntArray);
+        );
+    6: (A3: array[1..3] of Byte;
+        case Integer of
+          0: (Cardinals3: HugeCardinalArray);
+          1: (NativeUInts3: HugeNativeUIntArray);
+        );
+  {$ifdef LARGEINT}
+    7: (A4: array[1..4] of Byte; NativeUInts4: HugeNativeUIntArray);
+    8: (A5: array[1..5] of Byte; NativeUInts5: HugeNativeUIntArray);
+    9: (A6: array[1..6] of Byte; NativeUInts6: HugeNativeUIntArray);
+   10: (A7: array[1..7] of Byte; NativeUInts7: HugeNativeUIntArray);
+  {$endif}
+  end;
+
+
 { TCachedTextReader class }
 
   TCachedTextReader = class
@@ -27385,6 +27424,7 @@ var
     Length: NativeUInt;
   end;
 begin
+  if (Length = 0) then Exit;  
   Store.S := S;
   Store.Length := Length;
 
@@ -27844,7 +27884,8 @@ begin
     raise ECachedString.Create(Pointer(@SStringNotInitialized));
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
+  if (MaxAppendSize <> 0) then
+    Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF16String;
@@ -27882,7 +27923,8 @@ begin
     raise ECachedString.Create(Pointer(@SStringNotInitialized));
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
+  if (MaxAppendSize <> 0) then
+    Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF32String;
@@ -27923,7 +27965,8 @@ begin
     raise ECachedString.Create(Pointer(@SStringNotInitialized));
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
+  if (MaxAppendSize <> 0) then
+    Self.InternalAppend(MaxAppendSize, S, Flags, CONVERSIONS[Kind]);
 end;
 
 function TTemporaryString.EmulateShortString: PShortString;

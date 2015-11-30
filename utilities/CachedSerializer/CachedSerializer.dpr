@@ -21,7 +21,8 @@ program CachedSerializer;
 uses {$ifdef UNITSCOPENAMES}Winapi.Windows{$else}Windows{$endif},
      {$ifdef UNITSCOPENAMES}System.SysUtils{$else}SysUtils{$endif},
      UniConv,
-     SerializeUnit in 'SerializeUnit.pas';
+     SerializeUnit in 'SerializeUnit.pas',
+     IdentifiersUnit in 'IdentifiersUnit.pas';
 
 
 procedure SetClipboardText(const Text: UnicodeString);

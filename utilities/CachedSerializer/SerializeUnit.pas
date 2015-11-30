@@ -22,18 +22,15 @@ interface
        {$else}
          SysUtils,
        {$endif}
-       UniConv, CachedBuffers, CachedTexts;
+       UniConv, CachedBuffers, CachedTexts,
+       IdentifiersUnit;
 
 type
-  TUnicodeStrings = array of UnicodeString;
-  PUnicodeStrings = ^TUnicodeStrings;
-
   TParameterOptions = record
     Name: UnicodeString;
     Count: NativeUInt;
     O1, O2, O3: UnicodeString;
   end;
-
 
 { TSerializeParameters record }
 
@@ -103,12 +100,6 @@ type
 
 
 implementation
-
-
-function UnicodeFormat(const FmtStr: UnicodeString; const Args: array of const): UnicodeString;
-begin
-  Result := {$ifdef UNICODE}Format{$else}WideFormat{$endif}(FmtStr, Args);
-end;
 
 
 { TSerializeParameters }

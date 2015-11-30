@@ -1230,6 +1230,7 @@ type
     constructor Create(const Encoding: Word; const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const Encoding: Word; const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure CRLF; {$ifdef INLINESUPPORT}inline;{$endif}
 
     property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
     property Encoding: Word read FEncoding;
@@ -1243,6 +1244,7 @@ type
     constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure CRLF; {$ifdef INLINESUPPORT}inline;{$endif}
 
   end;
 
@@ -1254,6 +1256,7 @@ type
     constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure CRLF; {$ifdef INLINESUPPORT}inline;{$endif}
 
   end;
 
@@ -27107,6 +27110,20 @@ begin
   inherited Create(Context, Target, Owner);
 end;
 
+procedure TByteTextWriter.CRLF;
+var
+  P: PWord;
+begin
+  P := Pointer(Current);
+
+  P^ := (10 shl 8) + 13;
+  Inc(P);
+  Current := Pointer(P);
+
+  if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+    Self.Flush;
+end;
+
 
 { TUTF16TextWriter }
 
@@ -27143,6 +27160,20 @@ begin
   inherited Create(Context, Target, Owner);
 end;
 
+procedure TUTF16TextWriter.CRLF;
+var
+  P: PCardinal;
+begin
+  P := Pointer(Current);
+
+  P^ := (10 shl 16) + 13;
+  Inc(P);
+  Current := Pointer(P);
+
+  if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+    Self.Flush;
+end;
+
 
 { TUTF32TextWriter }
 
@@ -27177,6 +27208,22 @@ constructor TUTF32TextWriter.CreateDirect(const Context: PUniConvContext;
   const Target: TCachedWriter; const Owner: Boolean);
 begin
   inherited Create(Context, Target, Owner);
+end;
+
+procedure TUTF32TextWriter.CRLF;
+var
+  P: PCardinal;
+begin
+  P := Pointer(Current);
+
+  P^ := 13;
+  Inc(P);
+  P^ := 10;
+  Inc(P);
+  Current := Pointer(P);
+
+  if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+    Self.Flush;
 end;
 
 

@@ -231,9 +231,26 @@ Delphi is the way to build applications for WINDOWS 10, MAC, mobile and more.
 Delphi is the way to build applications for WINDOWS 10, MAC, mobile and more.
 Delphi is the best.
 ```
-
 ##### CachedSerializer
-todo
+Utility `CachedSerializer` works for the one and only aim - to identificate string data with the maximum performance. You can build the project from the source in folder "utilities/CachedSerializer" or download [binary]( http://dmozulyov.ucoz.net/CachedTexts/CachedSerializer.zip) with examples. As the first argument of command line utility gets the path of a text file, which contains options and identifiers. It’s necessary to have the following options for serialization:
+* `-<encoding>`. "-utf16", "-utf8", "-utf32" and the other code page encodings can act as an encoding option, e.g. "-1250" (you can see the whole list of SBCS-encodings in [UniConv](https://github.com/d-mozulyov/UniConv#supported-encodings) library description). "-raw" means `CODEPAGE_RAWDATA`, "-user" means `CODEPAGE_USERDEFINED`, "-ansi" means `CODEPAGE_DEFAULT`. "-ansi" is a default encoding. If your `ByteString` identifier contains only ASCII-characters, then encoding is unnecessary, you can specify "-ansi" or don't do this at all.
+* `-p"<variable_name>"` or `-p"<pointer_name>:<length_name>"`. Serialization goes for 2 parameters: character pointer and character length. If your identifier is stored in `CachedString`, then use `<variable_name>`, so that serialization will be going for parameters `<Name>.Chars` and `<Name>.Length`. Default value is "S".
+* `-i`. This option tells that serialization will be insensitive.
+* `-f"<Name>:<Prefix>"` or `-f"<Name>:<TypeName>:<Prefix>"`. Option `-f` helps to generate function `<Name>`. Original constant (`<PREFIX>IDENTIFIERN = N`) or enumerate values (`<TypeName> = <prefix>Identifier1, <prefix>Identifier2, …)` will be generated for each identifier.
+* `-fn"<Name>:<Prefix>"` or `-fn"<Name>:<TypeName>:<Prefix>"`. Option `-fn` meaning is the same as `-f`, but only serialization code will be generated.
+* `-o"FileName"`. This option allows you to save the generated code into a file.
+
+Each of these options can be mentioned as a command line argument. Besides, the following options are permitted:
+* `-nocopy`. Don't copy generated code to the clipboard.
+* `-nowait`. Don't wait for press Enter after code generation.
+
+Each text file line can be introduced in several formats:
+* `<identifier>`
+* `<identifier>::<implementation>`
+* `<identifier>:<marker>:<implementation>`
+* `<identifier>:<marker>`
+
+Besides `<identifier>` there's an important code  `<implementation>`, which is called for `<identifier>` case. If options `-f`  or `-fn` are mentioned, then `<implementation>` will be made automatically. If there's a situation where the same `<implementation>` must be used for several `<identifier>` define `<marker>` - some string constant. For writing `<identifier>`, `<marker>` or `<implementation>` the following special symbols are permitted: `"\:"`, `"\\"`, `"\n"`, `"\r"`, `"\t"` (tab), `"\s"` (space).
 
 ##### Inspiring bonus: my photo from modern town Delphi in Greece :blush:
 ![](https://pp.vk.me/c624529/v624529659/2fbda/94Bls0F-XMQ.jpg)

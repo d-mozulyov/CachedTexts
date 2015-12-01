@@ -87,6 +87,7 @@ type
     FStringKind: TCachedStringKind;
     FIsFunction: Boolean;
     FIsConsts: Boolean;
+    FFunctionValues: TUnicodeStrings;
 
     procedure IncLevel;
     procedure DecLevel;
@@ -94,6 +95,7 @@ type
     procedure AddLine(const S: UnicodeString); overload;
     procedure AddLineFmt(const FmtStr: UnicodeString; const Args: array of const);
     procedure InspecParameters;
+    function FunctionValue(const Identifier: UnicodeString): UnicodeString;
   public
     function Process(const Parameters: TSerializeParameters): TUnicodeStrings;
   end;
@@ -101,6 +103,10 @@ type
 
 implementation
 
+function UnicodeFormat(const FmtStr: UnicodeString; const Args: array of const): UnicodeString;
+begin
+  Result := {$ifdef UNICODE}Format{$else}WideFormat{$endif}(FmtStr, Args);
+end;
 
 { TSerializeParameters }
 
@@ -463,13 +469,154 @@ begin
   if (FParameters.FLengthParameter = '') then
     raise Exception.Create('LengthParameter not defined');
 
+  if (FParameters.Count = 0) then
+    raise Exception.Create('Identifier list not defined');
+end;
 
+function TSerializer.FunctionValue(const Identifier: UnicodeString): UnicodeString;
+var
+  i, Number: NativeUInt;
+  Base: UnicodeString;
+  Found: Boolean;
+begin
+  if (Identifier = '') then
+  begin
+    Result := 'None';
+  end else
+  begin
+    case Identifier[1] of
+      '0'..'9': Result := '_';
+    else
+      Result := '';
+    end;
+
+    for i := 1 to Length(Identifier) do
+    case Identifier[i] of
+      'a'..'z', 'A'..'Z', '0'..'9', '_':
+      begin
+        // Ok
+        Result := Result + Identifier[i];
+      end;
+      (*
+         Cyrillic characters conversion
+      *)
+      #$430: Result := Result + 'a';
+      #$431: Result := Result + 'b';
+      #$432: Result := Result + 'v';
+      #$433: Result := Result + 'g';
+      #$434: Result := Result + 'd';
+      #$435: Result := Result + 'e';
+      #$451: Result := Result + 'yo';
+      #$436: Result := Result + 'zh';
+      #$437: Result := Result + 'z';
+      #$438: Result := Result + 'i';
+      #$439: Result := Result + 'j';
+      #$43A: Result := Result + 'k';
+      #$43B: Result := Result + 'l';
+      #$43C: Result := Result + 'm';
+      #$43D: Result := Result + 'n';
+      #$43E: Result := Result + 'o';
+      #$43F: Result := Result + 'p';
+      #$440: Result := Result + 'r';
+      #$441: Result := Result + 's';
+      #$442: Result := Result + 't';
+      #$443: Result := Result + 'u';
+      #$444: Result := Result + 'f';
+      #$445: Result := Result + 'h';
+      #$446: Result := Result + 'c';
+      #$447: Result := Result + 'ch';
+      #$448: Result := Result + 'sh';
+      #$449: Result := Result + 'sch';
+      #$44A: Result := Result + 'j';
+      #$44B: Result := Result + 'i';
+      #$44C: Result := Result + 'j';
+      #$44D: Result := Result + 'e';
+      #$44E: Result := Result + 'yu';
+      #$44F: Result := Result + 'ya';
+      #$410: Result := Result + 'A';
+      #$411: Result := Result + 'B';
+      #$412: Result := Result + 'V';
+      #$413: Result := Result + 'G';
+      #$414: Result := Result + 'D';
+      #$415: Result := Result + 'E';
+      #$401: Result := Result + 'Yo';
+      #$416: Result := Result + 'Zh';
+      #$417: Result := Result + 'Z';
+      #$418: Result := Result + 'I';
+      #$419: Result := Result + 'J';
+      #$41A: Result := Result + 'K';
+      #$41B: Result := Result + 'L';
+      #$41C: Result := Result + 'M';
+      #$41D: Result := Result + 'N';
+      #$41E: Result := Result + 'O';
+      #$41F: Result := Result + 'P';
+      #$420: Result := Result + 'R';
+      #$421: Result := Result + 'S';
+      #$422: Result := Result + 'T';
+      #$423: Result := Result + 'U';
+      #$424: Result := Result + 'F';
+      #$425: Result := Result + 'H';
+      #$426: Result := Result + 'C';
+      #$427: Result := Result + 'Ch';
+      #$428: Result := Result + 'Sh';
+      #$429: Result := Result + 'Sch';
+      #$42A: Result := Result + 'J';
+      #$42B: Result := Result + 'I';
+      #$42C: Result := Result + 'J';
+      #$42D: Result := Result + 'E';
+      #$42E: Result := Result + 'Yu';
+      #$42F: Result := Result + 'Ya';
+    else
+      Result := Result + '_';
+    end;
+  end;
+
+  // include prefix, char case
+  if (FIsConsts) then
+  begin
+    Result := utf16_from_utf16_upper(FParameters.Prefix + Result);
+  end else
+  begin
+    Result[1] := UNICONV_CHARCASE.UPPER[Result[1]];
+    Result := FParameters.Prefix + Result;
+  end;
+
+  // duplicates, enumerate
+  if (FFunctionValues <> nil) then
+  begin
+    Base := Result;
+    Number := 0;
+
+    repeat
+      Found := False;
+
+      for i := 0 to Length(FFunctionValues) - 1 do
+      if (utf16_equal_utf16_ignorecase(Base, FFunctionValues[i])) then
+      begin
+        Found := True;
+        Inc(Number);
+        Base := Result + IntToStr(Number);
+        Break;
+      end;
+    until (not Found);
+
+    Result := Base;
+  end;
+
+  // add
+  i := Length(FFunctionValues);
+  SetLength(FFunctionValues, i + 1);
+  FFunctionValues[i] := Result;
 end;
 
 function TSerializer.Process(
   const Parameters: TSerializeParameters): TUnicodeStrings;
 var
   i: NativeUInt;
+  Info: TIdentifierInfo;
+  List: TIdentifierList;
+  Buf: UnicodeString;
+
   Text: TUTF16TextWriter;
   DefaultByteEncoding: Word;
 begin
@@ -479,7 +626,98 @@ begin
   FParameters := @Parameters;
   InspecParameters;
 
+  // function values
+  FFunctionValues := nil;
+  if (FIsFunction) then
+  begin
+    FunctionValue('Unknown');
+  end;
+
+  // parse each identifier line
+  for i := 0 to Parameters.Count - 1 do
+  begin
+    if (not Info.Parse(Parameters.Items[i])) then Continue;
+
+    Buf := '';
+    if (not Info.MarkerReference) and (FIsConsts) then
+      Buf := FunctionValue(Info.Value);
+
+    AddIdentifier(List, Info, Parameters.Encoding, Parameters.IgnoreCase, Buf);
+  end;
+
+  // process groups
   // todo
+
+  // type header
+  FLevel := 0;
+  if (FIsFunction) and (Parameters.UseFuncHeaders) then
+  begin
+    if (FIsConsts) then
+    begin
+      Self.AddLine('const');
+    end else
+    begin
+      Self.AddLine('type');
+    end;
+
+    IncLevel;
+    if (FIsConsts) then
+    begin
+      for i := 0 to Length(FFunctionValues) - 1 do
+        Self.AddLineFmt('%s = %d;', [FFunctionValues[i], i]);
+    end else
+    begin
+      Buf := Parameters.EnumTypeName + ' = (';
+      for i := 0 to Length(FFunctionValues) - 1 do
+      begin
+        if (Length(Buf) >= 75) then
+        begin
+          Self.AddLine(Buf);
+          Buf := '';
+        end;
+
+        if (i <> 0) then Buf := Buf + ', ';
+        Buf := Buf + FFunctionValues[i];
+      end;
+
+      Buf := Buf + ');';
+      Self.AddLine(Buf);
+    end;
+
+    DecLevel;
+  end;
+
+  // function Header
+  if (FIsFunction) and (Parameters.UseFuncHeaders) then
+  begin
+    Buf := Parameters.EnumTypeName;
+    if (FIsConsts) then Buf := 'Cardinal';
+
+    Self.AddLine('function ' + Parameters.FuncName + '(' + Parameters.FuncParameter + '): ' + Buf + ';');
+    Self.AddLine('begin');
+  end;
+
+  // case start
+  IncLevel;
+  Self.AddLineFmt('with PMemoryItems(%s)^ do', [Parameters.CharsParameter]);
+  Self.AddLineFmt('case %s of', [Parameters.LengthParameter]);
+
+  // each group
+  // todo
+
+  // case finish
+  Self.AddLine('end;');
+  if (FIsFunction) then
+  begin
+    Self.AddLine;
+    Self.AddLineFmt('Result := %s;', [FFunctionValues[0]]);
+
+    if (Parameters.UseFuncHeaders) then
+    begin
+      DecLevel;
+      Self.AddLine('end;');
+    end;
+  end;
 
   // save lines to file
   if (Parameters.OutFileName <> '') then

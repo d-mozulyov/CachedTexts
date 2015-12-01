@@ -36,13 +36,12 @@ type
     function IncorrectDoublePoints(const S: UnicodeString): Exception;
     procedure ParseCode(const S: UnicodeString);
   public
-    Marker: UnicodeString;
     Value: UnicodeString;
     Comment: UnicodeString;
-    Code: TUnicodeStrings;
 
+    Marker: UnicodeString;
     MarkerReference: Boolean;
-    CodeDefined: Boolean;
+    Code: TUnicodeStrings;
 
     function Parse(const S: UnicodeString): Boolean;
   end;
@@ -50,7 +49,10 @@ type
   PIdentifier = ^TIdentifier;
   TIdentifier = object
   protected
-    procedure FillData(const Converter: TTemporaryString; const Value: UnicodeString; const IgnoreCase: Boolean);
+    procedure FillDataBytes(var Bytes: TBytes; var Converter: TTemporaryString; const Value: UnicodeString);
+    procedure FillData(var Converter: TTemporaryString;
+      const Value, Comment: UnicodeString; const Code: TUnicodeStrings;
+      const IgnoreCase: Boolean);
   public
     Info: TIdentifierInfo;
 
@@ -69,6 +71,11 @@ type
     const Encoding: Word; const IgnoreCase: Boolean; const FunctionValue: UnicodeString);
 
 implementation
+
+const
+  SPACES_IN_STEP = 1;
+  BASE_OFFSET = 3;
+  AND_VALUES: array[1..4] of Cardinal = ($ff, $ffff, $ffffff, $ffffffff);
 
 var
   ALTERNATIVE_CHARS: array[UnicodeChar] of UnicodeChar;
@@ -255,17 +262,94 @@ begin
     end;
   end;
 
-  Self.CodeDefined := (Self.Code <> nil);
   Result := True;
 end;
 
 
 { TIdentifier }
 
-procedure TIdentifier.FillData(const Converter: TTemporaryString;
-  const Value: UnicodeString; const IgnoreCase: Boolean);
+procedure TIdentifier.FillDataBytes(var Bytes: TBytes;
+  var Converter: TTemporaryString; const Value: UnicodeString);
+const
+  SHIFTS: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
 begin
-//  Converter.C
+  Converter.Length := 0;
+  Converter.Append(Value);
+
+  Self.DataLength := Converter.Length shl SHIFTS[Converter.StringKind];
+  SetLength(Bytes, Self.DataLength + SizeOf(Cardinal){Gap});
+  Move(Converter.Chars^, Pointer(Bytes)^, Self.DataLength);
+  PCardinal(@Bytes[Self.DataLength])^ := 0{Gap};
+end;
+
+procedure TIdentifier.FillData(var Converter: TTemporaryString;
+  const Value, Comment: UnicodeString; const Code: TUnicodeStrings;
+  const IgnoreCase: Boolean);
+var
+  Buf: UnicodeString;
+  L: NativeUInt;
+  D1, D2, DOr, DOrTop: PByte;
+  OrMask: Cardinal;
+  Kind: TCachedStringKind;
+begin
+  Self.Info.Value := Value;
+  Self.Info.Comment := Comment;
+  Self.Info.Marker := '';
+  Self.Info.MarkerReference := False;
+  Self.Info.Code := Code;
+
+  if (not IgnoreCase) then
+  begin
+    Buf := Value;
+  end else
+  begin
+    Buf := AlternativeString(Value, Converter.Encoding = CODEPAGE_UTF8);
+  end;
+
+  // data
+  FillDataBytes(Data1, Converter, Value);
+  FillDataBytes(Data2, Converter, Buf);
+
+  // or mask
+  SetLength(DataOr, DataLength + SizeOf(Cardinal));
+  if (not IgnoreCase) then
+  begin
+    FillChar(Pointer(DataOr)^, DataLength + SizeOf(Cardinal), 0);
+  end else
+  begin
+    D1 := Pointer(Data1);
+    D2 := Pointer(Data2);
+    DOr := Pointer(DataOr);
+    DOrTop := DOr;
+    Inc(DOrTop, DataLength);
+
+    Kind := Converter.StringKind;
+    if (Converter.Encoding = CODEPAGE_UTF8) then Kind := csNone{UTF8 Alias};
+
+    while (DOr <> DOrTop) do
+    begin
+      case Kind of
+         csByte: L := SizeOf(Byte);
+        csUTF16: L := SizeOf(UnicodeChar);
+        csUTF32: L := SizeOf(UCS4Char);
+      else
+        // UTF8
+        L := UNICONV_UTF8CHAR_SIZE[D1^];
+      end;
+
+      // calculate mask
+      OrMask := (PCardinal(D1)^ xor PCardinal(D2)^) and AND_VALUES[L];
+      if (OrMask and (OrMask - 1) = 0) then
+      begin
+        PCardinal(DOr)^ := OrMask;
+      end;
+
+      // next
+      Inc(D1, L);
+      Inc(D2, L);
+      Inc(DOr, L);
+    end;
+  end;
 end;
 
 function AddIdentifierItem(var List: TIdentifierList): PIdentifier;
@@ -288,6 +372,9 @@ var
   Code: TUnicodeStrings;
   Converter: TTemporaryString;
   DifficultUTF8CharIndexes: array of NativeUInt;
+  DifficultUTF8CharBooleans: array of Boolean;
+  Buffer: UnicodeString;
+  Item: PIdentifier;
 begin
   // duplicates
   if (List <> nil) then
@@ -329,7 +416,7 @@ begin
   if (Code = nil) and (FunctionValue <> '') then
   begin
     SetLength(Code, 1);
-    Code[1] := 'Result := ' + FunctionValue + ';';
+    Code[1] := 'Result := ' + FunctionValue + '; Exit;';
   end;
 
   DifficultUTF8CharIndexes := nil;
@@ -355,14 +442,47 @@ begin
   end;
 
   // list items
-  if (DifficultUTF8CharIndexes = nil) then
+  Item := AddIdentifierItem(List);
+  Item.FillData(Converter, Info.Value, Info.Comment, Code, IgnoreCase);
+  Item.Info.Marker := Info.Marker;
+  Item.Info.MarkerReference := Info.MarkerReference;
+
+  if (DifficultUTF8CharIndexes <> nil) then
   begin
-    // todo
-  end else
-  begin
-    // todo
+    Count := Length(DifficultUTF8CharIndexes);
+    SetLength(DifficultUTF8CharBooleans, Count);
+    for i := 0 to Count - 1 do
+      DifficultUTF8CharBooleans[i] := False;
+
+    repeat
+      // increment boolean bits state
+      Found := False;
+      for i := 0 to Count - 1 do
+      if (not DifficultUTF8CharBooleans[i]) then
+      begin
+        DifficultUTF8CharBooleans[i] := True;
+        Found := True;
+        Break;
+      end else
+      begin
+        DifficultUTF8CharBooleans[i] := False;
+      end;
+      if (not Found) then Break;
+
+      // make identifier
+      Buffer := Info.Value;
+      UniqueString(Buffer);
+      for i := 0 to Count - 1 do
+      if DifficultUTF8CharBooleans[i] then
+        Buffer[i] := ALTERNATIVE_CHARS[Buffer[i]];
+
+      // add identifier
+      Item := AddIdentifierItem(List);
+      Item.FillData(Converter, Buffer, Info.Comment, Code, IgnoreCase);
+    until (False);
   end;
 end;
+
 
 
 

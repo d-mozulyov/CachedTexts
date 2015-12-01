@@ -26,47 +26,47 @@ interface
        IdentifiersUnit;
 
 type
-  TParameterOptions = record
+  TOptionParams = record
     Name: UnicodeString;
     Count: NativeUInt;
     O1, O2, O3: UnicodeString;
   end;
 
-{ TSerializeParameters record }
+{ TSerializeOptions record }
 
-  TSerializeParameters = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
+  TSerializeOptions = {$ifdef OPERATORSUPPORT}record{$else}object{$endif}
   private
     FCount: NativeUInt;
     FItems: TUnicodeStrings;
     FOutFileName: UnicodeString;
     FEnumTypeName: UnicodeString;
-    FFuncParameter: UnicodeString;
+    FFuncOption: UnicodeString;
     FIgnoreCase: Boolean;
     FFuncName: UnicodeString;
-    FLengthParameter: UnicodeString;
+    FLengthOption: UnicodeString;
     FUseFuncHeaders: Boolean;
     FEncoding: Word;
     FPrefix: UnicodeString;
-    FCharsParameter: UnicodeString;
+    FCharsOption: UnicodeString;
 
-    procedure FillCharactersOptions(const AFuncParameter, ACharsParameter, ALengthParameter: UnicodeString);
-    procedure FillFuncOptions(const AFuncName, AEnumTypeName, APrefix: UnicodeString);
-    function ParseOptions(var Options: TParameterOptions; const S: UnicodeString): Boolean;
-    procedure ParseParametersLine(const S: UTF16String);
+    procedure FillCharactersParams(const AFuncOption, ACharsOption, ALengthOption: UnicodeString);
+    procedure FillFuncParams(const AFuncName, AEnumTypeName, APrefix: UnicodeString);
+    function ParseParams(var Params: TOptionParams; const S: UnicodeString): Boolean;
+    procedure ParseOptionsLine(const S: UTF16String);
     procedure SetEncoding(const Value: Word);
   public
     function CachedStringType: UnicodeString;
-    function ParseParameter(const S: UnicodeString): Boolean;
+    function ParseOption(const S: UnicodeString): Boolean;
     function Add(const S: UnicodeString): NativeUInt;
     procedure Delete(const AFrom: NativeUInt; const ACount: NativeUInt = 1);
-    procedure AddFromFile(const FileName: string; const ParametersLine: Boolean);
+    procedure AddFromFile(const FileName: string; const OptionsLine: Boolean);
     property Count: NativeUInt read FCount;
     property Items: TUnicodeStrings read FItems;
 
     property Encoding: Word read FEncoding write SetEncoding;
-    property FuncParameter: UnicodeString read FFuncParameter write FFuncParameter;
-    property CharsParameter: UnicodeString read FCharsParameter write FCharsParameter;
-    property LengthParameter: UnicodeString read FLengthParameter write FLengthParameter;
+    property FuncOption: UnicodeString read FFuncOption write FFuncOption;
+    property CharsOption: UnicodeString read FCharsOption write FCharsOption;
+    property LengthOption: UnicodeString read FLengthOption write FLengthOption;
     property FuncName: UnicodeString read FFuncName write FFuncName;
     property EnumTypeName: UnicodeString read FEnumTypeName write FEnumTypeName;
     property Prefix: UnicodeString read FPrefix write FPrefix;
@@ -83,7 +83,7 @@ type
     FLevel: NativeUInt;
     FLines: PUnicodeStrings;
     FLinesCount: NativeUInt;
-    FParameters: ^TSerializeParameters;
+    FOptions: ^TSerializeOptions;
     FStringKind: TCachedStringKind;
     FIsFunction: Boolean;
     FIsConsts: Boolean;
@@ -94,10 +94,10 @@ type
     procedure AddLine; overload;
     procedure AddLine(const S: UnicodeString); overload;
     procedure AddLineFmt(const FmtStr: UnicodeString; const Args: array of const);
-    procedure InspecParameters;
+    procedure InspecOptions;
     function FunctionValue(const Identifier: UnicodeString): UnicodeString;
   public
-    function Process(const Parameters: TSerializeParameters): TUnicodeStrings;
+    function Process(const Options: TSerializeOptions): TUnicodeStrings;
   end;
 
 
@@ -108,9 +108,9 @@ begin
   Result := {$ifdef UNICODE}Format{$else}WideFormat{$endif}(FmtStr, Args);
 end;
 
-{ TSerializeParameters }
+{ TSerializeOptions }
 
-function TSerializeParameters.Add(const S: UnicodeString): NativeUInt;
+function TSerializeOptions.Add(const S: UnicodeString): NativeUInt;
 begin
   Result := FCount;
   Inc(FCount);
@@ -118,7 +118,7 @@ begin
   FItems[Result] := S;
 end;
 
-procedure TSerializeParameters.Delete(const AFrom, ACount: NativeUInt);
+procedure TSerializeOptions.Delete(const AFrom, ACount: NativeUInt);
 var
   L, i: NativeUInt;
 begin
@@ -143,7 +143,7 @@ begin
   end;
 end;
 
-procedure TSerializeParameters.SetEncoding(const Value: Word);
+procedure TSerializeOptions.SetEncoding(const Value: Word);
 begin
   if (Value <> CODEPAGE_UTF8) and (Value <> CODEPAGE_UTF16) and
     (Value <> CODEPAGE_UTF32) then
@@ -155,7 +155,7 @@ begin
   FEncoding := Value;
 end;
 
-function TSerializeParameters.CachedStringType: UnicodeString;
+function TSerializeOptions.CachedStringType: UnicodeString;
 begin
   case FEncoding of
     CODEPAGE_UTF16: Result := 'UTF16String';
@@ -165,15 +165,15 @@ begin
   end;
 end;
 
-procedure TSerializeParameters.FillCharactersOptions(const AFuncParameter,
-  ACharsParameter, ALengthParameter: UnicodeString);
+procedure TSerializeOptions.FillCharactersParams(const AFuncOption,
+  ACharsOption, ALengthOption: UnicodeString);
 begin
-  FuncParameter := AFuncParameter;
-  CharsParameter := ACharsParameter;
-  LengthParameter := ALengthParameter;
+  FuncOption := AFuncOption;
+  CharsOption := ACharsOption;
+  LengthOption := ALengthOption;
 end;
 
-procedure TSerializeParameters.FillFuncOptions(const AFuncName, AEnumTypeName,
+procedure TSerializeOptions.FillFuncParams(const AFuncName, AEnumTypeName,
   APrefix: UnicodeString);
 begin
   FuncName := AFuncName;
@@ -181,13 +181,13 @@ begin
   Prefix := APrefix;
 end;
 
-function TSerializeParameters.ParseOptions(var Options: TParameterOptions;
+function TSerializeOptions.ParseParams(var Params: TOptionParams;
   const S: UnicodeString): Boolean;
 var
   P: NativeInt;
   Str: UTF16String;
 
-  function ParseOption(var O: UnicodeString): Boolean;
+  function ParseParam(var O: UnicodeString): Boolean;
   begin
     Result := True;
 
@@ -198,7 +198,7 @@ var
       Exit;
     end;
 
-    Inc(Options.Count);
+    Inc(Params.Count);
     if (P < 0) then
     begin
       O := Str.ToUnicodeString;
@@ -211,33 +211,33 @@ var
   end;
 begin
   Result := False;
-  Options.Count := 0;
+  Params.Count := 0;
   Str.Assign(S);
 
   P := Str.CharPos('"');
   if (P < 0) then
   begin
-    Options.Name := Str.ToUnicodeString;
+    Params.Name := Str.ToUnicodeString;
     Result := True;
     Exit;
   end else
   begin
     if (P = 0) then Exit;
-    Options.Name := Str.SubString(0, P).ToUnicodeString;
+    Params.Name := Str.SubString(0, P).ToUnicodeString;
 
     Str.Offset(P);
     P := Str.CharPos('"');
     if (P < 0) or (NativeUInt(P) <> Str.Length - 1) then Exit;
     Str.Length := Str.Length - 1;
 
-    if (not ParseOption(Options.O1)) then Exit;
+    if (not ParseParam(Params.O1)) then Exit;
     if (Str.Length <> 0) then
     begin
-      if (not ParseOption(Options.O2)) then Exit;
+      if (not ParseParam(Params.O2)) then Exit;
 
       if (Str.Length <> 0) then
       begin
-        if (not ParseOption(Options.O3)) then Exit;
+        if (not ParseParam(Params.O3)) then Exit;
         if (Str.Length <> 0) then Exit;
       end;
     end;
@@ -246,16 +246,16 @@ begin
   end;
 end;
 
-function TSerializeParameters.ParseParameter(const S: UnicodeString): Boolean;
+function TSerializeOptions.ParseOption(const S: UnicodeString): Boolean;
 label
-  func_options;
+  func_params;
 var
-  Options: TParameterOptions;
+  Params: TOptionParams;
   A: AnsiString;
   Enc: Integer;
 begin
   Result := False;
-  if (not ParseOptions(Options, S)) then Exit;
+  if (not ParseParams(Params, S)) then Exit;
 
   with TMemoryItems(Pointer(S)^) do
   case Length(S) of
@@ -264,15 +264,15 @@ begin
         begin
           // "-f"
           UseFuncHeaders := True;
-          goto func_options;
+          goto func_params;
         end;
         $0069002D: IgnoreCase := True; // "-i"
         $006F002D:
         begin
           // "-o"
-          case Options.Count of
-            1: OutFileName := Options.O1;
-            2: OutFileName := Options.O1 + Options.O2;
+          case Params.Count of
+            1: OutFileName := Params.O1;
+            2: OutFileName := Params.O1 + Params.O2;
           else
             Exit;
           end;
@@ -280,9 +280,9 @@ begin
         $0070002D:
         begin
           // "-p"
-          case Options.Count of
-            1: FillCharactersOptions('const ' + Options.O1 + ': ' + CachedStringType, Options.O1 + '.Chars', Options.O1 + '.Length');
-            2: FillCharactersOptions('const Unknown', Options.O1, Options.O2);
+          case Params.Count of
+            1: FillCharactersParams('const ' + Params.O1 + ': ' + CachedStringType, Params.O1 + '.Chars', Params.O1 + '.Length');
+            2: FillCharactersParams('const Unknown', Params.O1, Params.O2);
           else
             Exit;
           end;
@@ -292,10 +292,10 @@ begin
       begin
         // "-fn"
         UseFuncHeaders := False;
-        func_options:
-        case Options.Count of
-          2: FillFuncOptions(Options.O1, '', Options.O2);
-          3: FillFuncOptions(Options.O1, Options.O2, Options.O3);
+        func_params:
+        case Params.Count of
+          2: FillFuncParams(Params.O1, '', Params.O2);
+          3: FillFuncParams(Params.O1, Params.O2, Params.O3);
         else
           Exit;
         end;
@@ -366,7 +366,7 @@ begin
   Result := True;
 end;
 
-procedure TSerializeParameters.ParseParametersLine(const S: UTF16String);
+procedure TSerializeOptions.ParseOptionsLine(const S: UTF16String);
 var
   Str: UTF16String;
   Buf: UnicodeString;
@@ -382,23 +382,23 @@ begin
     end;
 
     Buf := Str.SubString(L).ToUnicodeString;
-    if (not ParseParameter(Buf)) then
+    if (not ParseOption(Buf)) then
       raise Exception.CreateFmt('Unknown file parameter "%s"', [Buf]);
 
     Str.Offset(L);
   end;
 end;
 
-procedure TSerializeParameters.AddFromFile(const FileName: string;
-  const ParametersLine: Boolean);
+procedure TSerializeOptions.AddFromFile(const FileName: string;
+  const OptionsLine: Boolean);
 var
   Text: TUTF16TextReader;
   S: UTF16String;
 begin
   Text := TUTF16TextReader.CreateFromFile(FileName);
   try
-    if (ParametersLine) and (Text.Readln(S)) then
-      ParseParametersLine(S);
+    if (OptionsLine) and (Text.Readln(S)) then
+      ParseOptionsLine(S);
 
     while (Text.Readln(S)) do
       Add(S.ToUnicodeString);
@@ -453,23 +453,23 @@ begin
   AddLine(UnicodeFormat(FmtStr, Args));
 end;
 
-procedure TSerializer.InspecParameters;
+procedure TSerializer.InspecOptions;
 begin
   FStringKind := csByte;
-  case FParameters.Encoding of
+  case FOptions.Encoding of
     CODEPAGE_UTF16: FStringKind := csUTF16;
     CODEPAGE_UTF32: FStringKind := csUTF32;
   end;
-  FIsFunction := (FParameters.FuncName <> '');
-  FIsConsts := (FIsFunction) and (FParameters.EnumTypeName = '');
+  FIsFunction := (FOptions.FuncName <> '');
+  FIsConsts := (FIsFunction) and (FOptions.EnumTypeName = '');
 
-  if (FParameters.FCharsParameter = '') then
-    raise Exception.Create('CharsParameter not defined');
+  if (FOptions.FCharsOption = '') then
+    raise Exception.Create('CharsOption not defined');
 
-  if (FParameters.FLengthParameter = '') then
-    raise Exception.Create('LengthParameter not defined');
+  if (FOptions.FLengthOption = '') then
+    raise Exception.Create('LengthOption not defined');
 
-  if (FParameters.Count = 0) then
+  if (FOptions.Count = 0) then
     raise Exception.Create('Identifier list not defined');
 end;
 
@@ -574,11 +574,11 @@ begin
   // include prefix, char case
   if (FIsConsts) then
   begin
-    Result := utf16_from_utf16_upper(FParameters.Prefix + Result);
+    Result := utf16_from_utf16_upper(FOptions.Prefix + Result);
   end else
   begin
     Result[1] := UNICONV_CHARCASE.UPPER[Result[1]];
-    Result := FParameters.Prefix + Result;
+    Result := FOptions.Prefix + Result;
   end;
 
   // duplicates, enumerate
@@ -610,7 +610,7 @@ begin
 end;
 
 function TSerializer.Process(
-  const Parameters: TSerializeParameters): TUnicodeStrings;
+  const Options: TSerializeOptions): TUnicodeStrings;
 var
   i: NativeUInt;
   Info: TIdentifierInfo;
@@ -623,8 +623,8 @@ begin
   Result := nil;
   FLines := @Result;
   FLinesCount := 0;
-  FParameters := @Parameters;
-  InspecParameters;
+  FOptions := @Options;
+  InspecOptions;
 
   // function values
   FFunctionValues := nil;
@@ -634,15 +634,15 @@ begin
   end;
 
   // parse each identifier line
-  for i := 0 to Parameters.Count - 1 do
+  for i := 0 to Options.Count - 1 do
   begin
-    if (not Info.Parse(Parameters.Items[i])) then Continue;
+    if (not Info.Parse(Options.Items[i])) then Continue;
 
     Buf := '';
     if (not Info.MarkerReference) and (FIsConsts) then
       Buf := FunctionValue(Info.Value);
 
-    AddIdentifier(List, Info, Parameters.Encoding, Parameters.IgnoreCase, Buf);
+    AddIdentifier(List, Info, Options.Encoding, Options.IgnoreCase, Buf);
   end;
 
   // process groups
@@ -650,7 +650,7 @@ begin
 
   // type header
   FLevel := 0;
-  if (FIsFunction) and (Parameters.UseFuncHeaders) then
+  if (FIsFunction) and (Options.UseFuncHeaders) then
   begin
     if (FIsConsts) then
     begin
@@ -667,7 +667,7 @@ begin
         Self.AddLineFmt('%s = %d;', [FFunctionValues[i], i]);
     end else
     begin
-      Buf := Parameters.EnumTypeName + ' = (';
+      Buf := Options.EnumTypeName + ' = (';
       for i := 0 to Length(FFunctionValues) - 1 do
       begin
         if (Length(Buf) >= 75) then
@@ -688,19 +688,19 @@ begin
   end;
 
   // function Header
-  if (FIsFunction) and (Parameters.UseFuncHeaders) then
+  if (FIsFunction) and (Options.UseFuncHeaders) then
   begin
-    Buf := Parameters.EnumTypeName;
+    Buf := Options.EnumTypeName;
     if (FIsConsts) then Buf := 'Cardinal';
 
-    Self.AddLine('function ' + Parameters.FuncName + '(' + Parameters.FuncParameter + '): ' + Buf + ';');
+    Self.AddLine('function ' + Options.FuncName + '(' + Options.FuncOption + '): ' + Buf + ';');
     Self.AddLine('begin');
   end;
 
   // case start
   IncLevel;
-  Self.AddLineFmt('with PMemoryItems(%s)^ do', [Parameters.CharsParameter]);
-  Self.AddLineFmt('case %s of', [Parameters.LengthParameter]);
+  Self.AddLineFmt('with PMemoryItems(%s)^ do', [Options.CharsOption]);
+  Self.AddLineFmt('case %s of', [Options.LengthOption]);
 
   // each group
   // todo
@@ -712,7 +712,7 @@ begin
     Self.AddLine;
     Self.AddLineFmt('Result := %s;', [FFunctionValues[0]]);
 
-    if (Parameters.UseFuncHeaders) then
+    if (Options.UseFuncHeaders) then
     begin
       DecLevel;
       Self.AddLine('end;');
@@ -720,11 +720,11 @@ begin
   end;
 
   // save lines to file
-  if (Parameters.OutFileName <> '') then
+  if (Options.OutFileName <> '') then
   begin
     DefaultByteEncoding := 0;
-    if (FStringKind = csByte) then DefaultByteEncoding := Parameters.Encoding;
-    Text := TUTF16TextWriter.CreateFromFile(Parameters.OutFileName, bomUTF8, DefaultByteEncoding);
+    if (FStringKind = csByte) then DefaultByteEncoding := Options.Encoding;
+    Text := TUTF16TextWriter.CreateFromFile(Options.OutFileName, bomUTF8, DefaultByteEncoding);
     try
       for i := 1 to FLinesCount do
       begin

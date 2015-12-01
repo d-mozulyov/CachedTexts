@@ -52,9 +52,9 @@ end;
 
 var
   FlagWait, FlagCopy: Boolean;
-  ParamIndex, i: Integer;
+  Index, i: Integer;
   FileName, S: string;
-  Parameters: TSerializeParameters;
+  Options: TSerializeOptions;
   Serializer: TSerializer;
   List: TUnicodeStrings;
   Text: UnicodeString;
@@ -62,9 +62,9 @@ begin
   // check flags: -nowait, -nocopy
   FlagWait := True;
   FlagCopy := True;
-  ParamIndex := 1;
+  Index := 1;
   repeat
-    S := ParamStr(ParamIndex);
+    S := ParamStr(Index);
     if (S = '') then Break;
 
     if (S = '-nowait') then FlagWait := False;
@@ -74,17 +74,22 @@ begin
   // load file
   FileName := ParamStr(1);
   try
-    if (FileExists(FileName)) then
+    if (not FileExists(FileName)) then
     begin
-      Parameters.AddFromFile(FileName, True);
+      Writeln('Identifiers file not found!');
+      Writeln('See the detailed description of the utility here:');
+      Writeln('  https://github.com/d-mozulyov/CachedTexts#cachedserializer');
+    end else
+    begin
+      Options.AddFromFile(FileName, True);
 
-      // update parameters
-      ParamIndex := 2;
+      // update options
+      Index := 2;
       repeat
-        S := ParamStr(ParamIndex);
+        S := ParamStr(Index);
         if (S = '') then Break;
 
-        if (not Parameters.ParseParameter(S)) then
+        if (not Options.ParseOption(S)) then
         begin
           if (S <> '-nowait') and (S <> '-nocopy') then
             Writeln('Unknown parameter "', S, '"');
@@ -94,7 +99,7 @@ begin
       // serialize
       Serializer := TSerializer.Create;
       try
-        List := Serializer.Process(Parameters);
+        List := Serializer.Process(Options);
 
         // collect list, display to the console
         for i := 0 to Length(List) - 1 do
@@ -115,10 +120,6 @@ begin
       finally
         Serializer.Free;
       end;
-    end else
-    begin
-      // some message todo
-
     end;
   except
     on EAbort do ;

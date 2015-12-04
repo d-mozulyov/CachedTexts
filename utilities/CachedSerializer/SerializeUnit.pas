@@ -78,6 +78,26 @@ type
 
 { TSerializer class }
 
+  TGroupVariants = record
+    Count: NativeUInt;
+    Values: array[0..3] of Cardinal;
+  end;
+
+  PGroup = ^TGroup;
+  TGroup = record
+    Offset: NativeUInt;
+    Items: PIdentifierItems;
+    Count: NativeUInt;
+
+    CaseBytes: NativeUInt;
+    OrMask: NativeUInt;
+    Variants: TGroupVariants;
+
+    Child: PGroup;
+    ChildCount: integer;
+    Sibling: NativeUInt;
+  end;
+
   TSerializer = class(TObject)
   private
     FLevel: NativeUInt;
@@ -96,12 +116,26 @@ type
     procedure AddLineFmt(const FmtStr: UnicodeString; const Args: array of const);
     procedure InspecOptions;
     function FunctionValue(const Identifier: UnicodeString): UnicodeString;
+  private
+    FAllocatedGroups: Pointer;
+    FVariantsBuffer: array of TGroupVariants;
+
+    function AllocateGroup: PGroup;
+    procedure ReleaseAllocatedGroups;
+    function CalculateGroupVariants(var Group: TGroup; const BytesCount: NativeUInt; const OrMask: Cardinal): NativeUInt;
+
+    procedure WriteIdentifierBlock(const List: TIdentifierList; const From, Count: NativeUInt);
   public
     function Process(const Options: TSerializeOptions): TUnicodeStrings;
   end;
 
 
 implementation
+const
+  SPACES_IN_STEP = 1;
+  BASE_OFFSET = 3;
+  AND_VALUES: array[1..4] of Cardinal = ($ff, $ffff, $ffffff, $ffffffff);
+
 
 function UnicodeFormat(const FmtStr: UnicodeString; const Args: array of const): UnicodeString;
 begin
@@ -609,10 +643,9 @@ begin
   FFunctionValues[i] := Result;
 end;
 
-function TSerializer.Process(
-  const Options: TSerializeOptions): TUnicodeStrings;
+function TSerializer.Process(const Options: TSerializeOptions): TUnicodeStrings;
 var
-  i: NativeUInt;
+  i, L, Count: NativeUInt;
   Info: TIdentifierInfo;
   List: TIdentifierList;
   Buf: UnicodeString;
@@ -644,9 +677,6 @@ begin
 
     AddIdentifier(List, Info, Options.Encoding, Options.IgnoreCase, Buf);
   end;
-
-  // process groups
-  // todo
 
   // type header
   FLevel := 0;
@@ -702,8 +732,28 @@ begin
   Self.AddLineFmt('with PMemoryItems(%s)^ do', [Options.CharsOption]);
   Self.AddLineFmt('case %s of', [Options.LengthOption]);
 
-  // each group
-  // todo
+  // sort identifiers
+  if (not Options.IgnoreCase) then
+  begin
+    SortIdentifiers(List, CmpIdentifiers);
+  end else
+  begin
+    SortIdentifiers(List, CmpIdentifiersIgnoreCase);
+  end;
+
+  // process and write groups
+  i := 0;
+  L := Length(List);
+  while (i < L) do
+  begin
+    Count := 1;
+    while (i + Count < L) and (List[i].DataLength = List[i + Count].DataLength) do
+      Inc(Count);
+
+    WriteIdentifierBlock(List, i, Count);
+
+    Inc(i, Count);
+  end;
 
   // case finish
   Self.AddLine('end;');
@@ -734,6 +784,171 @@ begin
     finally
       Text.Free;
     end;
+  end;
+end;
+
+type
+  PAllocatedGroup = ^TAllocatedGroup;
+  TAllocatedGroup = record
+    Item: TGroup;
+    Next: PAllocatedGroup;
+  end;
+
+function TSerializer.AllocateGroup: PGroup;
+var
+  AllocatedGroup: PAllocatedGroup;
+begin
+  GetMem(AllocatedGroup, SizeOf(TAllocatedGroup));
+  FillChar(AllocatedGroup^, SizeOf(TAllocatedGroup), #0);
+
+  AllocatedGroup.Next := FAllocatedGroups;
+  FAllocatedGroups := AllocatedGroup;
+
+  Result := @AllocatedGroup.Item;
+end;
+
+procedure TSerializer.ReleaseAllocatedGroups;
+var
+  AllocatedGroup, Next: PAllocatedGroup;
+begin
+  AllocatedGroup := FAllocatedGroups;
+  FAllocatedGroups := nil;
+
+  while (AllocatedGroup <> nil) do
+  begin
+    Next := AllocatedGroup.Next;
+    FreeMem(AllocatedGroup);
+
+    AllocatedGroup := Next;
+  end;
+end;
+
+function TSerializer.CalculateGroupVariants(var Group: TGroup;
+  const BytesCount: NativeUInt; const OrMask: Cardinal): NativeUInt;
+label
+  fail;
+type
+  T4Bytes = array[0..3] of Byte;
+  P4Bytes = ^T4Bytes;
+var
+  i, j, n: integer;
+  v1, v2: Cardinal;
+  AndConst: Cardinal;
+
+  VariantsCount: integer;
+  Variants: array[0..3] of Cardinal;
+  GroupsCount: NativeUInt;
+  Groups: array[0..3] of integer;
+
+  function FindGroup(const Value: Cardinal): NativeInt;
+  var
+    k: NativeUInt;
+  begin
+    for Result := 0 to NativeInt(GroupsCount) - 1 do
+    with FVariantsBuffer[Result] do
+    for k := 0 to Count - 1 do
+    if (Values[k] = Value) then Exit;
+
+    Result := -1;
+  end;
+
+
+begin
+  GroupsCount := 0;
+  AndConst := AND_VALUES[BytesCount];
+  if (Group.Items[0].DataLength < Group.Offset + BytesCount) then goto fail;
+
+  for i := 0 to Group.Count - 1 do
+  with Group.Items[i] do
+  begin
+    v1 := (PCardinal(@Data1[Group.Offset])^ or OrMask) and AndConst;
+    v2 := (PCardinal(@Data2[Group.Offset])^ or OrMask) and AndConst;
+    VariantsCount := 1;
+    Variants[0] := v1;
+
+    // alternatives (max = 4)
+    if (v1 <> v2) then
+    for j := 0 to 3 do
+    if (T4Bytes(v1)[j] <> T4Bytes(v2)[j]) then
+    begin
+      if (VariantsCount = 1) then
+      begin
+        VariantsCount := 2;
+        Variants[1] := Variants[0];
+        T4Bytes(Variants[1])[j] := T4Bytes(v2)[j];
+      end else
+      if (VariantsCount = 2) then
+      begin
+        VariantsCount := 4;
+        Variants[2] := Variants[0];
+        Variants[3] := Variants[1];
+        T4Bytes(Variants[2])[j] := T4Bytes(v2)[j];
+        T4Bytes(Variants[3])[j] := T4Bytes(v2)[j];
+      end else
+      goto fail;
+    end;
+
+    // найти группу для каждого варианта
+    // протестировать равенство!
+    for j := 0 to VariantsCount-1 do
+    begin
+      n := find_group(variants[j]);
+      Groups[j] := n;
+
+      if (n >= 0) and (n <> GroupsCount - 1) then goto fail;
+      if (j <> 0) and (Groups[j-1] <> n) then goto fail;
+    end;
+
+    group_num := groups[0];
+    if (group_num < 0) then
+    begin
+      // добавить группу
+      group_num := groups_count;
+      inc(groups_count);
+      //SetLength(variants_array, groups_count);
+
+      variants_array[group_num].count := variants_count;
+      CopyMemory(@variants_array[group_num].values, @variants, sizeof(variants));
+    end;
+  end;
+
+
+// done
+  Result := GroupsCount;
+  Exit;
+fail:
+  Result := 0;
+end;
+
+procedure TSerializer.WriteIdentifierBlock(const List: TIdentifierList; const From,
+  Count: NativeUInt);
+const
+  SHIFTS: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
+var
+  Buf: UnicodeString;
+  BaseGroup: PGroup;
+begin
+  // reserve variants buffer
+  if (Count > Length(FVariantsBuffer)) then SetLength(FVariantsBuffer, Count + 10);
+
+  // case (length) constant
+  Buf := UnicodeFormat('%*d: ', [(BASE_OFFSET * 2) - 2,
+    List[From].DataLength shr SHIFTS[FStringKind] ]);
+
+  // recursive procession and writing of groups
+  BaseGroup := AllocateGroup;
+  try
+    BaseGroup.Count := Count;
+    BaseGroup.Items := Pointer(@List[From]);
+
+
+  //  ProcessGroup(BaseGroup^, Params);
+
+//    WriteGroupChilds(Writer, BaseGroup^, BASE_OFFSET, Params);
+
+
+  finally
+    ReleaseAllocatedGroups;
   end;
 end;
 

@@ -1,3 +1,5 @@
+http://conferences.idealliance.org/extreme/html/2004/Gorman01/EML2004Gorman01.html
+
 const
   STRING_ID_NONE = 0;
 

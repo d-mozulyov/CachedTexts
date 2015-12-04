@@ -54,6 +54,8 @@ type
       const Value, Comment: UnicodeString; const Code: TUnicodeStrings;
       const IgnoreCase: Boolean);
   public
+    GroupId: NativeUInt;
+  public
     Info: TIdentifierInfo;
 
     DataLength: NativeUInt;

@@ -78,7 +78,7 @@ type
 
 { TSerializer class }
 
-  TGroupVariants = record
+  TGroupCases = record
     Count: NativeUInt;
     Values: array[0..3] of Cardinal;
   end;
@@ -91,7 +91,7 @@ type
 
     CaseBytes: NativeUInt;
     OrMask: NativeUInt;
-    Variants: TGroupVariants;
+    Cases: TGroupCases;
 
     Child: PGroup;
     ChildCount: integer;
@@ -118,11 +118,11 @@ type
     function FunctionValue(const Identifier: UnicodeString): UnicodeString;
   private
     FAllocatedGroups: Pointer;
-    FVariantsBuffer: array of TGroupVariants;
+    FCasesBuffer: array of TGroupCases;
 
     function AllocateGroup: PGroup;
     procedure ReleaseAllocatedGroups;
-    function CalculateGroupVariants(var Group: TGroup; const BytesCount: NativeUInt; const OrMask: Cardinal): NativeUInt;
+    function CalculateGroupCases(var Group: TGroup; const BytesCount: NativeUInt; const OrMask: Cardinal): NativeUInt;
 
     procedure WriteIdentifierBlock(const List: TIdentifierList; const From, Count: NativeUInt);
   public
@@ -823,7 +823,7 @@ begin
   end;
 end;
 
-function TSerializer.CalculateGroupVariants(var Group: TGroup;
+function TSerializer.CalculateGroupCases(var Group: TGroup;
   const BytesCount: NativeUInt; const OrMask: Cardinal): NativeUInt;
 label
   fail;
@@ -831,90 +831,95 @@ type
   T4Bytes = array[0..3] of Byte;
   P4Bytes = ^T4Bytes;
 var
-  i, j, n: integer;
-  v1, v2: Cardinal;
+  i, j: NativeUInt;
+  Item: PIdentifier;
   AndConst: Cardinal;
 
-  VariantsCount: integer;
-  Variants: array[0..3] of Cardinal;
-  GroupsCount: NativeUInt;
-  Groups: array[0..3] of integer;
+  v1, v2: Cardinal;
+  LocalCases: array[0..3] of Cardinal;
+  LocalCaseCount: NativeUInt;
+  LocalCaseIndexes: array[0..3] of NativeInt;
 
-  function FindGroup(const Value: Cardinal): NativeInt;
+  ChildsCount: NativeUInt;
+  n: NativeInt;
+
+  function ChildIndex(const Value: Cardinal): NativeInt;
   var
     k: NativeUInt;
   begin
-    for Result := 0 to NativeInt(GroupsCount) - 1 do
-    with FVariantsBuffer[Result] do
-    for k := 0 to Count - 1 do
-    if (Values[k] = Value) then Exit;
+    for Result := 0 to ChildsCount - 1 do
+    with FCasesBuffer[Result] do
+    begin
+      for k := 0 to Count - 1 do
+      if (Values[k] = Value) then Exit;
+    end;
 
     Result := -1;
   end;
 
 
 begin
-  GroupsCount := 0;
+  ChildsCount := 0;
   AndConst := AND_VALUES[BytesCount];
   if (Group.Items[0].DataLength < Group.Offset + BytesCount) then goto fail;
 
   for i := 0 to Group.Count - 1 do
-  with Group.Items[i] do
   begin
-    v1 := (PCardinal(@Data1[Group.Offset])^ or OrMask) and AndConst;
-    v2 := (PCardinal(@Data2[Group.Offset])^ or OrMask) and AndConst;
-    VariantsCount := 1;
-    Variants[0] := v1;
+    Item := @Group.Items[i];
+    v1 := (PCardinal(@Item.Data1[Group.Offset])^ or OrMask) and AndConst;
+    v2 := (PCardinal(@Item.Data2[Group.Offset])^ or OrMask) and AndConst;
 
-    // alternatives (max = 4)
+    // case alternatives for Item/BytesCount (max = 4)
+    LocalCaseCount := 1;
+    LocalCases[0] := v1;
     if (v1 <> v2) then
     for j := 0 to 3 do
     if (T4Bytes(v1)[j] <> T4Bytes(v2)[j]) then
     begin
-      if (VariantsCount = 1) then
+      if (LocalCaseCount = 1) then
       begin
-        VariantsCount := 2;
-        Variants[1] := Variants[0];
-        T4Bytes(Variants[1])[j] := T4Bytes(v2)[j];
+        LocalCaseCount := 2;
+        LocalCases[1] := LocalCases[0];
+        T4Bytes(LocalCases[1])[j] := T4Bytes(v2)[j];
       end else
-      if (VariantsCount = 2) then
+      if (LocalCaseCount = 2) then
       begin
-        VariantsCount := 4;
-        Variants[2] := Variants[0];
-        Variants[3] := Variants[1];
-        T4Bytes(Variants[2])[j] := T4Bytes(v2)[j];
-        T4Bytes(Variants[3])[j] := T4Bytes(v2)[j];
+        LocalCaseCount := 4;
+        LocalCases[2] := LocalCases[0];
+        LocalCases[3] := LocalCases[1];
+        T4Bytes(LocalCases[2])[j] := T4Bytes(v2)[j];
+        T4Bytes(LocalCases[3])[j] := T4Bytes(v2)[j];
       end else
       goto fail;
     end;
 
-    // найти группу для каждого варианта
-    // протестировать равенство!
-    for j := 0 to VariantsCount-1 do
+    // find child group
+    for j := 0 to LocalCaseCount - 1 do
     begin
-      n := find_group(variants[j]);
-      Groups[j] := n;
+      n := ChildIndex(LocalCases[j]);
+      LocalCaseIndexes[j] := n;
 
-      if (n >= 0) and (n <> GroupsCount - 1) then goto fail;
-      if (j <> 0) and (Groups[j-1] <> n) then goto fail;
+      if (n >= 0) and (n <> NativeInt(ChildsCount) - 1) then goto fail;
+      if (j <> 0) and (LocalCaseIndexes[j - 1] <> n) then goto fail;
     end;
 
-    group_num := groups[0];
-    if (group_num < 0) then
+    // add if not found
+    n := LocalCaseIndexes[0];
+    if (n < 0) then
     begin
-      // добавить группу
-      group_num := groups_count;
-      inc(groups_count);
-      //SetLength(variants_array, groups_count);
+      n := ChildsCount;
+      Inc(ChildsCount);
 
-      variants_array[group_num].count := variants_count;
-      CopyMemory(@variants_array[group_num].values, @variants, sizeof(variants));
+      FCasesBuffer[n].Count := LocalCaseCount;
+      Move(LocalCases, FCasesBuffer[n].Values, SizeOf(LocalCases));
     end;
+
+    // child number
+    Item.GroupId := n;
   end;
 
-
 // done
-  Result := GroupsCount;
+  Result := ChildsCount;
   Exit;
 fail:
   Result := 0;
@@ -928,8 +933,9 @@ var
   Buf: UnicodeString;
   BaseGroup: PGroup;
 begin
-  // reserve variants buffer
-  if (Count > Length(FVariantsBuffer)) then SetLength(FVariantsBuffer, Count + 10);
+  // reserve cases buffer
+  if (Count > NativeUInt(Length(FCasesBuffer))) then
+    SetLength(FCasesBuffer, Count + 10);
 
   // case (length) constant
   Buf := UnicodeFormat('%*d: ', [(BASE_OFFSET * 2) - 2,

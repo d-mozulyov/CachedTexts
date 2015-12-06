@@ -44,6 +44,7 @@ type
     Code: TUnicodeStrings;
 
     function Parse(const S: UnicodeString): Boolean;
+    function IsAscii: Boolean;
   end;
 
   PIdentifier = ^TIdentifier;
@@ -57,6 +58,7 @@ type
     GroupId: NativeUInt;
   public
     Info: TIdentifierInfo;
+    InitIndex: NativeUInt;
 
     DataLength: NativeUInt;
     Data1: TBytes;
@@ -68,18 +70,27 @@ type
   TIdentifierItems = array[0..High(Integer) div SizeOf(TIdentifier) - 1] of TIdentifier;
   PIdentifierItems = ^TIdentifierItems;
 
-  TIdentifierComparator = function(const Id1, Id2: TIdentifier): NativeInt;
+  PIdentifierLengths = ^TIdentifierLengths;
+  TIdentifierLengths = record
+    Value: NativeUInt;
+    Count: NativeUInt;
+  end;
+  TIdentifierLengthList = array of TIdentifierLengths;
+  PIdentifierLengthList = ^TIdentifierLengthList;
+
+  // sorting
+  TIdentifierComparator = function(const Id1, Id2: TIdentifier; const Text: NativeInt): NativeInt;
+  procedure SortIdentifiers(const Items: PIdentifierItems; L, R: NativeInt; Comp: TIdentifierComparator; const IgnoreCase: Boolean); overload;
+  procedure SortIdentifiers(const Items: PIdentifierItems; const Count: NativeUInt; Comp: TIdentifierComparator; const IgnoreCase: Boolean); overload;
+  procedure SortIdentifiers(var List: TIdentifierList; L, R: NativeInt; Comp: TIdentifierComparator; const IgnoreCase: Boolean); overload;
+  procedure SortIdentifiers(var List: TIdentifierList; Comp: TIdentifierComparator; const IgnoreCase: Boolean); overload;
+
+  // lengths
+  function CalculateIdentifierLengths(var Buffer: TIdentifierLengthList; const Items: PIdentifierItems; const Count: NativeUInt; const StringKind: TCachedStringKind): NativeUInt;
 
   // fill data parameters
   procedure AddIdentifier(var List: TIdentifierList; const Info: TIdentifierInfo;
     const Encoding: Word; const IgnoreCase: Boolean; const FunctionValue: UnicodeString);
-
-  // sortings
-  function CmpIdentifiers(const Id1, Id2: TIdentifier): NativeInt;
-  function CmpIdentifiersIgnoreCase(const Id1, Id2: TIdentifier): NativeInt;
-  procedure SortIdentifiers(var List: TIdentifierList; L, R: NativeInt; Comp: TIdentifierComparator); overload;
-  procedure SortIdentifiers(var List: TIdentifierList; Comp: TIdentifierComparator); overload;
-
 implementation
 const
   AND_VALUES: array[1..4] of Cardinal = ($ff, $ffff, $ffffff, $ffffffff);
@@ -272,6 +283,19 @@ begin
   Result := True;
 end;
 
+function TIdentifierInfo.IsAscii: Boolean;
+var
+  i: NativeUInt;
+begin
+  Result := True;
+
+  for i := 1 to Length(Value) do
+  if (Value[i] > #127) then
+  begin
+    Result := False;
+    Exit;
+  end;
+end;
 
 { TIdentifier }
 
@@ -279,6 +303,9 @@ procedure TIdentifier.FillDataBytes(var Bytes: TBytes;
   var Converter: TTemporaryString; const Value: UnicodeString);
 const
   SHIFTS: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
+var
+  i: NativeUInt;
+  SBCSValues: PUniConvSBCSValues;
 begin
   Converter.Length := 0;
   Converter.Append(Value);
@@ -287,6 +314,15 @@ begin
   SetLength(Bytes, Self.DataLength + SizeOf(Cardinal){Gap});
   Move(Converter.Chars^, Pointer(Bytes)^, Self.DataLength);
   PCardinal(@Bytes[Self.DataLength])^ := 0{Gap};
+
+  if (Value <> '') and (Converter.SBCSIndex >= 0) then
+  begin
+    SBCSValues := UNICONV_SUPPORTED_SBCS[Converter.SBCSIndex].VALUES;
+
+    for i := 0 to Self.DataLength - 1 do
+    if (SBCSValues.UCS2[AnsiChar(Bytes[i])] <> Value[i + 1]) then
+      raise Exception.CreateFmt('Identifier "%s" can not be encoded in cp%d', [Value, Converter.Encoding]);
+  end;
 end;
 
 procedure TIdentifier.FillData(var Converter: TTemporaryString;
@@ -367,6 +403,7 @@ begin
   SetLength(List, Count + 1);
 
   Result := @List[Count];
+  Result.InitIndex := Count;
   Result^.DataLength := 0;
 end;
 
@@ -423,7 +460,7 @@ begin
   if (Code = nil) and (FunctionValue <> '') then
   begin
     SetLength(Code, 1);
-    Code[1] := 'Result := ' + FunctionValue + '; Exit;';
+    Code[1] := 'Result := ' + FunctionValue + ';';
   end;
 
   DifficultUTF8CharIndexes := nil;
@@ -491,7 +528,7 @@ begin
 end;
 
 
-function CmpIdentifiers(const Id1, Id2: TIdentifier): NativeInt;
+function CmpIdentifierText(const Id1, Id2: TIdentifier): NativeInt;
 begin
   Result := NativeInt(Id1.DataLength) - NativeInt(Id2.DataLength);
 
@@ -502,7 +539,7 @@ begin
   __uniconv_compare_bytes(Pointer(Id1.Data1), Pointer(Id2.Data1), Id1.DataLength);
 end;
 
-function CmpIdentifiersIgnoreCase(const Id1, Id2: TIdentifier): NativeInt;
+function CmpIdentifierTextIgnoreCase(const Id1, Id2: TIdentifier): NativeInt;
 begin
   Result := NativeInt(Id1.DataLength) - NativeInt(Id2.DataLength);
 
@@ -513,49 +550,87 @@ begin
   __uniconv_compare_bytes(Pointer(Id1.Data1), Pointer(Id2.Data1), Id1.DataLength);
 end;
 
-procedure SortIdentifiers(var List: TIdentifierList; L, R: NativeInt; Comp: TIdentifierComparator);
+procedure SortIdentifiers(const Items: PIdentifierItems; L, R: NativeInt; Comp: TIdentifierComparator; const IgnoreCase: Boolean);
+const
+  CMP_TEXT: array[Boolean] of Pointer = (@CmpIdentifierText, @CmpIdentifierTextIgnoreCase);
 type
   TBuffer = array[1..SizeOf(TIdentifier)] of Byte;
 var
   I, J: NativeInt;
   P, T: TBuffer;
+  CmpText: function(const Id1: TIdentifier; const Id2: TBuffer): NativeInt;
 begin
+  CmpText := CMP_TEXT[IgnoreCase];
   repeat
     I := L;
     J := R;
-    P := TBuffer(List[(L + R) shr 1]);
+    P := TBuffer(Items[(L + R) shr 1]);
     repeat
-      while Comp(List[I], TIdentifier(P)) < 0 do Inc(I);
-      while Comp(List[J], TIdentifier(P)) > 0 do Dec(J);
+      while Comp(Items[I], TIdentifier(P), CmpText(Items[I], P)) < 0 do Inc(I);
+      while Comp(Items[J], TIdentifier(P), CmpText(Items[J], P)) > 0 do Dec(J);
       if (I <= J) then
       begin
         if (I <> J) then
         begin
-          T := TBuffer(List[I]);
-          TBuffer(List[I]) := TBuffer(List[J]);
-          TBuffer(List[J]) := T;
+          T := TBuffer(Items[I]);
+          TBuffer(Items[I]) := TBuffer(Items[J]);
+          TBuffer(Items[J]) := T;
         end;
         Inc(I);
         Dec(J);
       end;
     until (I > J);
     if (L < J) then
-      SortIdentifiers(List, L, J, Comp);
+      SortIdentifiers(Items, L, J, Comp, IgnoreCase);
     L := I;
   until (I >= R);
 end;
 
-procedure SortIdentifiers(var List: TIdentifierList; Comp: TIdentifierComparator);
+procedure SortIdentifiers(const Items: PIdentifierItems; const Count: NativeUInt; Comp: TIdentifierComparator; const IgnoreCase: Boolean);
+begin
+  if (Count > 1) then
+  SortIdentifiers(Items, 0, Count - 1, Comp, IgnoreCase);
+end;
+
+procedure SortIdentifiers(var List: TIdentifierList; L, R: NativeInt; Comp: TIdentifierComparator; const IgnoreCase: Boolean);
+begin
+  SortIdentifiers(PIdentifierItems(List), L, R, Comp, IgnoreCase);
+end;
+
+procedure SortIdentifiers(var List: TIdentifierList; Comp: TIdentifierComparator; const IgnoreCase: Boolean);
 var
   Count: NativeInt;
 begin
   Count := Length(List);
+
   if (Count > 1) then
-    SortIdentifiers(List, 0, Count - 1, Comp);
+  SortIdentifiers(List, 0, Count - 1, Comp, IgnoreCase);
 end;
 
+// lengths
+function CalculateIdentifierLengths(var Buffer: TIdentifierLengthList;
+  const Items: PIdentifierItems; const Count: NativeUInt;
+  const StringKind: TCachedStringKind): NativeUInt;
+const
+  SHIFTS: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
+var
+  i, C: NativeUInt;
+begin
+  Result := 0;
 
+  i := 0;
+  while (i < Count) do
+  begin
+    C := 1;
+    while (i + C < Count) and (Items[i].DataLength = Items[i + C].DataLength) do Inc(C);
 
+    Buffer[Result].Value := Items[i].DataLength shr SHIFTS[StringKind];
+    Buffer[Result].Count := C;
+    Inc(Result);
+
+    Inc(i, C);
+  end;
+end;
 
 
 initialization

@@ -69,6 +69,7 @@ begin
 
     if (S = '-nowait') then FlagWait := False;
     if (S = '-nocopy') then FlagCopy := False;
+    Inc(Index);
   until (False);
 
   // load file
@@ -78,7 +79,7 @@ begin
     begin
       Writeln('Identifiers file not found!');
       Writeln('See the detailed description of the utility here:');
-      Writeln('  https://github.com/d-mozulyov/CachedTexts#cachedserializer');
+      Writeln('https://github.com/d-mozulyov/CachedTexts#cachedserializer');
     end else
     begin
       Options.AddFromFile(FileName, True);
@@ -94,6 +95,7 @@ begin
           if (S <> '-nowait') and (S <> '-nocopy') then
             Writeln('Unknown parameter "', S, '"');
         end;
+        Inc(Index);
       until (False);
 
       // serialize

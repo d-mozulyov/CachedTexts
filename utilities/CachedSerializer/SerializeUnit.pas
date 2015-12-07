@@ -121,7 +121,6 @@ type
     procedure TextBufferInclude(const Level: NativeUInt; const S: UnicodeString);
     procedure TextBufferIncludeFmt(const Level: NativeUInt; const FmtStr: UnicodeString; const Args: array of const);
     procedure TextBufferInit(const Level: NativeUInt; const S: UnicodeString);
-    procedure TextBufferInitLength(const Level: NativeUInt; const Value: NativeUInt);
     procedure TextBufferInitFmt(const Level: NativeUInt; const FmtStr: UnicodeString; const Args: array of const);
     procedure TextBufferIncludeIfThenLine(const Level: NativeUInt; const Item: PIdentifier; Offset, ByteCount: NativeUInt);
     procedure TextBufferIncludeComments(const Items: PIdentifierItems; const Count: NativeUInt);
@@ -339,7 +338,7 @@ begin
     if (P = 0) then Exit;
     Params.Name := Str.SubString(0, P).ToUnicodeString;
 
-    Str.Offset(P);
+    Str.Offset(P + 1);
     P := Str.CharPos('"');
     if (P < 0) or (NativeUInt(P) <> Str.Length - 1) then Exit;
     Str.Length := Str.Length - 1;
@@ -371,8 +370,8 @@ begin
   Result := False;
   if (not ParseParams(Params, S)) then Exit;
 
-  with TMemoryItems(Pointer(S)^) do
-  case Length(S) of
+  with PMemoryItems(Params.Name)^ do
+  case Length(Params.Name) of
    2: case (Cardinals[0] or $00200000) of
         $0066002D:
         begin
@@ -418,7 +417,7 @@ begin
     A := AnsiString(S);
     Enc := -1;
 
-    with TMemoryItems(Pointer(A)^) do
+    with PMemoryItems(A)^ do
     case Length(A) of
      4: case (Cardinals[0] and $ffffff) of
           $36382D: if (Bytes[3] = $36) then Enc := 866; // "-866"
@@ -427,7 +426,7 @@ begin
         end;
      5: case (Cardinals[0] and $ffffff) of
           $32312D: // "-1250","-1251","-1252","-1253","-1254","-1255","-1256","-1257","-1258"
-          case (Cardinals1[1]) of
+          case (Words1[1]) of
             $3035: Enc := 1250; // "-1250"
             $3135: Enc := 1251; // "-1251"
             $3235: Enc := 1252; // "-1252"
@@ -487,17 +486,17 @@ var
   L: NativeUInt;
 begin
   Str := S;
-  while (not Str.Trim) do
+  while (Str.Trim) do
   begin
     L := 0;
-    while (L < Str.Length) and (Str.Chars[L] <= ' ') do
+    while (L < Str.Length) and (Str.Chars[L] > #32) do
     begin
       Inc(L);
     end;
 
     Buf := Str.SubString(L).ToUnicodeString;
     if (not ParseOption(Buf)) then
-      raise Exception.CreateFmt('Unknown file parameter "%s"', [Buf]);
+      raise Exception.CreateFmt('Unknown file parameter: %s', [Buf]);
 
     Str.Offset(L);
   end;
@@ -535,14 +534,14 @@ begin
   FIsFunction := (FOptions.FuncName <> '');
   FIsConsts := (FIsFunction) and (FOptions.EnumTypeName = '');
 
+  if (FOptions.Count = 0) then
+    raise Exception.Create('Identifier list not defined');
+
   if (FOptions.FCharsParam = '') then
     raise Exception.Create('CharsParam not defined');
 
   if (FOptions.FLengthParam = '') then
     raise Exception.Create('LengthParam not defined');
-
-  if (FOptions.Count = 0) then
-    raise Exception.Create('Identifier list not defined');
 end;
 
 function TSerializer.FunctionValue(const Identifier: UnicodeString): UnicodeString;
@@ -725,7 +724,7 @@ begin
   L2 := Length(S);
   if (L2 = 0) then Exit;
 
-  if (L1 <> 0) and (L1 - (Level div 2) + L2 >= 90) then
+  if (L1 = 0) or (L1 - (Level div 2) + L2 >= 90) then
   begin
     TextBufferFlush;
     TextBufferInit(Level, S);
@@ -756,13 +755,6 @@ begin
   end;
 
   FTextBuffer := FTextBuffer + S;
-end;
-
-procedure TSerializer.TextBufferInitLength(const Level: NativeUInt;
-  const Value: NativeUInt);
-begin
-  TextBufferClear;
-  FTextBuffer := UnicodeFormat('%*d: ', [Level - 2, Value]);
 end;
 
 procedure TSerializer.TextBufferInitFmt(const Level: NativeUInt;
@@ -897,6 +889,8 @@ begin
       FTextBuffer[Length(FTextBuffer)] := ';';
       TextBufferFlush;
     end;
+
+    Self.AddLine;
   end;
 
   // function Header
@@ -1250,7 +1244,7 @@ var
   i, j, ChildCount: NativeUInt;
   Cases: PCases;
 begin
-  TextBufferIncludeFmt(Level, 'case (%s) of', [UseDataMasked(@Items[0], Offset, BestCases.ByteCount)]);
+  TextBufferIncludeFmt(Level, 'case (%s) of ', [UseDataMasked(@Items[0], Offset, BestCases.ByteCount)]);
   TextBufferIncludeComments(Items, Count);
   TextBufferFlush;
   begin
@@ -1272,8 +1266,10 @@ begin
 
       // childs
       WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount,
-        Offset + BestCases.ByteCount, Level + DEFAULT_STEP,
-        Level + (3 + 2 * BestCases.ByteCount) * Cases.Count, KnownLength);
+        Offset + BestCases.ByteCount,
+        Level + DEFAULT_STEP,
+        Level + DEFAULT_STEP + (3 + 2 * BestCases.ByteCount) * Cases.Count,
+        KnownLength);
       Inc(i, ChildCount);
     end;
   end;
@@ -1286,6 +1282,7 @@ procedure TSerializer.WriteLengthIdentifiers(const Items: PIdentifierItems;
   const Count, Offset, Level: NativeUInt);
 var
   i, ChildCount: NativeUInt;
+  Value: NativeUInt;
 begin
   // sort
   SortIdentifiers(Items, Count, Offset, DataSizeIdentifierComparator);
@@ -1303,11 +1300,13 @@ begin
       (Items[i].DataSize = Items[i + ChildCount].DataSize) do Inc(ChildCount);
 
     // length:
-    TextBufferInitLength(Level + DEFAULT_STEP, Items[i].DataSize div FCharSize);
+    Value := Items[i].DataSize div FCharSize;
+    TextBufferInitFmt(Level + DEFAULT_STEP, '%d: ', [Value]);
 
     // childs
     WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount, Offset,
-      Level + DEFAULT_STEP, Level + DEFAULT_STEP, True);
+      Level + DEFAULT_STEP,
+      Level + DEFAULT_STEP + NativeUInt(Length(IntToStr(Value))) + 2, True);
     Inc(i, ChildCount);
   end;
   TextBufferFlush;

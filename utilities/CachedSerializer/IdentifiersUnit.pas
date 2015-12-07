@@ -246,6 +246,7 @@ begin
   begin
     Self.Comment := '"' + Str.ToUnicodeString + '"';
     Self.Value := UnpackReferences(Str);
+    Self.MarkerReference := False;
   end else
   begin
     Sub := Str.SubString(P);
@@ -258,11 +259,11 @@ begin
     P := DoublePointPos(Str);
     if (P < 0) then
     begin
-      MarkerReference := True;
+      Self.MarkerReference := True;
       Self.Marker := UnpackReferences(Str);
     end else
     begin
-      MarkerReference := False;
+      Self.MarkerReference := False;
       Sub := Str.SubString(P);
       Self.Marker := UnpackReferences(Sub);
       Str.Offset(P + 1);
@@ -396,7 +397,6 @@ begin
   SetLength(List, Count + 1);
 
   Result := @List[Count];
-  // Result.InitIndex := Count;
   Result^.DataSize := 0;
 end;
 
@@ -453,7 +453,7 @@ begin
   if (Code = nil) and (FunctionValue <> '') then
   begin
     SetLength(Code, 1);
-    Code[1] := 'Result := ' + FunctionValue + ';';
+    Code[0] := 'Result := ' + FunctionValue + ';';
   end;
 
   DifficultUTF8CharIndexes := nil;

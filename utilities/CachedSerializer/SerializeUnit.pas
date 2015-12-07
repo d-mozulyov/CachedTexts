@@ -97,28 +97,13 @@ type
   PWholeCasesInfo = ^TWholeCasesInfo;
   TWholeCasesInfo = array[1..4] of TCasesInfo;
 
-
-(*  PGroup = ^TGroup;
-  TGroup = record
-    Offset: NativeUInt;
-    Items: PIdentifierItems;
-    Count: NativeUInt;
-
-    CaseBytes: NativeUInt;
-    OrMask: NativeUInt;
-    Cases: TGroupCases;
-
-    Childs: PGroup;
-    ChildCount: NativeUInt;
-    Sibling: PGroup;
-  end;  *)
-
   TSerializer = class(TObject)
   private
     FLines: PUnicodeStrings;
     FLinesCount: NativeUInt;
     FOptions: ^TSerializeOptions;
     FStringKind: TCachedStringKind;
+    FCharSize: NativeUInt;
     FIsFunction: Boolean;
     FIsConsts: Boolean;
     FFunctionValues: TUnicodeStrings;
@@ -138,23 +123,18 @@ type
     procedure TextBufferInit(const Level: NativeUInt; const S: UnicodeString);
     procedure TextBufferInitLength(const Level: NativeUInt; const Value: NativeUInt);
     procedure TextBufferInitFmt(const Level: NativeUInt; const FmtStr: UnicodeString; const Args: array of const);
+    procedure TextBufferIncludeIfThenLine(const Level: NativeUInt; const Item: PIdentifier; Offset, ByteCount: NativeUInt);
+    procedure TextBufferIncludeComments(const Items: PIdentifierItems; const Count: NativeUInt);
   private
-    //FAllocatedGroups: Pointer;
     FCasesBuffer: array of TCases;
-    FLengthsBuffer: TIdentifierLengthList;
-
-//    function AllocateGroup: PGroup;
-//    procedure ReleaseAllocatedGroups;
-//    function CalculateGroupCases(var Group: TGroup; const ByteCount: NativeUInt; const OrMask: Cardinal): NativeUInt;
-//    procedure ProcessGroup(var Group: TGroup);
-//    procedure WriteCaseCode(const ABuffer: UnicodeString; const OFFSET: NativeUInt; const Identifier: PIdentifier);
-//    procedure WriteGroupChilds(var Group: TGroup; const ABuffer: UnicodeString; const OFFSET, CASE_OFFSET: NativeUInt);
-//    procedure WriteIdentifierBlock(const List: TIdentifierList; const From, Count: NativeUInt);
 
     function CheckCases(const Items: PIdentifierItems; const Count, Offset, ByteCount, OrMask: Cardinal; const KnownLength: Boolean; var CheckedCount, CaseCount: NativeUInt): NativeUInt; overload;
     function CheckCases(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean): TWholeCasesInfo; overload;
     function CalculateBestCases(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean): TCasesInfo;
-    procedure WriteIdentifiers(const Items: PIdentifierItems; const Count, Offset, Level: NativeUInt; KnownLength: Boolean);
+    procedure InspectIdentifiers(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean; var MinDataSize, MaxDataSize, SameDataSize: NativeUInt);
+    procedure WriteCaseIdentifiers(const Items: PIdentifierItems; const Count, Offset, Level: NativeUInt; const BestCases: TCasesInfo; const KnownLength: Boolean);
+    procedure WriteLengthIdentifiers(const Items: PIdentifierItems; const Count, Offset, Level: NativeUInt);
+    procedure WriteIdentifiers(const Items: PIdentifierItems; const Count, Offset, LargeCodeLevel, Level: NativeUInt; KnownLength: Boolean);
   public
     function Process(const Options: TSerializeOptions): TUnicodeStrings;
   end;
@@ -164,16 +144,82 @@ implementation
 
 const
   AND_VALUES: array[1..4] of Cardinal = ($ff, $ffff, $ffffff, $ffffffff);
+  MEMORYDATA_POSTFIXES: array[0..3] of string = ('', '1', '2', '3');
 
 type
   T4Bytes = array[0..3] of Byte;
   P4Bytes = ^T4Bytes;
-
+  TUseDataProc = function(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
 
 function UnicodeFormat(const FmtStr: UnicodeString; const Args: array of const): UnicodeString;
 begin
   Result := {$ifdef UNICODE}Format{$else}WideFormat{$endif}(FmtStr, Args);
 end;
+
+function InternalException: Exception;
+begin
+  Result := Exception.Create('Internal exception.'#13+
+    'Please, send your file to developers at softforyou@inbox.ru');
+end;
+
+function UseByte(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+begin
+  Result := UnicodeFormat('Bytes[%d]', [Offset]);
+end;
+
+function UseWord(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+begin
+  Result := UnicodeFormat('Word%s[%d]', [MEMORYDATA_POSTFIXES[Offset and 1], Offset shr 1]);
+end;
+
+function UseCardinal(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+begin
+  Result := UnicodeFormat('Cardinals%s[%d]', [MEMORYDATA_POSTFIXES[Offset and 3], Offset shr 2]);
+end;
+
+function UseThree(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+begin
+  if (Offset = 0) then
+  begin
+    if (Item.DataSize >= 4) then
+    begin
+      Result := UseCardinal(Item, 0) + ' and $ffffff';
+    end else
+    begin
+      Result := UseWord(Item, Offset) + ' + ' + UseByte(Item, Offset + SizeOf(Word)) + ' shl 16';
+    end;
+  end else
+  begin
+    Result := UseCardinal(Item, Offset - 1) + ' shr 8';
+  end;
+end;
+
+var
+  USE_DATA_PROCS: array[1..4] of TUseDataProc = (
+    UseByte,
+    UseWord,
+    UseThree,
+    UseCardinal
+  );
+
+function HexConst(const Value, ByteCount: NativeUInt): UnicodeString;
+var
+  i: NativeUInt;
+begin
+  Result := UnicodeFormat('$%*x', [ByteCount * 2, Value]);
+  for i := 1 to Length(Result) do
+  if (Result[i] = #32) then Result[i] := '0';
+end;
+
+function UseDataMasked(const Item: PIdentifier; const Offset, ByteCount: NativeUInt): UnicodeString;
+var
+  OrMask: Cardinal;
+begin
+  Result := USE_DATA_PROCS[ByteCount](Item, Offset);
+  OrMask := PCardinal(@Item.DataOr[Offset])^ and AND_VALUES[ByteCount];
+  if (OrMask <> 0) then Result := Result + ' or ' + HexConst(OrMask, ByteCount);
+end;
+
 
 { TSerializeOptions }
 
@@ -484,6 +530,7 @@ begin
     CODEPAGE_UTF16: FStringKind := csUTF16;
     CODEPAGE_UTF32: FStringKind := csUTF32;
   end;
+  FCharSize := 1 shl SHIFT_VALUES[FStringKind];
   FIsFunction := (FOptions.FuncName <> '');
   FIsConsts := (FIsFunction) and (FOptions.EnumTypeName = '');
 
@@ -670,8 +717,21 @@ end;
 
 procedure TSerializer.TextBufferInclude(const Level: NativeUInt;
   const S: UnicodeString);
+var
+  L1, L2: NativeUInt;
 begin
+  L1 := Length(FTextBuffer);
+  L2 := Length(S);
+  if (L2 = 0) then Exit;
 
+  if (L1 <> 0) and (L1 - Level + L2 >= 90) then
+  begin
+    TextBufferFlush;
+    TextBufferInit(Level, S);
+  end else
+  begin
+    FTextBuffer := FTextBuffer + S;
+  end;
 end;
 
 procedure TSerializer.TextBufferIncludeFmt(const Level: NativeUInt;
@@ -708,6 +768,69 @@ procedure TSerializer.TextBufferInitFmt(const Level: NativeUInt;
   const FmtStr: UnicodeString; const Args: array of const);
 begin
   TextBufferInit(Level, UnicodeFormat(FmtStr, Args));
+end;
+
+procedure TSerializer.TextBufferIncludeIfThenLine(const Level: NativeUInt;
+  const Item: PIdentifier; Offset, ByteCount: NativeUInt);
+const
+  NONE_IF: array[Boolean] of string = ('', 'if ');
+  AND_THEN: array[Boolean] of string = ('and', 'then');
+var
+  NeedIf: Boolean;
+  Buf: UnicodeString;
+  Count: NativeUInt;
+  OrMask: Cardinal;
+begin
+  NeedIf := True;
+  while (ByteCount <> 0) do
+  begin
+    Count := ByteCount;
+    if (Count > SizeOf(Cardinal)) then Count := SizeOf(Cardinal);
+    Buf := UseDataMasked(Item, Offset, Count);
+
+    OrMask := PCardinal(@Item.DataOr[Offset])^ and AND_VALUES[Count];
+    Buf := Buf + ' = ' + HexConst(PCardinal(@Item.Data1[Offset])^ or OrMask, Count);
+    Inc(Offset, Count);
+    Dec(ByteCount, Count);
+
+    TextBufferIncludeFmt(Level, '%s(%s) %s ',
+    [
+      NONE_IF[NeedIf], Buf, AND_THEN[ByteCount = 0]
+    ]);
+    NeedIf := False;
+  end;
+end;
+
+procedure TSerializer.TextBufferIncludeComments(const Items: PIdentifierItems;
+  const Count: NativeUInt);
+var
+  i: NativeUInt;
+  Item: PIdentifier;
+  BufferLength, L: NativeUInt;
+begin
+  FTextBuffer := FTextBuffer + '// ';
+  BufferLength := Length(FTextBuffer);
+
+  for i := 1 to Count do
+  begin
+    Item := @Items[i - 1];
+    L := Length(Item.Info.Comment);
+    if (i <> 1) then
+    begin
+      FTextBuffer := FTextBuffer + ', ';
+      Inc(BufferLength, 2);
+    end;
+
+    if (i = 1) or (i = Count) or (BufferLength + L < 90) then
+    begin
+      FTextBuffer := FTextBuffer + Item.Info.Comment;
+      Inc(BufferLength, L);
+    end else
+    begin
+      FTextBuffer := FTextBuffer + '...';
+      Break;
+    end;
+  end;
 end;
 
 function TSerializer.Process(const Options: TSerializeOptions): TUnicodeStrings;
@@ -765,21 +888,13 @@ begin
         Self.AddLineFmt('  %s = %d;', [FFunctionValues[i], i]);
     end else
     begin
-      Buf := Options.EnumTypeName + ' = (';
+      TextBufferInit(1, Options.EnumTypeName + ' = (');
       for i := 0 to Length(FFunctionValues) - 1 do
-      begin
-        if (Length(Buf) >= 75) then
-        begin
-          Self.AddLine('  ' + Buf);
-          Buf := '';
-        end;
+        TextBufferIncludeFmt(1, '%s, ', [FFunctionValues[i]]);
 
-        if (i <> 0) then Buf := Buf + ', ';
-        Buf := Buf + FFunctionValues[i];
-      end;
-
-      Buf := Buf + ');';
-      Self.AddLine('  ' + Buf);
+      FTextBuffer[Length(FTextBuffer) - 1] := ')';
+      FTextBuffer[Length(FTextBuffer)] := ';';
+      TextBufferFlush;
     end;
   end;
 
@@ -844,8 +959,8 @@ CODEPAGE_USERDEFINED: Buf := 'user';
 
   // recursion
   SetLength(FCasesBuffer, Length(List));
-  SetLength(FLengthsBuffer, Length(List));
-  Self.WriteIdentifiers(Pointer(List), Length(List), 0, 1, False);
+  SortIdentifiers(List, 0, DefaultIdentifierComparator);
+  Self.WriteIdentifiers(Pointer(List), Length(List), 0, 1, 1, False);
 
   // case finish
   Self.AddLine('  end;');
@@ -869,262 +984,6 @@ CODEPAGE_USERDEFINED: Buf := 'user';
     end;
   end;
 end;
-
-(*type
-  PAllocatedGroup = ^TAllocatedGroup;
-  TAllocatedGroup = record
-    Item: TGroup;
-    Next: PAllocatedGroup;
-  end;
-
-function TSerializer.AllocateGroup: PGroup;
-var
-  AllocatedGroup: PAllocatedGroup;
-begin
-  GetMem(AllocatedGroup, SizeOf(TAllocatedGroup));
-  FillChar(AllocatedGroup^, SizeOf(TAllocatedGroup), #0);
-
-  AllocatedGroup.Next := FAllocatedGroups;
-  FAllocatedGroups := AllocatedGroup;
-
-  Result := @AllocatedGroup.Item;
-end;
-
-procedure TSerializer.ReleaseAllocatedGroups;
-var
-  AllocatedGroup, Next: PAllocatedGroup;
-begin
-  AllocatedGroup := FAllocatedGroups;
-  FAllocatedGroups := nil;
-
-  while (AllocatedGroup <> nil) do
-  begin
-    Next := AllocatedGroup.Next;
-    FreeMem(AllocatedGroup);
-
-    AllocatedGroup := Next;
-  end;
-end;     *)
-
-(*procedure TSerializer.ProcessGroup(var Group: TGroup);
-var
-  i, j: NativeUInt;
-  OrMask: Cardinal;
-  Child: PGroup;
-  ChildsAllocated: NativeUInt;
-begin
-  Group.CaseBytes := 0;
-  Group.OrMask := 0;
-  if (Group.Count = 1) then Exit;
-
-  // detect or mask
-  OrMask := 0;
-  if (FOptions.IgnoreCase) then
-  begin
-    OrMask := PCardinal(@Group.Items[0].DataOr[Group.Offset])^;
-    for i := 1 to Group.Count - 1 do
-    begin
-      OrMask := OrMask and PCardinal(@Group.Items[i].DataOr[Group.Offset])^;
-      if (OrMask = 0) then Break;
-    end;
-  end;
-
-  // best case bytes/or mask
-  for i := 1 to 4 do
-  begin
-    if (CalculateGroupCases(Group, i, OrMask) > 0) then
-    begin
-      Group.CaseBytes := i;
-      Group.OrMask := OrMask and AND_VALUES[i];
-    end;
-  end;
-  if (Group.CaseBytes = 0) then
-  raise Exception.Create('Internal exception.'#13+
-                         'Please, send your file to the developers at softforyou@inbox.ru');
-
-  // fill best way data
-  Group.ChildCount := CalculateGroupCases(Group, Group.CaseBytes, Group.OrMask);
-
-  // fill child groups
-  Child := nil;
-  ChildsAllocated := 0;
-  for i := 0 to Group.ChildCount - 1 do
-  begin
-    // allocate child
-    if (i = 0) then
-    begin
-      Child := AllocateGroup;
-      Group.Childs := Child;
-    end else
-    begin
-      Child.Sibling := AllocateGroup;
-      Child := Child.Sibling;
-    end;
-
-    Child.Offset := Group.Offset + Group.CaseBytes;
-    Child.Cases := FCasesBuffer[i];
-    Child.Items := Pointer(@Group.Items[ChildsAllocated]);
-    for j := ChildsAllocated to Group.Count - 1 do
-    if (Group.Items[j].GroupId = i) then
-    begin
-      Inc(Child.Count);
-      Inc(ChildsAllocated);
-    end else
-    begin
-      Break;
-    end;
-  end;
-
-  // recursion
-  Child := Group.Childs;
-  for i := 1 to Group.ChildCount do
-  begin
-    ProcessGroup(Child^);
-    Child := Child.Sibling;
-  end;
-end;  *)
-
-(*procedure TSerializer.WriteCaseCode(const ABuffer: UnicodeString;
-  const OFFSET: NativeUInt; const Identifier: PIdentifier);
-var
-  Count, i: NativeUInt;
-begin
-  Count := Length(Identifier.Info.Code);
-
-  // single line
-  if (Count = 1) then
-  begin
-    AddLineFmt('%s%s // %s', [ABuffer, Identifier.Info.Code[0], Identifier.Info.Comment]);
-    Exit;
-  end;
-
-  // multi lines
-  if (ABuffer <> '') then
-  begin
-    AddLine(ABuffer);
-  end;
-  AddLine('begin', OFFSET);
-  AddLineFmt('// %s', [Identifier.Info.Comment], OFFSET + ONESTEP_OFFSET);
-  if (Count = 0) then
-  begin
-    AddLine;
-  end else
-  begin
-    for i := 0 to Count - 1 do
-    AddLine(Identifier.Info.Code[i], OFFSET + ONESTEP_OFFSET);
-  end;
-  AddLine('end;', OFFSET);
-end;   *)
-
-(*procedure TSerializer.WriteGroupChilds(var Group: TGroup;
-  const ABuffer: UnicodeString; const OFFSET, CASE_OFFSET: NativeUInt);
-const
-  POSTFIXES: array[0..3] of string = ('', '1', '2', '3');
-var
-  Offs: NativeUInt;
-
-  function UseByte: UnicodeString;
-  begin
-    Result := UnicodeFormat('Bytes[%d]', [Offs]);
-  end;
-
-  function UseWord: UnicodeString;
-  begin
-    Result := UnicodeFormat('Word%s[%d]', [POSTFIXES[Offs and 1], Offs shr 1]);
-  end;
-
-  function UseCardinal: UnicodeString;
-  begin
-    Result := UnicodeFormat('Cardinals%s[%d]', [POSTFIXES[Offs and 3], Offs shr 2]);
-  end;
-
-  function UseThree: UnicodeString;
-  begin
-    if (Offs = 0) then
-    begin
-      if (Group.Items[0].DataLength >= 4) then
-      begin
-        Result := UseCardinal + ' and $ffffff';
-      end else
-      begin
-        Result := UseWord;
-        Inc(Offs, SizeOf(Word));
-        Result := Result + ' + ' + UseByte + ' shl 16';
-        Dec(Offs, SizeOf(Word));
-      end;
-    end else
-    begin
-      Dec(Offs);
-      Result := UseCardinal + ' shr 8';
-      Inc(Offs);
-    end;
-  end;
-
-  function HexValue(const Value, ByteCount: NativeUInt): UnicodeString;
-  var
-    i: NativeUInt;
-  begin
-    Result := UnicodeFormat('$%*x', [ByteCount * 2, Value]);
-    for i := 1 to Length(Result) do
-    if (Result[i] = #32) then Result[i] := '0';
-  end;
-
-begin
-  Offs := Group.Offset;
-
-  if (Group.Count = 1) then
-  begin
-
-
-    Exit;
-  end;
-
-  // identifier comments
-  if (OFFSET <> BASE_OFFSET) then
-  begin
-    Writer.Str('// ');
-    for i := 0 to Group.Count-1 do
-    begin
-      if (i <> 0) then Writer.Char(',');
-      Writer.Format('"%s"', [Group.Items[i].CommentValue]);
-    end;
-
-    Writer.CRLF;
-    Writer.Offset(OFFSET);
-  end;
-
- // Writer.Str('case (');
-//  SmartGroupUseOr();
-//  Writer.Str(') of'#13#10);
-end; *)
-
-(*procedure TSerializer.WriteIdentifierBlock(const List: TIdentifierList; const From,
-  Count: NativeUInt);
-const
-  SHIFTS: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
-var
-  Buffer: UnicodeString;
-  BaseGroup: PGroup;
-begin
-  // reserve cases buffer
-  if (Count > NativeUInt(Length(FCasesBuffer))) then
-    SetLength(FCasesBuffer, Count + 10);
-
-  // case (length) constant
-  Buffer := UnicodeFormat('%*d: ', [BASE_OFFSET - 2,
-    List[From].DataLength shr SHIFTS[FStringKind] ]);
-
-  // recursive procession and writing of groups
-  BaseGroup := AllocateGroup;
-  try
-    BaseGroup.Count := Count;
-    BaseGroup.Items := Pointer(@List[From]);
-    ProcessGroup(BaseGroup^);
-    WriteGroupChilds(BaseGroup^, Buffer, BASE_OFFSET, 0);
-  finally
-    ReleaseAllocatedGroups;
-  end;
-end;   *)
 
 function TSerializer.CheckCases(const Items: PIdentifierItems;
   const Count, Offset, ByteCount, OrMask: Cardinal;
@@ -1167,7 +1026,7 @@ begin
   for i := 0 to NativeUInt(Count) - 1 do
   begin
     Item := @Items[i];
-    if (Item.DataLength < Offset + ByteCount) then
+    if (Item.DataSize < Offset + ByteCount) then
     begin
       if (KnownLength) then goto fail;
       Continue;
@@ -1225,7 +1084,7 @@ begin
     end;
 
     // child number
-    Item.GroupId := n;
+    Item.CasesIndex := n;
   end;
 
 // done
@@ -1269,8 +1128,7 @@ begin
     end;
   end;
   if (Result[1].CaseCount = 0) then
-  raise Exception.Create('Internal exception.'#13+
-                         'Please, send your file to developers at softforyou@inbox.ru');
+  raise InternalException;
 end;
 
 function TSerializer.CalculateBestCases(const Items: PIdentifierItems;
@@ -1278,43 +1136,308 @@ function TSerializer.CalculateBestCases(const Items: PIdentifierItems;
 const
   COST_MUL: array[2..4] of Double = (1 + 0.20, 1 + 0.40, 1 + 0.50);
 
+type
+  TBuffer = array[1..SizeOf(TIdentifier)] of Byte;
+
   function CasesCost(const Cases: TCasesInfo): NativeUInt;
   begin
     Result := Cases.CaseCount + (Count - Cases.CheckedCount);
   end;
 
 var
-  i, BestCases, BestValue, Value: NativeUInt;
-  WholeCasesInfo: TWholeCasesInfo;
+  i, j: NativeUInt;
+  BestCases, BestValue, Value: NativeUInt;
+  WholeCases: TWholeCasesInfo;
+  MovedCount: NativeUInt;
+  Temp: TBuffer;
 begin
-  WholeCasesInfo := CheckCases(Items, Count, Offset, KnownLength);
+  WholeCases := CheckCases(Items, Count, Offset, KnownLength);
 
   BestCases := 1;
-  BestValue := CasesCost(WholeCasesInfo[1]);
+  BestValue := CasesCost(WholeCases[1]);
   for i := 2 to 4 do
   begin
-    Value := Round(CasesCost(WholeCasesInfo[i]) / COST_MUL[i]);
+    Value := Round(CasesCost(WholeCases[i]) / COST_MUL[i]);
 
     if (Value <= BestValue) then
     begin
+      if (not KnownLength) and (i >= FCharSize) and
+        (i mod FCharSize <> 0) then Continue;
+
       BestCases := i;
       BestValue := Value;
     end;
   end;
 
-  Result := WholeCasesInfo[BestCases];
+  // best cases
+  Result := WholeCases[BestCases];
+
+  // initialize case indexes
+  CheckCases(Items, Count, Offset, BestCases, Result.OrMask, KnownLength, {Buffers}BestValue, Value);
+
+  // move and sort unchecked identifiers
+  if (Result.CheckedCount = Count) then Exit;
+  MovedCount := 0;
+  for i := 0 to Count - 1 do
+  if (Items[i].DataSize < Result.ByteCount) then
+  begin
+    if (i <> 0) then
+    begin
+      Temp := TBuffer(Items[i]);
+        for j := i - 1 downto MovedCount do
+        TBuffer(Items[j + 1]) := TBuffer(Items[j]);
+      TBuffer(Items[MovedCount]) := Temp;
+    end;
+    Inc(MovedCount);
+  end;
+  if (MovedCount <> (Count - Result.CheckedCount)) then
+    raise InternalException;
+end;
+
+procedure TSerializer.InspectIdentifiers(const Items: PIdentifierItems;
+  const Count, Offset: NativeUInt; const KnownLength: Boolean;
+  var MinDataSize, MaxDataSize, SameDataSize: NativeUInt);
+label
+  next;
+var
+  i, Offs: NativeUInt;
+  Item: PIdentifier;
+  WholeCases: TWholeCasesInfo;
+begin
+  MinDataSize := High(NativeUInt);
+  MaxDataSize := 0;
+  for i := 0 to Count - 1 do
+  begin
+    Item := @Items[i];
+    if (Item.DataSize > MaxDataSize) then MaxDataSize := Item.DataSize;
+    if (Item.DataSize < MinDataSize) then MinDataSize := Item.DataSize;
+  end;
+  Dec(MinDataSize, Offset);
+  Dec(MaxDataSize, Offset);
+
+  if (Count = 1) then
+  begin
+    SameDataSize := MinDataSize{=MaxDataSize};
+    Exit;
+  end;
+
+  // same data size
+  Offs := Offset;
+  while (Offs <> Offset + MinDataSize) do
+  begin
+    WholeCases := CheckCases(Items, Count, Offs, True);
+    for i := 4 downto 1 do
+    if (WholeCases[i].CaseCount = 1) then
+    begin
+      Inc(Offs, i);
+      goto next;
+    end;
+    Break;
+
+  next:
+  end;
+  SameDataSize := Offset - Offs;
+  if (not KnownLength) and (SameDataSize > FCharSize) then
+    SameDataSize := SameDataSize and -FCharSize;
+end;
+
+// identifiers recursion
+procedure TSerializer.WriteCaseIdentifiers(const Items: PIdentifierItems;
+  const Count, Offset, Level: NativeUInt; const BestCases: TCasesInfo;
+  const KnownLength: Boolean);
+var
+  i, ChildCount: NativeUInt;
+  Value: Cardinal;
+begin
+  TextBufferIncludeFmt(Level, 'case (%s) of', [UseDataMasked(@Items[0], Offset, BestCases.ByteCount)]);
+  TextBufferIncludeComments(Items, Count);
+  TextBufferFlush;
+  begin
+    i := 0;
+    while (i < Count) do
+    begin
+      ChildCount := 1;
+      while (i + ChildCount < Count) and
+        (Items[i].DataSize = Items[i + ChildCount].DataSize) do Inc(ChildCount);
+
+      // value
+      Value := PCardinal(@Items[i].Data1[Offset])^ and AND_VALUES[BestCases.ByteCount];
+      Value := Value or BestCases.OrMask;
+      TextBufferFlush;
+      TextBufferInitFmt(Level + 1 + BestCases.ByteCount,
+        '%s: ', [HexConst(Value, BestCases.ByteCount)]);
+
+      // childs
+      WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount, Offset + BestCases.ByteCount,
+        Level + 1, Level + 1 + BestCases.ByteCount, KnownLength);
+      Inc(i, ChildCount);
+    end;
+  end;
+  TextBufferFlush;
+  TextBufferInit(Level, 'end;');
+  TextBufferFlush;
+end;
+
+procedure TSerializer.WriteLengthIdentifiers(const Items: PIdentifierItems;
+  const Count, Offset, Level: NativeUInt);
+var
+  i, ChildCount: NativeUInt;
+begin
+  // sort
+  SortIdentifiers(Items, Count, Offset, DataSizeIdentifierComparator);
+
+  // items
+  TextBufferFlush;
+  TextBufferInitFmt(Level, 'case %s of', [FOptions.FLengthParam]);
+  if (Level <> 1) then TextBufferIncludeComments(Items, Count);
+  TextBufferFlush;
+  i := 0;
+  while (i < Count) do
+  begin
+    ChildCount := 1;
+    while (i + ChildCount < Count) and
+      (Items[i].DataSize = Items[i + ChildCount].DataSize) do Inc(ChildCount);
+
+    // length:
+    TextBufferInitLength(Level + 1, Items[i].DataSize div FCharSize);
+
+    // childs
+    WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount, Offset,
+      Level + 1, Level + 1, True);
+    Inc(i, ChildCount);
+  end;
+  TextBufferFlush;
+  TextBufferInit(Level, 'end;');
+  TextBufferFlush;
 end;
 
 // identifiers recursion
 procedure TSerializer.WriteIdentifiers(const Items: PIdentifierItems;
-  const Count, Offset, Level: NativeUInt; KnownLength: Boolean);
+  const Count, Offset, LargeCodeLevel, Level: NativeUInt; KnownLength: Boolean);
 var
+  i, UncheckedCount: NativeUInt;
+  Item: PIdentifier;
+  MinDataSize, MaxDataSize, SameDataSize: NativeUInt;
+  CodeLines: NativeUInt;
   BestCases: TCasesInfo;
 begin
+  InspectIdentifiers(Items, Count, Offset, KnownLength, MinDataSize, MaxDataSize, SameDataSize);
 
+  // same (one) length --> known length
+  if (MinDataSize = MaxDataSize) and (not KnownLength) then
+  begin
+    TextBufferIncludeFmt(Level, 'if (%s = %d) then',
+    [
+      FOptions.FLengthParam,
+      Items[0].DataSize div FCharSize
+    ]);
+    TextBufferFlush;
+    KnownLength := True;
+  end;
 
+  // final identifier
+  if (Count = 1) then
+  begin
+    Item := @Items[0];
+    TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize);
+
+    CodeLines := Length(Item.Info.Code);
+    if (CodeLines = 1) then
+    begin
+      // single line
+      TextBufferIncludeFmt(Level, '%s // %s', [Item.Info.Code[0], Item.Info.Comment]);
+      TextBufferFlush;
+    end else
+    begin
+      // multi lines
+      TextBufferFlush;
+      TextBufferInit(LargeCodeLevel, 'begin');
+      TextBufferFlush;
+      TextBufferIncludeFmt(LargeCodeLevel, '  // %s', [Item.Info.Comment]);
+      TextBufferFlush;
+
+      if (CodeLines = 0) then
+      begin
+        AddLine;
+      end else
+      begin
+        for i := 0 to CodeLines - 1 do
+        begin
+          TextBufferInclude(LargeCodeLevel + 1, Item.Info.Code[i]);
+          TextBufferFlush;
+        end;
+      end;
+
+      TextBufferInit(LargeCodeLevel, 'end;');
+      TextBufferFlush;
+    end;
+
+    Exit;
+  end;
+
+  // emmit childs
   BestCases := CalculateBestCases(Items, Count, Offset, KnownLength);
+  if (BestCases.ByteCount >= FCharSize) then
+  begin
+    if ({usually 0}SameDataSize < FCharSize) then
+    begin
+      // check bytes count
+      if (not KnownLength) then
+      begin
+        TextBufferIncludeFmt(Level, 'if (%s >= %d) then',
+        [
+          FOptions.FLengthParam,
+          (Offset + BestCases.ByteCount) div FCharSize
+        ]);
+        TextBufferFlush;
+      end;
 
+      // cases and unchecked lengths
+      UncheckedCount := Count - BestCases.CheckedCount;
+      if (UncheckedCount <> 0) then
+      begin
+        TextBufferInit(Level, 'begin');
+        TextBufferFlush;
+          WriteCaseIdentifiers(PIdentifierItems(@Items[UncheckedCount]),
+            Count - UncheckedCount, Offset, Level + 1, BestCases, KnownLength);
+        TextBufferInit(Level, 'end else');
+        TextBufferFlush;
+        WriteLengthIdentifiers(Items, UncheckedCount, Offset, Level);
+      end else
+      begin
+        WriteCaseIdentifiers(Items, Count, Offset, Level, BestCases, KnownLength);
+      end;
+    end else
+    begin
+      // same data size
+      if (not KnownLength) then
+      begin
+        TextBufferIncludeFmt(Level, 'if (%s >= %d) then',
+        [
+          FOptions.FLengthParam,
+          (Offset + SameDataSize) div FCharSize
+        ]);
+        TextBufferFlush;
+      end;
+
+      // same data
+      Item := @Items[0];
+      TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize);
+      TextBufferFlush;
+
+      // childs
+      WriteIdentifiers(Items, Count, Offset + SameDataSize, LargeCodeLevel, Level, KnownLength);
+    end;
+  end else
+  if (KnownLength) then
+  begin
+    // cases
+    WriteCaseIdentifiers(Items, Count, Offset, Level, BestCases, True);
+  end else
+  begin
+    // length and cases
+    WriteLengthIdentifiers(Items, Count, Offset, Level);
+  end;
 end;
 
 

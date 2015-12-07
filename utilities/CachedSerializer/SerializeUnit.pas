@@ -143,6 +143,7 @@ type
 implementation
 
 const
+  DEFAULT_STEP = 2;
   AND_VALUES: array[1..4] of Cardinal = ($ff, $ffff, $ffffff, $ffffffff);
   MEMORYDATA_POSTFIXES: array[0..3] of string = ('', '1', '2', '3');
 
@@ -724,7 +725,7 @@ begin
   L2 := Length(S);
   if (L2 = 0) then Exit;
 
-  if (L1 <> 0) and (L1 - Level + L2 >= 90) then
+  if (L1 <> 0) and (L1 - (Level div 2) + L2 >= 90) then
   begin
     TextBufferFlush;
     TextBufferInit(Level, S);
@@ -749,8 +750,8 @@ begin
 
   if (Level <> 0) then
   begin
-    SetLength(FTextBuffer, Level * 2);
-    for i := 1 to Level * 2 do
+    SetLength(FTextBuffer, Level);
+    for i := 1 to Level do
       FTextBuffer[i] := #32;
   end;
 
@@ -761,7 +762,7 @@ procedure TSerializer.TextBufferInitLength(const Level: NativeUInt;
   const Value: NativeUInt);
 begin
   TextBufferClear;
-  FTextBuffer := UnicodeFormat('%*d: ', [Level * 2 - 2, Value]);
+  FTextBuffer := UnicodeFormat('%*d: ', [Level - 2, Value]);
 end;
 
 procedure TSerializer.TextBufferInitFmt(const Level: NativeUInt;
@@ -960,7 +961,7 @@ CODEPAGE_USERDEFINED: Buf := 'user';
   // recursion
   SetLength(FCasesBuffer, Length(List));
   SortIdentifiers(List, 0, DefaultIdentifierComparator);
-  Self.WriteIdentifiers(Pointer(List), Length(List), 0, 1, 1, False);
+  Self.WriteIdentifiers(Pointer(List), Length(List), 0, DEFAULT_STEP, DEFAULT_STEP, False);
 
   // case finish
   Self.AddLine('  end;');
@@ -1241,13 +1242,13 @@ begin
     SameDataSize := SameDataSize and -FCharSize;
 end;
 
-// identifiers recursion
+// case identifiers recursion
 procedure TSerializer.WriteCaseIdentifiers(const Items: PIdentifierItems;
   const Count, Offset, Level: NativeUInt; const BestCases: TCasesInfo;
   const KnownLength: Boolean);
 var
-  i, ChildCount: NativeUInt;
-  Value: Cardinal;
+  i, j, ChildCount: NativeUInt;
+  Cases: PCases;
 begin
   TextBufferIncludeFmt(Level, 'case (%s) of', [UseDataMasked(@Items[0], Offset, BestCases.ByteCount)]);
   TextBufferIncludeComments(Items, Count);
@@ -1258,18 +1259,21 @@ begin
     begin
       ChildCount := 1;
       while (i + ChildCount < Count) and
-        (Items[i].DataSize = Items[i + ChildCount].DataSize) do Inc(ChildCount);
+        (Items[i].CasesIndex = Items[i + ChildCount].CasesIndex) do Inc(ChildCount);
 
-      // value
-      Value := PCardinal(@Items[i].Data1[Offset])^ and AND_VALUES[BestCases.ByteCount];
-      Value := Value or BestCases.OrMask;
+      // cases
       TextBufferFlush;
-      TextBufferInitFmt(Level + 1 + BestCases.ByteCount,
-        '%s: ', [HexConst(Value, BestCases.ByteCount)]);
+      Cases := @FCasesBuffer[Items[i].CasesIndex];
+      for j := 0 to Cases.Count - 1 do
+      begin
+        TextBufferIncludeFmt(Level + DEFAULT_STEP, '%s, ', [HexConst(Cases.Values[j], BestCases.ByteCount)]);
+      end;
+      FTextBuffer[Length(FTextBuffer) - 1] := ':';
 
       // childs
-      WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount, Offset + BestCases.ByteCount,
-        Level + 1, Level + 1 + BestCases.ByteCount, KnownLength);
+      WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount,
+        Offset + BestCases.ByteCount, Level + DEFAULT_STEP,
+        Level + (3 + 2 * BestCases.ByteCount) * Cases.Count, KnownLength);
       Inc(i, ChildCount);
     end;
   end;
@@ -1289,7 +1293,7 @@ begin
   // items
   TextBufferFlush;
   TextBufferInitFmt(Level, 'case %s of', [FOptions.FLengthParam]);
-  if (Level <> 1) then TextBufferIncludeComments(Items, Count);
+  if (Level <> DEFAULT_STEP) then TextBufferIncludeComments(Items, Count);
   TextBufferFlush;
   i := 0;
   while (i < Count) do
@@ -1299,11 +1303,11 @@ begin
       (Items[i].DataSize = Items[i + ChildCount].DataSize) do Inc(ChildCount);
 
     // length:
-    TextBufferInitLength(Level + 1, Items[i].DataSize div FCharSize);
+    TextBufferInitLength(Level + DEFAULT_STEP, Items[i].DataSize div FCharSize);
 
     // childs
     WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount, Offset,
-      Level + 1, Level + 1, True);
+      Level + DEFAULT_STEP, Level + DEFAULT_STEP, True);
     Inc(i, ChildCount);
   end;
   TextBufferFlush;
@@ -1399,7 +1403,7 @@ begin
         TextBufferInit(Level, 'begin');
         TextBufferFlush;
           WriteCaseIdentifiers(PIdentifierItems(@Items[UncheckedCount]),
-            Count - UncheckedCount, Offset, Level + 1, BestCases, KnownLength);
+            Count - UncheckedCount, Offset, Level + DEFAULT_STEP, BestCases, KnownLength);
         TextBufferInit(Level, 'end else');
         TextBufferFlush;
         WriteLengthIdentifiers(Items, UncheckedCount, Offset, Level);

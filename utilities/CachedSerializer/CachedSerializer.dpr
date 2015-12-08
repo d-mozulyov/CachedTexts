@@ -51,15 +51,16 @@ begin
 end;
 
 var
-  FlagWait, FlagCopy: Boolean;
+  FlagLog, FlagWait, FlagCopy: Boolean;
   Index, i: Integer;
-  FileName, S: string;
+  OptionsFileName, S: string;
   Options: TSerializeOptions;
   Serializer: TSerializer;
   List: TUnicodeStrings;
   Text: UnicodeString;
 begin
-  // check flags: -nowait, -nocopy
+  // check flags: -nolog, -nowait, -nocopy
+  FlagLog := True;
   FlagWait := True;
   FlagCopy := True;
   Index := 1;
@@ -67,22 +68,23 @@ begin
     S := ParamStr(Index);
     if (S = '') then Break;
 
+    if (S = '-nolog') then FlagLog := False;
     if (S = '-nowait') then FlagWait := False;
     if (S = '-nocopy') then FlagCopy := False;
     Inc(Index);
   until (False);
 
   // load file
-  FileName := ParamStr(1);
+  OptionsFileName := ParamStr(1);
   try
-    if (not FileExists(FileName)) then
+    if (not FileExists(OptionsFileName)) then
     begin
       Writeln('Identifiers file not found!');
       Writeln('See the detailed description of the utility here:');
       Writeln('https://github.com/d-mozulyov/CachedTexts#cachedserializer');
     end else
     begin
-      Options.AddFromFile(FileName, True);
+      Options.AddFromFile(OptionsFileName, True);
 
       // update options
       Index := 2;
@@ -92,7 +94,7 @@ begin
 
         if (not Options.ParseOption(S)) then
         begin
-          if (S <> '-nowait') and (S <> '-nocopy') then
+          if (S <> '-nolog') and (S <> '-nowait') and (S <> '-nocopy') then
             Writeln('Unknown parameter "', S, '"');
         end;
         Inc(Index);
@@ -103,7 +105,8 @@ begin
       try
         List := Serializer.Process(Options);
 
-        // collect list, display to the console
+        // display to the console
+        if (FlagLog) then        
         for i := 0 to Length(List) - 1 do
         begin
           if (Text <> '') then Text := Text + #13#10;

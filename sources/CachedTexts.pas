@@ -1116,6 +1116,7 @@ type
     property EOF: Boolean read FEOF write SetEOF;
   public
     constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    procedure BeforeDestruction; override;
     procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
     property Converter: TUniConvReReader read FConverter;
@@ -1212,6 +1213,7 @@ type
     property EOF: Boolean read FEOF write SetEOF;
   public
     constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure BeforeDestruction; override;
     procedure WriteData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
     property Converter: TUniConvReWriter read FConverter;
@@ -3345,7 +3347,7 @@ asm
   mov ecx, [EAX].FLength
   mov edx, [EAX].FChars
   test ecx, ecx
-  jz @1
+  jnz @1
   xor eax, eax
   ret
 @1:
@@ -11750,7 +11752,7 @@ asm
   mov ecx, [EAX].FLength
   mov edx, [EAX].FChars
   test ecx, ecx
-  jz @1
+  jnz @1
   xor eax, eax
   ret
 @1:
@@ -18609,7 +18611,7 @@ asm
   mov ecx, [EAX].FLength
   mov edx, [EAX].FChars
   test ecx, ecx
-  jz @1
+  jnz @1
   xor eax, eax
   ret
 @1:
@@ -26126,6 +26128,12 @@ begin
   FEOF := FReader.EOF;
 end;
 
+procedure TCachedTextReader.BeforeDestruction;
+begin
+  FReader.Current := Current;
+  inherited;
+end;
+
 destructor TCachedTextReader.Destroy;
 begin
   FReader := nil;
@@ -26171,6 +26179,7 @@ end;
 
 function TCachedTextReader.Flush: NativeUInt;
 begin
+  FReader.Current := Current;
   Result := FReader.Flush;
 
   Current := FReader.Current;
@@ -26968,6 +26977,12 @@ begin
   FEOF := FWriter.EOF;
 end;
 
+procedure TCachedTextWriter.BeforeDestruction;
+begin
+  FWriter.Current := Current;
+  inherited;
+end;
+
 destructor TCachedTextWriter.Destroy;
 begin
   FWriter := nil;
@@ -27012,6 +27027,7 @@ end;
 
 function TCachedTextWriter.Flush: NativeUInt;
 begin
+  FWriter.Current := Current;
   Result := FWriter.Flush;
 
   Current := FWriter.Current;

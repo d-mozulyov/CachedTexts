@@ -234,14 +234,15 @@ Delphi is the best.
 ##### CachedSerializer
 Utility `CachedSerializer` works for the one and only aim - to identificate string data with the maximum performance. You can build the project from the source in folder "utilities/CachedSerializer" or download [binary]( http://dmozulyov.ucoz.net/CachedTexts/CachedSerializer.zip) with examples. As the first argument of command line utility gets the path of a text file, which contains options and identifiers. It’s necessary to have the following options for serialization:
 * `-<encoding>`. "-utf16", "-utf8", "-utf32" and the other code page encodings can act as an encoding option, e.g. "-1250" (you can see the whole list of SBCS-encodings in [UniConv](https://github.com/d-mozulyov/UniConv#supported-encodings) library description). "-raw" means `CODEPAGE_RAWDATA`, "-user" means `CODEPAGE_USERDEFINED`, "-ansi" means `CODEPAGE_DEFAULT`. "-ansi" is a default encoding. If your `ByteString` identifier contains only ASCII-characters, then encoding is unnecessary, you can specify "-ansi" or don't do this at all.
-* `-p"<variable_name>"` or `-p"<pointer_name>:<length_name>"`. Serialization goes for 2 parameters: character pointer and character length. If your identifier is stored in `CachedString`, then use `<variable_name>`, so that serialization will be going for parameters `<Name>.Chars` and `<Name>.Length`. Default value is "S".
+* `-p"<variable_name>"` or `-p"<pointer_name>:<length_name>"` or `-p"<pointer_name>:<length_name>:<code_indent>"`. Serialization goes for 2 parameters: character pointer and character length. If your identifier is stored in `CachedString`, then use `<variable_name>`, so that serialization will be going for parameters `<Name>.Chars` and `<Name>.Length`. Default value is `"S"`. Default code indent is `0`.
 * `-i`. This option tells that serialization will be insensitive.
-* `-f"<Name>:<Prefix>"` or `-f"<Name>:<TypeName>:<Prefix>"`. Option `-f` helps to generate function `<Name>`. Original constant (`<PREFIX>IDENTIFIERN = N`) or enumerate values (`<TypeName> = <prefix>Identifier1, <prefix>Identifier2, …)` will be generated for each identifier.
-* `-fn"<Name>:<Prefix>"` or `-fn"<Name>:<TypeName>:<Prefix>"`. Option `-fn` meaning is the same as `-f`, but only serialization code will be generated.
-* `-o"FileName"`. This option allows you to save the generated code into a file.
+* `-f"<Name(-SType)>:<Prefix>"` or `-f"<Name(-SType)>:<Prefix>:<TypeName>"`. Option `-f` helps to generate function `<Name>` with string parameter `S`. If `-SType` not defined - `CachedString` will be used. Ordinal constant (`<PREFIX>IDENTIFIERN = N`) or enumerate values (`<TypeName> = <prefix>Identifier1, <prefix>Identifier2, …)` will be generated for each identifier.
+* `-fn"<Name(-SType)>:<Prefix>"` or `-fn"<Name(-SType)>:<Prefix>:<TypeName>"`. Option `-fn` meaning is the same as `-f`, but only serialization code will be generated.
+* `-s"FileName"`. This option allows you to save the generated code into a file.
 
 Each of these options can be mentioned as a command line argument. Besides, the following options are permitted:
-* `-nocopy`. Don't copy generated code to the clipboard.
+* `-nolog`. Don't display the generated code in the console.
+* `-nocopy`. Don't copy the generated code to the clipboard.
 * `-nowait`. Don't wait for press Enter after code generation.
 
 Each text file line can be introduced in several formats:
@@ -252,5 +253,73 @@ Each text file line can be introduced in several formats:
 
 Besides `<identifier>` there's an important code  `<implementation>`, which is called for `<identifier>` case. If options `-f`  or `-fn` are mentioned, then `<implementation>` will be made automatically. If there's a situation where the same `<implementation>` must be used for several `<identifier>` define `<marker>` - some string constant. For writing `<identifier>`, `<marker>` or `<implementation>` the following special symbols are permitted: `"\:"`, `"\\"`, `"\n"`, `"\r"`, `"\t"` (tab), `"\s"` (space).
 
+File an example serialization ("examples/simple1.txt"):
+```
+-ansi -f"ValueToID-AnsiString:ID_" -p"S:Length(S)"
+sheet
+row
+cell
+data
+value
+style
+```
+Output:
+```
+const
+  ID_UNKNOWN = 0;
+  ID_CELL = 1;
+  ID_DATA = 2;
+  ID_ROW = 3;
+  ID_SHEET = 4;
+  ID_STYLE = 5;
+  ID_VALUE = 6;
+
+function ValueToID(const S: AnsiString): Cardinal;
+begin
+  // default value
+  Result := ID_UNKNOWN;
+
+  // byte ascii
+  with PMemoryItems(S)^ do
+  case Length(S) of 
+    3: if (Words[0] + Bytes[2] shl 16 = $776F72) then Result := ID_ROW; // "row"
+    4: case (Cardinals[0]) of // "cell", "data"
+         $6C6C6563: Result := ID_CELL; // "cell"
+         $61746164: Result := ID_DATA; // "data"
+       end;
+    5: case (Cardinals[0]) of // "sheet", "style", "value"
+         $65656873: if (Bytes[4] = $74) then Result := ID_SHEET; // "sheet"
+         $6C797473: if (Bytes[4] = $65) then Result := ID_STYLE; // "style"
+         $756C6176: if (Bytes[4] = $65) then Result := ID_VALUE; // "value"
+       end;
+  end;
+end;
+```
+Change options line to `-f"ValueToEnum:tk:TTagKind"` ("examples/simple2.txt"):
+```
+type
+  TTagKind = (tkUnknown, tkCell, tkData, tkRow, tkSheet, tkStyle, tkValue);
+
+function ValueToEnum(const S: ByteString): TTagKind;
+begin
+  // default value
+  Result := tkUnknown;
+
+  // byte ascii
+  with PMemoryItems(S.Chars)^ do
+  case S.Length of 
+    3: if (Words[0] + Bytes[2] shl 16 = $776F72) then Result := tkRow; // "row"
+    4: case (Cardinals[0]) of // "cell", "data"
+         $6C6C6563: Result := tkCell; // "cell"
+         $61746164: Result := tkData; // "data"
+       end;
+    5: case (Cardinals[0]) of // "sheet", "style", "value"
+         $65656873: if (Bytes[4] = $74) then Result := tkSheet; // "sheet"
+         $6C797473: if (Bytes[4] = $65) then Result := tkStyle; // "style"
+         $756C6176: if (Bytes[4] = $65) then Result := tkValue; // "value"
+       end;
+  end;
+end;
+```
 ##### Inspiring bonus: my photo from modern town Delphi in Greece :blush:
 ![](https://pp.vk.me/c624529/v624529659/2fbda/94Bls0F-XMQ.jpg)

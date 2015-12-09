@@ -55,7 +55,7 @@ type
       const Value, Comment: UnicodeString; const Code: TUnicodeStrings;
       const IgnoreCase: Boolean);
   public
-    CasesIndex: NativeUInt;
+    CasesGroup: NativeUInt;
   public
     Info: TIdentifierInfo;
 
@@ -143,20 +143,22 @@ end;
 
 function TIdentifierInfo.UnpackReferences(const S: UTF16String): UnicodeString;
 var
-  i: NativeUInt;
+  SrcLength: NativeInt;
   Dest, Src: PUnicodeChar;
 begin
   SetLength(Result, S.Length);
-
   Dest := Pointer(Result);
   Src := S.Chars;
-  for i := 1 to S.Length do
+
+  SrcLength := S.Length;
+  while (SrcLength > 0) do
   begin
     Dest^ := Src^;
 
     if (Src^ = '\') then
     begin
       Inc(Src);
+      Dec(SrcLength);
 
       case Src^ of
         '\': ;
@@ -171,6 +173,7 @@ begin
     end;
 
     Inc(Src);
+    Dec(SrcLength);
     Inc(Dest);
   end;
 
@@ -250,6 +253,7 @@ begin
   end else
   begin
     Sub := Str.SubString(P);
+    Sub.TrimRight;
     Self.Comment := '"' + Sub.ToUnicodeString + '"';
     Self.Value := UnpackReferences(Sub);
 
@@ -265,6 +269,7 @@ begin
     begin
       Self.MarkerReference := False;
       Sub := Str.SubString(P);
+      Sub.TrimRight;
       Self.Marker := UnpackReferences(Sub);
       Str.Offset(P + 1);
 
@@ -272,7 +277,7 @@ begin
       if (DoublePointPos(Str) >= 0) then raise IncorrectDoublePoints(S);
 
       if (Str.Length <> 0) then
-        Parse(UnpackReferences(Str));
+        ParseCode(UnpackReferences(Str));
     end;
   end;
 

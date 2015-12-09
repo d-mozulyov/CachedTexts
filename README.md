@@ -264,7 +264,7 @@ value
 style
 ```
 Output:
-```
+```pascal
 const
   ID_UNKNOWN = 0;
   ID_CELL = 1;
@@ -296,7 +296,7 @@ begin
 end;
 ```
 Change options line to `-f"ValueToEnum:tk:TTagKind"` ("examples/simple2.txt"):
-```
+```pascal
 type
   TTagKind = (tkUnknown, tkCell, tkData, tkRow, tkSheet, tkStyle, tkValue);
 

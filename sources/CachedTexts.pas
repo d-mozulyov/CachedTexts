@@ -1118,6 +1118,8 @@ type
     constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
     procedure BeforeDestruction; override;
     procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
+    function Readln(var S: UnicodeString): Boolean; virtual; abstract;
+    function ReadChar: UCS4Char; virtual; abstract;
 
     property Converter: TUniConvReReader read FConverter;
     property Source: TCachedReader read FSource;
@@ -1145,8 +1147,9 @@ type
     constructor CreateDefaultFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-    function Readln(var S: ByteString): Boolean;
-    function ReadChar: UCS4Char;
+    function Readln(var S: ByteString): Boolean; reintroduce; overload;
+    function Readln(var S: UnicodeString): Boolean; overload; override;
+    function ReadChar: UCS4Char; override;
 
     property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
     property Encoding: Word read FEncoding;
@@ -1164,8 +1167,9 @@ type
     constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-    function Readln(var S: UTF16String): Boolean;
-    function ReadChar: UCS4Char;
+    function Readln(var S: UTF16String): Boolean; reintroduce; overload;
+    function Readln(var S: UnicodeString): Boolean; overload; override;
+    function ReadChar: UCS4Char; override;
   end;
 
 
@@ -1180,8 +1184,9 @@ type
     constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
 
-    function Readln(var S: UTF32String): Boolean;
-    function ReadChar: UCS4Char;
+    function Readln(var S: UTF32String): Boolean; reintroduce; overload;
+    function Readln(var S: UnicodeString): Boolean; overload; override;
+    function ReadChar: UCS4Char; override;
   end;
 
 
@@ -1197,10 +1202,39 @@ type
     FOwner: Boolean;
     FEOF: Boolean;
     FOverflow: PByte;
+    FBuffer: record
+      Booleans: array[0..1] of array[0..7] of Byte;
+      BooleansOrdinal: array[0..7] of Byte;
+      Ascii: array[0..31] of Byte;
+    end;
+    FFormat: record
+      Args: PVarRec;
+      ArgsCount: NativeUInt;
+      TopArg: PVarRec;
+    case Integer of
+      0: (CastByteString: ByteString);
+      1: (CastUTF16String: UTF16String);
+      2: (CastUTF32String: UTF16String);
+    end;
+    FVirtuals: record
+      WriteBufferedAscii: procedure(Self: Pointer; From, Top: PByte);
+      WriteCRLF: procedure(Self: Pointer);
+      WriteChar: procedure(Self: Pointer; const C: UnicodeChar; const Count: NativeUInt);
+      WriteByteString: procedure(Self: Pointer; const S: ByteString);
+      WriteUTF16String: procedure(Self: Pointer; const S: UTF16String);
+      WriteUTF32String: procedure(Self: Pointer; const S: UTF32String);
+      WriteAscii: procedure(Self: Pointer; const S: PAnsiChar; const Count: NativeUInt);
+      WriteUnicodeAscii: procedure(Self: Pointer; const S: PUnicodeChar; const Count: NativeUInt);
+      WriteUCS4Ascii: procedure(Self: Pointer; const S: PUCS4Char; const Count: NativeUInt);
+    end;
+
     function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
     function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure SetEOF(const Value: Boolean);
-    procedure OverflowWriteData(var Buffer; const Count: NativeUInt);
+    procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
+    procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
+    procedure WriteFormatByte(S: PByte; Count: NativeUInt);
+    procedure WriteFormatWord(S: PWord; Count: NativeUInt);
   {$ifNdef AUTOREFCOUNT}
   public
   {$endif}
@@ -1214,12 +1248,62 @@ type
   public
     constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
     procedure BeforeDestruction; override;
-    procedure WriteData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure WriteData(const Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
 
     property Converter: TUniConvReWriter read FConverter;
     property Target: TCachedWriter read FTarget;
     property Owner: Boolean read FOwner write FOwner;
     property FileName: string read FFileName;
+  public
+    procedure WriteCRLF; virtual; abstract;
+    procedure WriteChar(const C: UnicodeChar; const Count: NativeUInt = 1); virtual; abstract;
+    procedure WriteByteString(const S: ByteString); virtual; abstract;
+    procedure WriteUTF16String(const S: UTF16String); virtual; abstract;
+    procedure WriteUTF32String(const S: UTF32String); virtual; abstract;
+    procedure WriteAscii(const S: PAnsiChar; const Count: NativeUInt); virtual; abstract;
+    procedure WriteUnicodeAscii(const S: PUnicodeChar; const Count: NativeUInt); virtual; abstract;
+    procedure WriteUCS4Ascii(const S: PUCS4Char; const Count: NativeUInt); virtual; abstract;
+
+    procedure WriteAnsiString(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif});
+    procedure WriteUTF8String(const S: UTF8String);
+    procedure WriteWideString(const S: WideString);
+    procedure WriteUnicodeString(const S: UnicodeString);
+    procedure WriteUCS4String(const S: UCS4String; const NullTerminated: Boolean = True);
+
+    procedure WriteAnsiChars(const Chars: PAnsiChar{/PUTF8Char}; const Length: NativeUInt; const CodePage: Word); overload;
+    procedure WriteAnsiChars(const S: ShortString; const CodePage: Word = 0); overload;
+    procedure WriteAnsiChars(const S: TBytes; const CodePage: Word = 0); overload;
+    procedure WriteUnicodeChars(const Chars: PUnicodeChar; const Length: NativeUInt);
+    procedure WriteUCS4Chars(const Chars: PUCS4Char; const Length: NativeUInt);
+
+    {$ifNdef NEXTGEN}
+    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif});
+    procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const);
+    {$else .NEXTGEN}
+    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+    procedure WriteFormat(const FmtStr: UnicodeString; const Args: array of const); inline; overload;
+    procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const); overload;
+    procedure WriteFormatUTF8(const FmtStr: UnicodeString; const Args: array of const); inline overload;
+    {$endif}
+    procedure WriteFormatUnicode(const FmtStr: UnicodeString; const Args: array of const);
+  public
+    procedure WriteBoolean(const Value: Boolean);
+    procedure WriteBooleanOrdinal(const Value: Boolean);
+    procedure WriteShortInt(const Value: ShortInt);
+    procedure WriteByte(const Value: Byte);
+    procedure WriteSmallInt(const Value: SmallInt);
+    procedure WriteWord(const Value: Word);
+    procedure WriteInteger(const Value: Integer);
+    procedure WriteCardinal(const Value: Cardinal);
+    procedure WriteInt64(const Value: Int64);
+    procedure WriteUInt(const Value: UInt64);
+    procedure WriteSingle(const Value: Single);
+    procedure WriteDouble(const Value: Double);
+    procedure WriteExtended(const Value: TExtended80Rec);
+    procedure WriteCurrency(const Value: Currency);
+    procedure WriteVariant(const Value: Variant);
+
+    // Date/Time/Hex
   end;
 
 
@@ -1229,14 +1313,17 @@ type
   protected
     FSBCS: PUniConvSBCS;
     FEncoding: Word;
+    procedure WriteBufferedAscii(From, Top: PByte); override;
   public
     constructor Create(const Encoding: Word; const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const Encoding: Word; const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
-    procedure CRLF; {$ifdef INLINESUPPORT}inline;{$endif}
 
     property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
     property Encoding: Word read FEncoding;
+  public
+    procedure WriteAscii(const Chars: PAnsiChar; const Count: NativeUInt); override;
+    procedure WriteCRLF; override;
   end;
 
 
@@ -1247,8 +1334,10 @@ type
     constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
-    procedure CRLF; {$ifdef INLINESUPPORT}inline;{$endif}
 
+  public
+    procedure WriteAscii(const Chars: PAnsiChar; const Count: NativeUInt); override;
+    procedure WriteCRLF; override;
   end;
 
 
@@ -1259,8 +1348,10 @@ type
     constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
     constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
-    procedure CRLF; {$ifdef INLINESUPPORT}inline;{$endif}
 
+  public
+    procedure WriteAscii(const Chars: PAnsiChar; const Count: NativeUInt); override;
+    procedure WriteCRLF; override;
   end;
 
 
@@ -1379,6 +1470,7 @@ type
 
 
 implementation
+
 
 { ECachedText }
 
@@ -26569,6 +26661,28 @@ begin
   end;
 end;
 
+function TByteTextReader.Readln(var S: UnicodeString): Boolean;
+var
+  Str: ByteString;
+begin
+  if (not Self.Readln(Str)) then
+  begin
+    {$ifdef UNICODE}
+      UnicodeStringClear(S);
+    {$else}
+      WideStringClear(S);
+    {$endif}
+    Result := False;
+  end else
+  begin
+    {$ifdef UNICODE}
+      Str.ToUnicodeString(S);
+    {$else}
+      Str.ToWideString(S);
+    {$endif}
+    Result := True;
+  end;
+end;
 
 { TUTF16TextReader }
 
@@ -26801,6 +26915,29 @@ begin
   end;
 end;
 
+function TUTF16TextReader.Readln(var S: UnicodeString): Boolean;
+var
+  Str: UTF16String;
+begin
+  if (not Self.Readln(Str)) then
+  begin
+    {$ifdef UNICODE}
+      UnicodeStringClear(S);
+    {$else}
+      WideStringClear(S);
+    {$endif}
+    Result := False;
+  end else
+  begin
+    {$ifdef UNICODE}
+      Str.ToUnicodeString(S);
+    {$else}
+      Str.ToWideString(S);
+    {$endif}
+    Result := True;
+  end;
+end;
+
 
 { TUTF32TextReader }
 
@@ -26952,11 +27089,47 @@ begin
   end;
 end;
 
+function TUTF32TextReader.Readln(var S: UnicodeString): Boolean;
+var
+  Str: UTF32String;
+begin
+  if (not Self.Readln(Str)) then
+  begin
+    {$ifdef UNICODE}
+      UnicodeStringClear(S);
+    {$else}
+      WideStringClear(S);
+    {$endif}
+    Result := False;
+  end else
+  begin
+    {$ifdef UNICODE}
+      Str.ToUnicodeString(S);
+    {$else}
+      Str.ToWideString(S);
+    {$endif}
+    Result := True;
+  end;
+end;
+
 
 { TCachedTextWriter }
 
 constructor TCachedTextWriter.Create(const Context: PUniConvContext;
   const Target: TCachedWriter; const Owner: Boolean);
+const
+  CHARS_FALSE: array[0..4] of Byte = (Ord('F'), Ord('a'), Ord('l'), Ord('s'), Ord('e'));
+  CHARS_TRUE: array[0..3] of Byte = (Ord('T'), Ord('r'), Ord('u'), Ord('e'));
+var
+  VWBufferedAscii: procedure(From, Top: PByte) of object;
+  VWCRLF: procedure of object;
+  VWChar: procedure(const C: UnicodeChar; const Count: NativeUInt) of object;
+  VWByteString: procedure(const S: ByteString) of object;
+  VWUTF16String: procedure(const S: UTF16String) of object;
+  VWUTF32String: procedure(const S: UTF32String) of object;
+  VWAscii: procedure(const S: PAnsiChar; const Count: NativeUInt) of object;
+  VWUnicodeAscii: procedure(const S: PUnicodeChar; const Count: NativeUInt) of object;
+  VWUCS4Ascii: procedure(const S: PUCS4Char; const Count: NativeUInt) of object;
 begin
   inherited Create;
 
@@ -26975,6 +27148,32 @@ begin
   Current := FWriter.Current;
   FOverflow := FWriter.Overflow;
   FEOF := FWriter.EOF;
+
+  // virtual methods
+  VWBufferedAscii := Self.WriteBufferedAscii;
+  VWCRLF := Self.WriteCRLF;
+  VWChar := Self.WriteChar;
+  VWByteString := Self.WriteByteString;
+  VWUTF16String := Self.WriteUTF16String;
+  VWUTF32String := Self.WriteUTF32String;
+  VWAscii := Self.WriteAscii;
+  VWUnicodeAscii := Self.WriteUnicodeAscii;
+  VWUCS4Ascii := Self.WriteUCS4Ascii;
+  Self.FVirtuals.WriteBufferedAscii := TMethod(VWBufferedAscii).Code;
+  Self.FVirtuals.WriteCRLF := TMethod(VWCRLF).Code;
+  Self.FVirtuals.WriteChar := TMethod(VWChar).Code;
+  Self.FVirtuals.WriteByteString := TMethod(VWByteString).Code;
+  Self.FVirtuals.WriteUTF16String := TMethod(VWUTF16String).Code;
+  Self.FVirtuals.WriteUTF32String := TMethod(VWUTF32String).Code;
+  Self.FVirtuals.WriteAscii := TMethod(VWAscii).Code;
+  Self.FVirtuals.WriteUnicodeAscii := TMethod(VWUnicodeAscii).Code;
+  Self.FVirtuals.WriteUCS4Ascii := TMethod(VWUCS4Ascii).Code;
+
+  // booleans
+  Move(CHARS_FALSE, FBuffer.Booleans[Ord(False)], SizeOf(CHARS_FALSE));
+  Move(CHARS_TRUE, FBuffer.Booleans[Ord(True)], SizeOf(CHARS_TRUE));
+  FBuffer.BooleansOrdinal[Ord(False)] := Ord('0');
+  FBuffer.BooleansOrdinal[Ord(True)] := Ord('1');
 end;
 
 procedure TCachedTextWriter.BeforeDestruction;
@@ -27035,7 +27234,7 @@ begin
   FEOF := FWriter.EOF;
 end;
 
-procedure TCachedTextWriter.OverflowWriteData(var Buffer; const Count: NativeUInt);
+procedure TCachedTextWriter.OverflowWriteData(const Buffer; const Count: NativeUInt);
 begin
   FWriter.Current := Current;
   FWriter.Write(Buffer, Count);
@@ -27045,7 +27244,7 @@ begin
   FEOF := FWriter.EOF;
 end;
 
-procedure TCachedTextWriter.WriteData(var Buffer; const Count: NativeUInt);
+procedure TCachedTextWriter.WriteData(const Buffer; const Count: NativeUInt);
 var
   P: PByte;
 begin
@@ -27061,6 +27260,265 @@ begin
     Dec(P, Count);
     NcMove(Buffer, P^, Count);
   end;
+end;
+
+procedure TCachedTextWriter.WriteAnsiString(const S: AnsiString
+  {$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUTF8String(const S: UTF8String);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteWideString(const S: WideString);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUnicodeString(const S: UnicodeString);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUCS4String(const S: UCS4String;
+  const NullTerminated: Boolean);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteAnsiChars(const Chars: PAnsiChar{/PUTF8Char};
+  const Length: NativeUInt; const CodePage: Word);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteAnsiChars(const S: ShortString;
+  const CodePage: Word);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteAnsiChars(const S: TBytes; const CodePage: Word);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUnicodeChars(const Chars: PUnicodeChar;
+  const Length: NativeUInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUCS4Chars(const Chars: PUCS4Char;
+  const Length: NativeUInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteFormat(const FmtStr: AnsiString;
+  const Args: array of const{$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
+var
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
+  {$ifdef INTERNALCODEPAGE}
+  CodePage: Word;
+  {$endif}
+  Index: NativeUInt;
+  Value: Integer;
+begin
+  P := Pointer(FmtStr);
+  if (P = nil) then Exit;
+
+  Self.FFormat.Args := @Args[0];
+  Self.FFormat.TopArg := @Args[High(Args)];
+  Self.FFormat.ArgsCount := High(Args) + 1;
+
+  Self.FFormat.CastByteString.FChars := Pointer(P);
+  Dec(P);
+  Self.FFormat.CastByteString.FLength := P^;
+
+  {$ifdef INTERNALCODEPAGE}
+  Dec(P, 2);
+  CodePage := PWord(P)^;
+  {$endif}
+  if (CodePage = 0) or (CodePage = CODEPAGE_DEFAULT) then
+  begin
+    Self.FFormat.CastByteString.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+  end else
+  begin
+    Value := Integer($ff000000);
+    if (CodePage <> CODEPAGE_UTF8) then
+    begin
+      Index := NativeUInt(CodePage);
+      Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+      repeat
+        if (Word(Value) = CodePage) or (Value < 0) then Break;
+        Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+      until (False);
+
+      Value := Value shl 8;
+      Value := Value and $ff000000;
+    end;
+
+    Self.FFormat.CastByteString.Flags := Value;
+  end;
+
+  Self.WriteFormatByte(Pointer(Self.FFormat.CastByteString.FChars),
+    Self.FFormat.CastByteString.FLength);
+end;
+
+procedure TCachedTextWriter.WriteFormatUTF8(const FmtStr: UTF8String;
+  const Args: array of const);
+var
+  P: {$ifdef NEXTGEN}PNativeInt{$else}PInteger{$endif};
+begin
+  P := Pointer(FmtStr);
+  if (P = nil) then Exit;
+
+  Self.FFormat.Args := @Args[0];
+  Self.FFormat.TopArg := @Args[High(Args)];
+  Self.FFormat.ArgsCount := High(Args) + 1;
+
+  Self.FFormat.CastByteString.FChars := Pointer(P);
+  Dec(P);
+  Self.FFormat.CastByteString.FLength := P^;
+  Self.FFormat.CastByteString.Flags := $ff000000;
+
+  Self.WriteFormatByte(Pointer(Self.FFormat.CastByteString.FChars),
+    Self.FFormat.CastByteString.FLength);
+end;
+
+procedure TCachedTextWriter.WriteFormatUnicode(const FmtStr: UnicodeString;
+  const Args: array of const);
+var
+  P: PInteger;
+begin
+  P := Pointer(FmtStr);
+  if (P = nil) then Exit;
+
+  Self.FFormat.Args := @Args[0];
+  Self.FFormat.TopArg := @Args[High(Args)];
+  Self.FFormat.ArgsCount := High(Args) + 1;
+
+  Self.FFormat.CastByteString.FChars := Pointer(P);
+  Dec(P);
+  Self.FFormat.CastByteString.FLength := P^{$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)} shr 1{$ifend};
+  Self.FFormat.CastByteString.Flags := 0;
+
+  Self.WriteFormatWord(Pointer(Self.FFormat.CastByteString.FChars),
+    Self.FFormat.CastByteString.FLength);
+end;
+
+{$ifdef NEXTGEN}
+procedure TCachedTextWriter.WriteFormat(const FmtStr: UnicodeString;
+  const Args: array of const);
+begin
+  WriteFormatUnicode(FmtStr, Args);
+end;
+
+procedure TCachedTextWriter.WriteFormatUTF8(const FmtStr: UnicodeString;
+  const Args: array of const);
+begin
+  WriteFormatUnicode(FmtStr, Args);
+end;
+{$endif}
+
+procedure TCachedTextWriter.WriteFormatByte(S: PByte; Count: NativeUInt);
+begin
+
+end;
+
+procedure TCachedTextWriter.WriteFormatWord(S: PWord; Count: NativeUInt);
+begin
+
+end;
+
+procedure TCachedTextWriter.WriteBoolean(const Value: Boolean);
+var
+  Count: NativeUInt;
+  P: PByte;
+begin
+  Count := Byte(Value);
+  with Self.FBuffer do P := Pointer(@Booleans[Count]);
+  Count := Count xor 5;
+  FVirtuals.WriteBufferedAscii(Self, P, Pointer(@PByteArray(P)[Count]));
+end;
+
+procedure TCachedTextWriter.WriteBooleanOrdinal(const Value: Boolean);
+var
+  Count: NativeUInt;
+  P: PByte;
+begin
+  Count := Byte(Value);
+  with Self.FBuffer do P := Pointer(@BooleansOrdinal[Count]);
+  FVirtuals.WriteBufferedAscii(Self, P, Pointer(@PByteArray(P)[1]));
+end;
+
+procedure TCachedTextWriter.WriteShortInt(const Value: ShortInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteByte(const Value: Byte);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteSmallInt(const Value: SmallInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteWord(const Value: Word);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteInteger(const Value: Integer);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteInt64(const Value: Int64);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUInt(const Value: UInt64);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteSingle(const Value: Single);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteDouble(const Value: Double);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteExtended(const Value: TExtended80Rec);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteCurrency(const Value: Currency);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteVariant(const Value: Variant);
+begin
+  // todo
 end;
 
 
@@ -27134,7 +27592,7 @@ begin
   inherited Create(Context, Target, Owner);
 end;
 
-procedure TByteTextWriter.CRLF;
+procedure TByteTextWriter.WriteCRLF;
 var
   P: PWord;
 begin
@@ -27147,6 +27605,55 @@ begin
   if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
     Self.Flush;
 end;
+
+procedure TByteTextWriter.WriteBufferedAscii(From, Top: PByte);
+type
+  TDefaultCaller = procedure(Self: Pointer; const Chars: PAnsiChar; const Count: NativeUInt);
+var
+  P: NativeUInt{PByte};
+  Count, i: NativeUInt;
+begin
+  P := NativeUInt(Current);
+  Count := NativeUInt(Top) - NativeUInt(From);
+  Inc(P, Count);
+
+  if (P <= NativeUInt(Self.FOverflow)) then
+  begin
+    Self.Current := Pointer(P);
+    Dec(P, Count);
+
+    for i := 0 to Count shr {$ifdef LARGEINT}3{$else}2{$endif} do
+    begin
+      PNativeUInt(P)^ := PNativeUInt(From)^;
+      Inc(From, SizeOf(NativeUInt));
+      Inc(P, SizeOf(NativeUInt));
+    end;
+    Exit;
+  end else
+  begin
+    P := NativeUInt(@TByteTextWriter.WriteAscii);
+    TDefaultCaller(P)(Self, Pointer(From), Count);
+  end;
+end;
+
+procedure TByteTextWriter.WriteAscii(const Chars: PAnsiChar; const Count: NativeUInt);
+var
+  P: PByte;
+begin
+  P := Current;
+  Inc(P, Count);
+
+  if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+  begin
+    OverflowWriteData(Chars^, Count);
+  end else
+  begin
+    Current := P;
+    Dec(P, Count);
+    NcMove(Chars^, P^, Count);
+  end;
+end;
+
 
 
 { TUTF16TextWriter }
@@ -27184,7 +27691,7 @@ begin
   inherited Create(Context, Target, Owner);
 end;
 
-procedure TUTF16TextWriter.CRLF;
+procedure TUTF16TextWriter.WriteCRLF;
 var
   P: PCardinal;
 begin
@@ -27196,6 +27703,11 @@ begin
 
   if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
     Self.Flush;
+end;
+
+procedure TUTF16TextWriter.WriteAscii(const Chars: PAnsiChar; const Count: NativeUInt);
+begin
+  // todo
 end;
 
 
@@ -27234,7 +27746,7 @@ begin
   inherited Create(Context, Target, Owner);
 end;
 
-procedure TUTF32TextWriter.CRLF;
+procedure TUTF32TextWriter.WriteCRLF;
 var
   P: PCardinal;
 begin
@@ -27248,6 +27760,11 @@ begin
 
   if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
     Self.Flush;
+end;
+
+procedure TUTF32TextWriter.WriteAscii(const Chars: PAnsiChar; const Count: NativeUInt);
+begin
+  // todo
 end;
 
 

@@ -68,10 +68,10 @@ begin
       if (P < 0) then Continue;
 
       // parse URL
-      S.Offset(P);
+      S.Skip(P);
       P := S.CharPos('"');
       if (P < 0) then Continue;
-      S.Offset(P + 1);
+      S.Skip(P + 1);
       P := S.CharPos('"');
       if (P >= 0) then
       begin
@@ -107,7 +107,7 @@ type
     function Trim: Boolean;
     function SubString(const From, Count: NativeUInt): CachedString;
     function SubString(const Count: NativeUInt): CachedString;
-    function Offset(const Count: NativeUInt): Boolean;
+    function Skip(const Count: NativeUInt): Boolean;
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal;
     

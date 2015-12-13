@@ -372,7 +372,7 @@ type
     function Trim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const From, Count: NativeUInt): ByteString; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const Count: NativeUInt): ByteString; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Offset(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Skip(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal; {$ifNdef CPUINTEL}inline;{$endif}
 
@@ -623,7 +623,7 @@ type
     function Trim: Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const From, Count: NativeUInt): UTF16String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const Count: NativeUInt): UTF16String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Offset(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Skip(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
 
@@ -873,7 +873,7 @@ type
     function Trim: Boolean;
     function SubString(const From, Count: NativeUInt): UTF32String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function SubString(const Count: NativeUInt): UTF32String; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Offset(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Skip(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Hash: Cardinal;
     function HashIgnoreCase: Cardinal; {$ifdef INLINESUPPORT}inline;{$endif}
 
@@ -3693,7 +3693,7 @@ begin
   end;
 end;
 
-function ByteString.Offset(const Count: NativeUInt): Boolean;
+function ByteString.Skip(const Count: NativeUInt): Boolean;
 var
   L: NativeUInt;
 begin
@@ -12062,7 +12062,7 @@ begin
   end;
 end;
 
-function UTF16String.Offset(const Count: NativeUInt): Boolean;
+function UTF16String.Skip(const Count: NativeUInt): Boolean;
 var
   L: NativeUInt;
 begin
@@ -18885,7 +18885,7 @@ begin
   end;
 end;
 
-function UTF32String.Offset(const Count: NativeUInt): Boolean;
+function UTF32String.Skip(const Count: NativeUInt): Boolean;
 var
   L: NativeUInt;
 begin

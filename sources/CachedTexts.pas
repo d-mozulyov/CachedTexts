@@ -36,6 +36,7 @@ unit CachedTexts;
   {$mode delphi}
   {$asmmode intel}
   {$define INLINESUPPORT}
+  {$define INLINESUPPORTSIMPLE}
   {$ifdef CPU386}
     {$define CPUX86}
   {$endif}
@@ -51,8 +52,11 @@ unit CachedTexts;
     {$WARN UNSAFE_TYPE OFF}
     {$WARN UNSAFE_CAST OFF}
   {$ifend}
-  {$if CompilerVersion >= 17}
+  {$if CompilerVersion >= 20}
     {$define INLINESUPPORT}
+  {$ifend}
+  {$if CompilerVersion >= 17}
+    {$define INLINESUPPORTSIMPLE}
   {$ifend}
   {$if CompilerVersion < 23}
     {$define CPUX86}
@@ -80,9 +84,9 @@ unit CachedTexts;
 {$ifdef KOL_MCK}
   {$define KOL}
 {$endif}
-{$ifdef INLINESUPPORT}
+{$if Defined(FPC) or (CompilerVersion >= 18)}
   {$define OPERATORSUPPORT}
-{$endif}
+{$ifend}
 
 
 interface
@@ -105,7 +109,7 @@ type
       UInt64 = Int64;
       PUInt64 = ^UInt64;
     {$ifend}
-    {$if CompilerVersion < 19}
+    {$if CompilerVersion < 21}
       NativeInt = Integer;
       NativeUInt = Cardinal;
     {$ifend}
@@ -282,6 +286,22 @@ type
     constructor Create(const ResStringRec: PResStringRec; const Value: PUTF32String); overload;
   end;
 
+  PtrString = record
+    Chars: Pointer;
+    Length: NativeUInt;
+  end;
+  PPtrString = PtrString;
+
+  CachedString = record
+    Chars: Pointer;
+    Length: NativeUInt;
+    case Integer of
+      0: (Flags: Cardinal);
+      1: (Ascii, References: Boolean; Tag: Byte; SBCSIndex: ShortInt);
+      2: (NativeFlags: NativeUInt);
+  end;
+  PCachedString = ^CachedString;
+
 
 { ByteString record }
 
@@ -448,15 +468,15 @@ type
     {$endif}
     {$endif}
   public
-    function Equal(const S: ByteString): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const S: ByteString): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const S: ByteString): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const S: ByteString): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: ByteString): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: ByteString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: ByteString): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -548,6 +568,8 @@ type
     {$endif}
     {$endif}
   end;
+  TByteCharArray = array[0..High(Integer) div SizeOf(Byte) - 1] of Byte;
+  PByteCharArray = ^TByteCharArray;
 
 
 { UTF16String record }
@@ -697,15 +719,15 @@ type
     {$endif}
     {$endif}
   public
-    function Equal(const S: UTF16String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const S: UTF16String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const S: UTF16String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const S: UTF16String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF16String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF16String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF16String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -797,6 +819,8 @@ type
     {$endif}
     {$endif}
   end;
+  TUTF16CharArray = array[0..High(Integer) div SizeOf(Word) - 1] of Word;
+  PUTF16CharArray = ^TUTF16CharArray;
 
 
 { UTF32String record }
@@ -945,15 +969,15 @@ type
     {$endif}
     {$endif}
   public
-    function Equal(const S: UTF32String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const S: UTF32String): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const S: UTF32String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const S: UTF32String): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: UTF32String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: UTF32String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: UTF32String): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt;  overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Equal(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function EqualIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function Compare(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function CompareIgnoreCase(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}): NativeInt; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     {$ifdef UNICODE}
     function Equal(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function EqualIgnoreCase(const S: UTF8String): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -1045,6 +1069,8 @@ type
     {$endif}
     {$endif}
   end;
+  TUTF32CharArray = array[0..High(Integer) div SizeOf(Cardinal) - 1] of Cardinal;
+  PUTF32CharArray = ^TUTF32CharArray;
 
 
 { TMemoryItems record }
@@ -1099,8 +1125,8 @@ type
     FFinishing: Boolean;
     FEOF: Boolean;
     FOverflow: PByte;
-    function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetMargin: NativeInt; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    function GetPosition: Int64; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure SetEOF(const Value: Boolean);
     procedure OverflowReadData(var Buffer; const Count: NativeUInt);
   {$ifNdef AUTOREFCOUNT}
@@ -1117,7 +1143,7 @@ type
   public
     constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
     procedure BeforeDestruction; override;
-    procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function Readln(var S: UnicodeString): Boolean; virtual; abstract;
     function ReadChar: UCS4Char; virtual; abstract;
 
@@ -1228,8 +1254,8 @@ type
       WriteUCS4Ascii: procedure(Self: Pointer; const S: PUCS4Char; const Count: NativeUInt);
     end;
 
-    function GetMargin: NativeInt; {$ifdef INLINESUPPORT}inline;{$endif}
-    function GetPosition: Int64; {$ifdef INLINESUPPORT}inline;{$endif}
+    function GetMargin: NativeInt; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    function GetPosition: Int64; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure SetEOF(const Value: Boolean);
     procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
     procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
@@ -1248,7 +1274,7 @@ type
   public
     constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
     procedure BeforeDestruction; override;
-    procedure WriteData(const Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORT}inline;{$endif}
+    procedure WriteData(const Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
 
     property Converter: TUniConvReWriter read FConverter;
     property Target: TCachedWriter read FTarget;
@@ -1575,7 +1601,7 @@ type
       RefCount: Integer;
       Length: Integer;
     end;
-    const ASTR_OFFSET_LENGTH = SizeOf(Integer);
+    const ASTR_OFFSET_LENGTH = 4{SizeOf(Integer), inline bug fix};
   {$else}
     {$ifdef NEXTGEN}
       TAnsiStrRec = TDynArrayRec;
@@ -1713,12 +1739,6 @@ type
 
   T8Bytes = array[0..7] of Byte;
   P8Bytes = ^T8Bytes;
-
-  PWordArray = ^TWordArray;
-  TWordArray = array[0..High(Integer) div SizeOf(Word) - 1] of Word;
-
-  PCardinalArray = ^TCardinalArray;
-  TCardinalArray = array[0..High(Integer) div SizeOf(Cardinal) - 1] of Cardinal;
 
   TNativeIntArray = array[0..High(Integer) div SizeOf(NativeInt) - 1] of NativeInt;
   PNativeIntArray = ^TNativeIntArray;
@@ -3332,12 +3352,9 @@ begin
 end;
 
 procedure ByteString.Delete(const From, Count: NativeUInt);
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PCharArray;
+  S: PByteCharArray;
 begin
   L := Length;
   if (From < L) and (Count <> 0) then
@@ -3452,13 +3469,10 @@ end;
 function ByteString._TrimLeft(S: PByte; L: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   TopS: PByte;
-begin  
-  TopS := @PCharArray(S)[L];
+begin
+  TopS := @PByteCharArray(S)[L];
 
   repeat
     Inc(S);  
@@ -3478,9 +3492,6 @@ end;
 
 function ByteString.TrimRight: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
   S: PByte;
@@ -3494,7 +3505,7 @@ begin
   end else
   begin
     Dec(L);
-    if (PCharArray(S)[L] > 32) then
+    if (PByteCharArray(S)[L] > 32) then
     begin
       Result := True;
       Exit;
@@ -3522,13 +3533,10 @@ end;
 function ByteString._TrimRight(S: PByte; H: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   TopS: PByte;
-begin  
-  TopS := @PCharArray(S)[H];
+begin
+  TopS := @PByteCharArray(S)[H];
   
   Dec(S);
   repeat
@@ -3548,9 +3556,6 @@ end;
 
 function ByteString.Trim: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
   S: PByte;
@@ -3564,7 +3569,7 @@ begin
   end else
   begin
     Dec(L);
-    if (PCharArray(S)[L] > 32) then
+    if (PByteCharArray(S)[L] > 32) then
     begin
       // TrimLeft or True
       if (S^ > 32) then
@@ -3618,14 +3623,11 @@ end;
 function ByteString._Trim(S: PByte; H: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   TopS: PByte;
-begin  
-  if (H = 0) then goto fail;  
-  TopS := @PCharArray(S)[H];      
+begin
+  if (H = 0) then goto fail;
+  TopS := @PByteCharArray(S)[H];
 
   // TrimLeft
   repeat
@@ -3652,14 +3654,11 @@ fail:
 end;
 
 function ByteString.SubString(const From, Count: NativeUInt): ByteString;
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
 begin
   Result.F.NativeFlags := Self.F.NativeFlags;
-  Result.FChars := Pointer(@PCharArray(Self.FChars)[From]);
+  Result.FChars := Pointer(@PByteCharArray(Self.FChars)[From]);
 
   L := Self.FLength;
   Dec(L, From);
@@ -3695,23 +3694,20 @@ begin
 end;
 
 function ByteString.Offset(const Count: NativeUInt): Boolean;
-type
-  TCharArray = array[0..0] of Byte;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
 begin
   L := FLength;
   if (L <= Count) then
   begin
-    FChars := Pointer(@PCharArray(FChars)[L]);
+    FChars := Pointer(@PByteCharArray(FChars)[L]);
     FLength := 0;
     Result := False;
   end else
   begin
     Dec(L, Count);
     FLength := L;
-    FChars := Pointer(@PCharArray(FChars)[Count]);
+    FChars := Pointer(@PByteCharArray(FChars)[Count]);
     Result := True;
   end;
 end;
@@ -4081,7 +4077,7 @@ var
   StoredChars: PByte;
 begin
   P := Pointer(FChars);
-  TopCardinal := Pointer(@PByteArray(P)[FLength - CHARS_IN_CARDINAL]);
+  TopCardinal := Pointer(@PByteCharArray(P)[FLength - CHARS_IN_CARDINAL]);
   StoredChars := P;
   Inc(P, From);
   if (Self.Ascii > (Byte(C) <= $7f)) then goto failure;
@@ -4104,7 +4100,7 @@ begin
   until (False);
 
   CharMask := CharMask and $ff;
-  Top := Pointer(@PByteArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  Top := Pointer(@PByteCharArray(TopCardinal)[CHARS_IN_CARDINAL]);
   while (NativeUInt(P) < NativeUInt(Top)) do
   begin
     X := P^;
@@ -4140,7 +4136,7 @@ var
   Lookup: PUniConvBB;
 begin
   P := Pointer(FChars);
-  TopCardinal := Pointer(@PByteArray(P)[FLength - CHARS_IN_CARDINAL]);
+  TopCardinal := Pointer(@PByteCharArray(P)[FLength - CHARS_IN_CARDINAL]);
   StoredChars := P;
   Inc(P, From);
 
@@ -4206,7 +4202,7 @@ begin
 
   LowerCharMask := Byte(LowerCharMask);
   UpperCharMask := Byte(UpperCharMask);
-  Top := Pointer(@PByteArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  Top := Pointer(@PByteCharArray(TopCardinal)[CHARS_IN_CARDINAL]);
   while (NativeUInt(P) < NativeUInt(Top)) do
   begin
     X := P^;
@@ -4229,7 +4225,7 @@ label
 type
   TChar = Byte;
   PChar = ^TChar;
-  TCharArray = TByteArray;
+  TCharArray = TByteCharArray;
   PCharArray = ^TCharArray;
 const
   CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(TChar);
@@ -4319,7 +4315,7 @@ begin
   until (False);
 
   CharMask := CharMask and $ff;
-  Top := Pointer(@PByteArray(TopCardinal)[CHARS_IN_CARDINAL]);
+  Top := Pointer(@PByteCharArray(TopCardinal)[CHARS_IN_CARDINAL]);
   while (NativeUInt(P) < NativeUInt(Top)) do
   begin
     X := P^;
@@ -4333,10 +4329,7 @@ end;
 
 function ByteString.Pos(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
 var
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   Buffer.Chars := AChars;
   Buffer.Length := ALength;
@@ -4346,10 +4339,7 @@ end;
 function ByteString.Pos(const S: AnsiString; const From: NativeUInt): NativeInt;
 var
   P: {$ifdef NEXTGEN}PNativeUInt{$else}PCardinal{$endif};
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   Buffer.Chars := P;
@@ -4432,7 +4422,7 @@ label
 type
   TChar = Byte;
   PChar = ^TChar;
-  TCharArray = TByteArray;
+  TCharArray = TByteCharArray;
   PCharArray = ^TCharArray;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
@@ -4545,7 +4535,7 @@ label
 type
   TChar = Byte;
   PChar = ^TChar;
-  TCharArray = TByteArray;
+  TCharArray = TByteCharArray;
   PCharArray = ^TCharArray;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
@@ -4636,7 +4626,7 @@ begin
 
   LowerCharMask := TChar(LowerCharMask);
   UpperCharMask := TChar(UpperCharMask);
-  Top := Pointer(@PCharArray({$ifdef CPUX86}Store.{$endif}TopCardinal)[CHARS_IN_CARDINAL]);
+  Top := Pointer(@PByteCharArray({$ifdef CPUX86}Store.{$endif}TopCardinal)[CHARS_IN_CARDINAL]);
   while (NativeUInt(P) < NativeUInt(Top)) do
   begin
     X := P^;
@@ -4662,10 +4652,7 @@ end;
 
 function ByteString.PosIgnoreCase(const AChars: PAnsiChar; const ALength: NativeUInt; const From: NativeUInt = 0): NativeInt;
 var
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   Buffer.Chars := AChars;
   Buffer.Length := ALength;
@@ -4681,10 +4668,7 @@ end;
 function ByteString.PosIgnoreCase(const S: AnsiString; const From: NativeUInt = 0): NativeInt;
 var
   P: {$ifdef NEXTGEN}PNativeUInt{$else}PCardinal{$endif};
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   Buffer.Chars := P;
@@ -6407,7 +6391,7 @@ begin
       if (Context.convert_sbcs_from_utf8 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
       begin
         Inc(Context.FDestinationWritten);
-        Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+        PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
       end;
       Dest := Context.Destination;
       Dec(Dest);
@@ -6499,7 +6483,7 @@ begin
       if (Context.convert_sbcs_from_utf8 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
       begin
         Inc(Context.FDestinationWritten);
-        Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+        PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
       end;
       Dest := Context.Destination;
       Dec(Dest);
@@ -6590,7 +6574,7 @@ begin
       if (Context.convert_sbcs_from_utf8 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
       begin
         Inc(Context.FDestinationWritten);
-        Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+        PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
       end;
       Dest := Context.Destination;
       Dec(Dest);
@@ -7587,7 +7571,7 @@ begin
   if (F1 <= F2) then
   begin
     Store.SameLength := F1;
-    Store.SameModifier := (-(F2 - F1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+    Store.SameModifier := (-NativeInt(F2 - F1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
   end else
   begin
     Store.SameLength := F2;
@@ -7705,7 +7689,7 @@ begin
     if (L1 <= L2) then
     begin
       Comp.Length := L1;
-      Comp.Length_2 := (-(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+      Comp.Length_2 := (-NativeInt(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
     end else
     begin
       Comp.Length := L2;
@@ -8117,38 +8101,38 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
 
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
         if (X <> Y) then goto ret_non_equal;
@@ -8180,17 +8164,17 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
@@ -8199,21 +8183,21 @@ begin
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
 
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
         if (X <> Y) then goto ret_non_equal;
@@ -8242,33 +8226,33 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Result := Self._CompareByteString(PByteString(@Buffer), False);
@@ -8289,17 +8273,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
@@ -8308,16 +8292,16 @@ begin
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Result := Self._CompareByteString(PByteString(@Buffer), True);
@@ -8342,37 +8326,37 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
 
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(a.Flags) >= 0) then
       begin
         if (X <> Y) then goto ret_non_equal;
@@ -8406,37 +8390,37 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
 
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(b.Flags) >= 0) then
       begin
         if (X <> Y) then goto ret_non_equal;
@@ -8470,37 +8454,37 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
 
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(a.Flags) >= 0) then
       begin
         if (X <> Y) then goto ret_non_equal;
@@ -8534,37 +8518,37 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
 
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(b.Flags) >= 0) then
       begin
         if (X <> Y) then goto ret_non_equal;
@@ -8596,32 +8580,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -8646,32 +8630,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -8696,32 +8680,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -8746,32 +8730,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -8796,32 +8780,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -8846,32 +8830,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -8896,32 +8880,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -8946,32 +8930,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -8996,24 +8980,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
         if (X > Y) then goto ret_non_equal;
@@ -9044,16 +9028,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
@@ -9061,9 +9045,9 @@ begin
     Y := UNICONV_CHARCASE.VALUES[Y];
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
         if (X > Y) then goto ret_non_equal;
@@ -9101,22 +9085,22 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Result := Self._CompareByteString(PByteString(@Buffer), False);
       Exit;
     end else
@@ -9137,16 +9121,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PByte(P)^;
@@ -9154,7 +9138,7 @@ begin
     Y := UNICONV_CHARCASE.VALUES[Y];
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Result := Self._CompareByteString(PByteString(@Buffer), True);
       Exit;
     end else
@@ -9176,24 +9160,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(a.Flags) >= 0) then
       begin
         if (X > Y) then goto ret_non_equal;
@@ -9226,24 +9210,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(b.Flags) >= 0) then
       begin
         if (X > Y) then goto ret_non_equal;
@@ -9276,24 +9260,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(a.Flags) >= 0) then
       begin
         if (X > Y) then goto ret_non_equal;
@@ -9326,24 +9310,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (Integer(b.Flags) >= 0) then
       begin
         if (X > Y) then goto ret_non_equal;
@@ -9374,22 +9358,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret > 0);
       Exit;
@@ -9414,22 +9398,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret < 0);
       Exit;
@@ -9454,22 +9438,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret >= 0);
       Exit;
@@ -9494,22 +9478,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret <= 0);
       Exit;
@@ -9534,22 +9518,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret < 0);
       Exit;
@@ -9574,22 +9558,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret > 0);
       Exit;
@@ -9614,22 +9598,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret <= 0);
       Exit;
@@ -9654,22 +9638,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret >= 0);
       Exit;
@@ -9695,14 +9679,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -9710,13 +9694,13 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(Self.Chars)^;
       X := PWord(P)^;
       if (X = Y) or (X or Y > $7f) then
       begin
-        X := Buffer[1]{Length};
+        X := Buffer.Length;
         Y := Self.Length;
         if (Integer(Self.Flags) >= 0) then
         begin
@@ -9759,14 +9743,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -9774,7 +9758,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(Self.Chars)^;
       X := PWord(P)^;
@@ -9782,7 +9766,7 @@ begin
       Y := UNICONV_CHARCASE.VALUES[Y];
       if (X = Y) or (X or Y > $7f) then
       begin
-        X := Buffer[1]{Length};
+        X := Buffer.Length;
         Y := Self.Length;
         if (Integer(Self.Flags) >= 0) then
         begin
@@ -9822,14 +9806,14 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -9841,7 +9825,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(Self.Chars)^;
       X := PWord(P)^;
@@ -9873,14 +9857,14 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -9892,7 +9876,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(Self.Chars)^;
       X := PWord(P)^;
@@ -9927,14 +9911,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -9942,13 +9926,13 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(a.Chars)^;
       X := PWord(P)^;
       if (X = Y) or (X or Y > $7f) then
       begin
-        X := Buffer[1]{Length};
+        X := Buffer.Length;
         Y := a.Length;
         if (Integer(a.Flags) >= 0) then
         begin
@@ -9993,14 +9977,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10008,13 +9992,13 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(b.Chars)^;
       X := PWord(P)^;
       if (X = Y) or (X or Y > $7f) then
       begin
-        X := Buffer[1]{Length};
+        X := Buffer.Length;
         Y := b.Length;
         if (Integer(b.Flags) >= 0) then
         begin
@@ -10059,14 +10043,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10074,13 +10058,13 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(a.Chars)^;
       X := PWord(P)^;
       if (X = Y) or (X or Y > $7f) then
       begin
-        X := Buffer[1]{Length};
+        X := Buffer.Length;
         Y := a.Length;
         if (Integer(a.Flags) >= 0) then
         begin
@@ -10125,14 +10109,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10140,13 +10124,13 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(b.Chars)^;
       X := PWord(P)^;
       if (X = Y) or (X or Y > $7f) then
       begin
-        X := Buffer[1]{Length};
+        X := Buffer.Length;
         Y := b.Length;
         if (Integer(b.Flags) >= 0) then
         begin
@@ -10189,14 +10173,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10208,7 +10192,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(a.Chars)^;
       X := PWord(P)^;
@@ -10244,14 +10228,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10263,7 +10247,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(b.Chars)^;
       X := PWord(P)^;
@@ -10299,14 +10283,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10318,7 +10302,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(a.Chars)^;
       X := PWord(P)^;
@@ -10354,14 +10338,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10373,7 +10357,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(b.Chars)^;
       X := PWord(P)^;
@@ -10409,14 +10393,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10428,7 +10412,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(a.Chars)^;
       X := PWord(P)^;
@@ -10464,14 +10448,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10483,7 +10467,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(b.Chars)^;
       X := PWord(P)^;
@@ -10519,14 +10503,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10538,7 +10522,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(a.Chars)^;
       X := PWord(P)^;
@@ -10574,14 +10558,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -10593,7 +10577,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PByte(b.Chars)^;
       X := PWord(P)^;
@@ -10631,22 +10615,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PWord(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := Self.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
@@ -10680,16 +10664,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PWord(P)^;
@@ -10697,7 +10681,7 @@ begin
     Y := UNICONV_CHARCASE.VALUES[Y];
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := Self.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
@@ -10728,16 +10712,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PWord(P)^;
@@ -10765,16 +10749,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(Self.Chars)^;
     X := PWord(P)^;
@@ -10804,22 +10788,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PWord(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := a.Length;
       if (Integer(a.Flags) >= 0) then
       begin
@@ -10853,22 +10837,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PWord(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := b.Length;
       if (Integer(b.Flags) >= 0) then
       begin
@@ -10902,22 +10886,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PWord(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := a.Length;
       if (Integer(a.Flags) >= 0) then
       begin
@@ -10951,22 +10935,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PWord(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := b.Length;
       if (Integer(b.Flags) >= 0) then
       begin
@@ -10998,16 +10982,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PWord(P)^;
@@ -11037,16 +11021,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PWord(P)^;
@@ -11076,16 +11060,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PWord(P)^;
@@ -11115,16 +11099,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PWord(P)^;
@@ -11154,16 +11138,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PWord(P)^;
@@ -11193,16 +11177,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PWord(P)^;
@@ -11232,16 +11216,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(a.Chars)^;
     X := PWord(P)^;
@@ -11271,16 +11255,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PByte(b.Chars)^;
     X := PWord(P)^;
@@ -11310,23 +11294,23 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PByte(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
 
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (Integer(Self.Flags) >= 0) then
         begin
           if (X > Y) then goto ret_non_equal;
@@ -11340,15 +11324,15 @@ begin
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
 
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (Integer(Self.Flags) >= 0) then
         begin
           if (X <> Y) then goto ret_non_equal;
@@ -11380,13 +11364,13 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PByte(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
     Y := UNICONV_CHARCASE.VALUES[Y];
@@ -11395,10 +11379,10 @@ begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
 
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (Integer(Self.Flags) >= 0) then
         begin
           if (X > Y) then goto ret_non_equal;
@@ -11422,15 +11406,15 @@ begin
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
 
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (Integer(Self.Flags) >= 0) then
         begin
           if (X <> Y) then goto ret_non_equal;
@@ -11459,28 +11443,28 @@ function ByteString.Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength: 
 var
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PByte(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
       end else
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
       end;
@@ -11500,13 +11484,13 @@ function ByteString.CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; const
 var
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PByte(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
     Y := UNICONV_CHARCASE.VALUES[Y];
@@ -11515,15 +11499,15 @@ begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
       end else
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
       end;
@@ -11545,17 +11529,17 @@ label
 var
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PByte(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := Self.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
@@ -11586,19 +11570,19 @@ label
 var
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PByte(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
     Y := UNICONV_CHARCASE.VALUES[Y];
     if (X = Y) or (X or Y > $7f) then
     begin
-      X := Buffer[1]{Length};
+      X := Buffer.Length;
       Y := Self.Length;
       if (Integer(Self.Flags) >= 0) then
       begin
@@ -11626,12 +11610,12 @@ end;
 {inline} function ByteString.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
 var
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PByte(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
@@ -11654,12 +11638,12 @@ end;
 {inline} function ByteString.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
 var
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PByte(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
@@ -11742,12 +11726,9 @@ end;
 {$endif}
 
 procedure UTF16String.Delete(const From, Count: NativeUInt);
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PCharArray;
+  S: PUTF16CharArray;
 begin
   L := Length;
   if (From < L) and (Count <> 0) then
@@ -11857,13 +11838,10 @@ end;
 function UTF16String._TrimLeft(S: PWord; L: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   TopS: PWord;
 begin  
-  TopS := @PCharArray(S)[L];
+  TopS := @PUTF16CharArray(S)[L];
 
   repeat
     Inc(S);  
@@ -11883,9 +11861,6 @@ end;
 
 function UTF16String.TrimRight: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
   S: PWord;
@@ -11899,7 +11874,7 @@ begin
   end else
   begin
     Dec(L);
-    if (PCharArray(S)[L] > 32) then
+    if (PUTF16CharArray(S)[L] > 32) then
     begin
       Result := True;
       Exit;
@@ -11927,13 +11902,10 @@ end;
 function UTF16String._TrimRight(S: PWord; H: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   TopS: PWord;
-begin  
-  TopS := @PCharArray(S)[H];
+begin
+  TopS := @PUTF16CharArray(S)[H];
   
   Dec(S);
   repeat
@@ -11953,9 +11925,6 @@ end;
 
 function UTF16String.Trim: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
   S: PWord;
@@ -11969,7 +11938,7 @@ begin
   end else
   begin
     Dec(L);
-    if (PCharArray(S)[L] > 32) then
+    if (PUTF16CharArray(S)[L] > 32) then
     begin
       // TrimLeft or True
       if (S^ > 32) then
@@ -12023,14 +11992,11 @@ end;
 function UTF16String._Trim(S: PWord; H: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   TopS: PWord;
-begin  
-  if (H = 0) then goto fail;  
-  TopS := @PCharArray(S)[H];      
+begin
+  if (H = 0) then goto fail;
+  TopS := @PUTF16CharArray(S)[H];
 
   // TrimLeft
   repeat
@@ -12057,14 +12023,11 @@ fail:
 end;
 
 function UTF16String.SubString(const From, Count: NativeUInt): UTF16String;
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
 begin
   Result.F.NativeFlags := Self.F.NativeFlags;
-  Result.FChars := Pointer(@PCharArray(Self.FChars)[From]);
+  Result.FChars := Pointer(@PUTF16CharArray(Self.FChars)[From]);
 
   L := Self.FLength;
   Dec(L, From);
@@ -12100,23 +12063,20 @@ begin
 end;
 
 function UTF16String.Offset(const Count: NativeUInt): Boolean;
-type
-  TCharArray = array[0..0] of Word;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
 begin
   L := FLength;
   if (L <= Count) then
   begin
-    FChars := Pointer(@PCharArray(FChars)[L]);
+    FChars := Pointer(@PUTF16CharArray(FChars)[L]);
     FLength := 0;
     Result := False;
   end else
   begin
     Dec(L, Count);
     FLength := L;
-    FChars := Pointer(@PCharArray(FChars)[Count]);
+    FChars := Pointer(@PUTF16CharArray(FChars)[Count]);
     Result := True;
   end;
 end;
@@ -12413,7 +12373,7 @@ label
 type
   TChar = Word;
   PChar = ^TChar;
-  TCharArray = TWordArray;
+  TCharArray = TUTF16CharArray;
   PCharArray = ^TCharArray;
 const
   CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(TChar);
@@ -12502,10 +12462,7 @@ end;
 
 function UTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 var
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   Buffer.Chars := AChars;
   Buffer.Length := ALength;
@@ -12515,10 +12472,7 @@ end;
 function UTF16String.Pos(const S: UnicodeString; const From: NativeUInt): NativeInt;
 var
   P: PInteger;
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   Buffer.Chars := P;
@@ -12539,7 +12493,7 @@ label
 type
   TChar = Word;
   PChar = ^TChar;
-  TCharArray = TWordArray;
+  TCharArray = TUTF16CharArray;
   PCharArray = ^TCharArray;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(TChar);
@@ -12628,10 +12582,7 @@ end;
 
 function UTF16String.PosIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 var
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   Buffer.Chars := AChars;
   Buffer.Length := ALength;
@@ -12641,10 +12592,7 @@ end;
 function UTF16String.PosIgnoreCase(const S: UnicodeString; const From: NativeUInt): NativeInt;
 var
   P: PInteger;
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   Buffer.Chars := P;
@@ -14277,7 +14225,7 @@ begin
     if (Context.convert_sbcs_from_utf16 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
     begin
       Inc(Context.FDestinationWritten);
-      Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
     end;
     Dest := Context.Destination;
     Dec(Dest);
@@ -14343,7 +14291,7 @@ begin
     if (Context.convert_sbcs_from_utf16 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
     begin
       Inc(Context.FDestinationWritten);
-      Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
     end;
     Dest := Context.Destination;
     Dec(Dest);
@@ -14409,7 +14357,7 @@ begin
     if (Context.convert_sbcs_from_utf16 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
     begin
       Inc(Context.FDestinationWritten);
-      Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
     end;
     Dest := Context.Destination;
     Dec(Dest);
@@ -14536,7 +14484,7 @@ begin
     if (Context.convert_utf8_from_utf16 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
     begin
       Inc(Context.FDestinationWritten);
-      Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
     end;
     Dest := Context.Destination;
     Dec(Dest);
@@ -14579,7 +14527,7 @@ begin
     if (Context.convert_utf8_from_utf16 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
     begin
       Inc(Context.FDestinationWritten);
-      Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
     end;
     Dest := Context.Destination;
     Dec(Dest);
@@ -14622,7 +14570,7 @@ begin
     if (Context.convert_utf8_from_utf16 < 0) and (Context.DestinationWritten <> Context.DestinationSize) then
     begin
       Inc(Context.FDestinationWritten);
-      Byte(PByteArray(Context.Destination)[Context.DestinationWritten]) := UNKNOWN_CHARACTER;
+      PByteCharArray(Context.Destination)[Context.DestinationWritten] := UNKNOWN_CHARACTER;
     end;
     Dest := Context.Destination;
     Dec(Dest);
@@ -15100,7 +15048,7 @@ begin
 
   if (L1 <= L2) then
   begin
-    L2 := (-(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+    L2 := (-NativeInt(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
   end else
   begin
     L1 := L2;
@@ -15379,34 +15327,34 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Pointer(Self.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (Self.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@Self, False);
@@ -15431,18 +15379,18 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Pointer(Self.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (Self.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
@@ -15451,16 +15399,16 @@ begin
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@Self, True);
@@ -15482,33 +15430,33 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Result := PByteString(@Buffer)._CompareUTF16String(@Self, False);
@@ -15530,17 +15478,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
@@ -15549,16 +15497,16 @@ begin
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Result := PByteString(@Buffer)._CompareUTF16String(@Self, True);
@@ -15584,33 +15532,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (Pointer(a.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (a.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
@@ -15637,33 +15585,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (Pointer(b.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (b.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
@@ -15690,33 +15638,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (Pointer(a.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (a.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
@@ -15743,33 +15691,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (Pointer(b.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (b.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
@@ -15794,32 +15742,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
@@ -15844,32 +15792,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
@@ -15894,32 +15842,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
@@ -15944,32 +15892,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
@@ -15994,32 +15942,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
@@ -16044,32 +15992,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
@@ -16094,32 +16042,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
@@ -16144,32 +16092,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
@@ -16194,24 +16142,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 3;
       if (X < Y) then goto ret_non_equal;
@@ -16236,16 +16184,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
@@ -16253,9 +16201,9 @@ begin
     Y := UNICONV_CHARCASE.VALUES[Y];
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 3;
       if (X < Y) then goto ret_non_equal;
@@ -16277,22 +16225,22 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Result := PByteString(@Buffer)._CompareUTF16String(@Self, False);
       Result := -Result;
       Exit;
@@ -16314,16 +16262,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PByte(P)^;
@@ -16331,7 +16279,7 @@ begin
     Y := UNICONV_CHARCASE.VALUES[Y];
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Result := PByteString(@Buffer)._CompareUTF16String(@Self, True);
       Result := -Result;
       Exit;
@@ -16354,24 +16302,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 3;
       if (X < Y) then goto ret_non_equal;
@@ -16398,24 +16346,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 3;
       if (X < Y) then goto ret_non_equal;
@@ -16442,24 +16390,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 3;
       if (X < Y) then goto ret_non_equal;
@@ -16486,24 +16434,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 3;
       if (X < Y) then goto ret_non_equal;
@@ -16528,22 +16476,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
       Result := (Ret < 0);
       Exit;
@@ -16568,22 +16516,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
       Result := (Ret > 0);
       Exit;
@@ -16608,22 +16556,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
       Result := (Ret <= 0);
       Exit;
@@ -16648,22 +16596,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
       Result := (Ret >= 0);
       Exit;
@@ -16688,22 +16636,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
       Result := (Ret > 0);
       Exit;
@@ -16728,22 +16676,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
       Result := (Ret < 0);
       Exit;
@@ -16768,22 +16716,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@a, False);
       Result := (Ret >= 0);
       Exit;
@@ -16808,22 +16756,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := PByteString(@Buffer)._CompareUTF16String(@b, False);
       Result := (Ret <= 0);
       Exit;
@@ -16849,20 +16797,20 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Pointer(Self.Length) <> nil) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
       if (Self.Length <> L) then goto ret_non_equal;
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(Self.Chars)^;
       X := PWord(P)^;
@@ -16900,20 +16848,20 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Pointer(Self.Length) <> nil) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
       if (Self.Length <> L) then goto ret_non_equal;
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(Self.Chars)^;
       X := PWord(P)^;
@@ -16950,14 +16898,14 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -16969,7 +16917,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(Self.Chars)^;
       X := PWord(P)^;
@@ -16998,14 +16946,14 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17017,7 +16965,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(Self.Chars)^;
       X := PWord(P)^;
@@ -17052,20 +17000,20 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (Pointer(a.Length) <> nil) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
       if (a.Length <> L) then goto ret_non_equal;
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(a.Chars)^;
       X := PWord(P)^;
@@ -17105,20 +17053,20 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (Pointer(b.Length) <> nil) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
       if (b.Length <> L) then goto ret_non_equal;
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(b.Chars)^;
       X := PWord(P)^;
@@ -17158,20 +17106,20 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (Pointer(a.Length) <> nil) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
       if (a.Length <> L) then goto ret_non_equal;
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(a.Chars)^;
       X := PWord(P)^;
@@ -17211,20 +17159,20 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (Pointer(b.Length) <> nil) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
       if (b.Length <> L) then goto ret_non_equal;
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(b.Chars)^;
       X := PWord(P)^;
@@ -17262,14 +17210,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17281,7 +17229,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(a.Chars)^;
       X := PWord(P)^;
@@ -17314,14 +17262,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17333,7 +17281,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(b.Chars)^;
       X := PWord(P)^;
@@ -17366,14 +17314,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17385,7 +17333,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(a.Chars)^;
       X := PWord(P)^;
@@ -17418,14 +17366,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17437,7 +17385,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(b.Chars)^;
       X := PWord(P)^;
@@ -17470,14 +17418,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17489,7 +17437,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(a.Chars)^;
       X := PWord(P)^;
@@ -17522,14 +17470,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17541,7 +17489,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(b.Chars)^;
       X := PWord(P)^;
@@ -17574,14 +17522,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17593,7 +17541,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(a.Chars)^;
       X := PWord(P)^;
@@ -17626,14 +17574,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -17645,7 +17593,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PWord(b.Chars)^;
       X := PWord(P)^;
@@ -17680,17 +17628,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Pointer(Self.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
     if (Self.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PWord(P)^;
@@ -17719,17 +17667,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Pointer(Self.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
     if (Self.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PWord(P)^;
@@ -17757,16 +17705,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PWord(P)^;
@@ -17791,16 +17739,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(Self.Chars)^;
     X := PWord(P)^;
@@ -17830,17 +17778,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (Pointer(a.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
     if (a.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PWord(P)^;
@@ -17869,17 +17817,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (Pointer(b.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
     if (b.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PWord(P)^;
@@ -17908,17 +17856,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (Pointer(a.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
     if (a.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PWord(P)^;
@@ -17947,17 +17895,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (Pointer(b.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
     if (b.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PWord(P)^;
@@ -17984,16 +17932,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PWord(P)^;
@@ -18020,16 +17968,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PWord(P)^;
@@ -18056,16 +18004,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PWord(P)^;
@@ -18092,16 +18040,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PWord(P)^;
@@ -18128,16 +18076,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PWord(P)^;
@@ -18164,16 +18112,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PWord(P)^;
@@ -18200,16 +18148,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(a.Chars)^;
     X := PWord(P)^;
@@ -18236,16 +18184,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PWord(b.Chars)^;
     X := PWord(P)^;
@@ -18272,22 +18220,22 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PWord(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (X > Y) then goto ret_non_equal;
         X := X * 3;
         if (X < Y) then goto ret_non_equal;
@@ -18295,13 +18243,13 @@ begin
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
-        if (Self.Length <> Buffer[1]{Length}) then goto ret_non_equal;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@Self, False);
       Result := (Ret = 0);
@@ -18324,13 +18272,13 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PWord(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
     Y := UNICONV_CHARCASE.VALUES[Y];
@@ -18339,9 +18287,9 @@ begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (X > Y) then goto ret_non_equal;
         X := X * 3;
         if (X < Y) then goto ret_non_equal;
@@ -18349,13 +18297,13 @@ begin
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
-        if (Self.Length <> Buffer[1]{Length}) then goto ret_non_equal;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
       end;
       Ret := PByteString(@Buffer)._CompareUTF16String(@Self, True);
       Result := (Ret = 0);
@@ -18375,28 +18323,28 @@ function UTF16String.Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength:
 var
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PWord(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
       end else
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
       end;
@@ -18417,13 +18365,13 @@ function UTF16String.CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; cons
 var
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PWord(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
     Y := UNICONV_CHARCASE.VALUES[Y];
@@ -18432,15 +18380,15 @@ begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
       end else
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
       end;
@@ -18461,12 +18409,12 @@ end;
 var
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (ALength <> 0) and (Self.Length = ALength) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PWord(Self.Chars)^;
     if (X = Y) then
@@ -18488,12 +18436,12 @@ end;
 var
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (ALength <> 0) and (Self.Length = ALength) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PWord(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
@@ -18516,12 +18464,12 @@ end;
 {inline} function UTF16String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
 var
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PWord(Self.Chars)^;
     if (X = Y) then
@@ -18541,12 +18489,12 @@ end;
 {inline} function UTF16String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
 var
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PWord(Self.Chars)^;
     X := UNICONV_CHARCASE.VALUES[X];
@@ -18610,12 +18558,9 @@ begin
 end;
 
 procedure UTF32String.Delete(const From, Count: NativeUInt);
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
-  S: PCharArray;
+  S: PUTF32CharArray;
 begin
   L := Length;
   if (From < L) and (Count <> 0) then
@@ -18716,13 +18661,10 @@ end;
 function UTF32String._TrimLeft(S: PCardinal; L: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   TopS: PCardinal;
 begin  
-  TopS := @PCharArray(S)[L];
+  TopS := @PUTF32CharArray(S)[L];
 
   repeat
     Inc(S);  
@@ -18742,9 +18684,6 @@ end;
 
 function UTF32String.TrimRight: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
   S: PCardinal;
@@ -18758,7 +18697,7 @@ begin
   end else
   begin
     Dec(L);
-    if (PCharArray(S)[L] > 32) then
+    if (PUTF32CharArray(S)[L] > 32) then
     begin
       Result := True;
       Exit;
@@ -18786,13 +18725,10 @@ end;
 function UTF32String._TrimRight(S: PCardinal; H: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   TopS: PCardinal;
 begin  
-  TopS := @PCharArray(S)[H];
+  TopS := @PUTF32CharArray(S)[H];
   
   Dec(S);
   repeat
@@ -18812,9 +18748,6 @@ end;
 
 function UTF32String.Trim: Boolean;
 {$if Defined(INLINESUPPORT) or not Defined(CPUX86)}
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
   S: PCardinal;
@@ -18828,7 +18761,7 @@ begin
   end else
   begin
     Dec(L);
-    if (PCharArray(S)[L] > 32) then
+    if (PUTF32CharArray(S)[L] > 32) then
     begin
       // TrimLeft or True
       if (S^ > 32) then
@@ -18882,14 +18815,11 @@ end;
 function UTF32String._Trim(S: PCardinal; H: NativeUInt): Boolean;
 label
   fail;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   TopS: PCardinal;
 begin  
   if (H = 0) then goto fail;  
-  TopS := @PCharArray(S)[H];      
+  TopS := @PUTF32CharArray(S)[H];
 
   // TrimLeft
   repeat
@@ -18916,14 +18846,11 @@ fail:
 end;
 
 function UTF32String.SubString(const From, Count: NativeUInt): UTF32String;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
 begin
   Result.F.NativeFlags := Self.F.NativeFlags;
-  Result.FChars := Pointer(@PCharArray(Self.FChars)[From]);
+  Result.FChars := Pointer(@PUTF32CharArray(Self.FChars)[From]);
 
   L := Self.FLength;
   Dec(L, From);
@@ -18959,23 +18886,20 @@ begin
 end;
 
 function UTF32String.Offset(const Count: NativeUInt): Boolean;
-type
-  TCharArray = array[0..0] of Cardinal;
-  PCharArray = ^TCharArray;
 var
   L: NativeUInt;
 begin
   L := FLength;
   if (L <= Count) then
   begin
-    FChars := Pointer(@PCharArray(FChars)[L]);
+    FChars := Pointer(@PUTF32CharArray(FChars)[L]);
     FLength := 0;
     Result := False;
   end else
   begin
     Dec(L, Count);
     FLength := L;
-    FChars := Pointer(@PCharArray(FChars)[Count]);
+    FChars := Pointer(@PUTF32CharArray(FChars)[Count]);
     Result := True;
   end;
 end;
@@ -19106,7 +19030,7 @@ var
   StoredChars: PCardinal;
 begin
   P := Pointer(FChars);
-  Top := Pointer(@PCardinalArray(P)[FLength]);
+  Top := Pointer(@PUTF32CharArray(P)[FLength]);
   StoredChars := P;
   Inc(P, From);
   if (Self.Ascii > (Ord(C) <= $7f)) then goto failure;
@@ -19135,7 +19059,7 @@ var
   StoredChars: PCardinal;
 begin
   P := Pointer(FChars);
-  Top := Pointer(@PCardinalArray(P)[FLength]);
+  Top := Pointer(@PUTF32CharArray(P)[FLength]);
   StoredChars := P;
   Inc(P, From);
   if (Self.Ascii > (Ord(C) <= $7f)) then goto failure;
@@ -19197,7 +19121,7 @@ label
 type
   TChar = Cardinal;
   PChar = ^TChar;
-  TCharArray = TCardinalArray;
+  TCharArray = TUTF32CharArray;
   PCharArray = ^TCharArray;
 const
   CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(TChar);
@@ -19274,10 +19198,7 @@ end;
 
 function UTF32String.Pos(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 var
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   Buffer.Chars := AChars;
   Buffer.Length := ALength;
@@ -19287,10 +19208,7 @@ end;
 function UTF32String.Pos(const S: UCS4String; const From: NativeUInt): NativeInt;
 var
   L: NativeUInt;
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   L := NativeUInt(Pointer(S));
   if (L = 0{nil}) then
@@ -19349,7 +19267,7 @@ label
 type
   TChar = Cardinal;
   PChar = ^TChar;
-  TCharArray = TCardinalArray;
+  TCharArray = TUTF32CharArray;
   PCharArray = ^TCharArray;
 var
   L: NativeUInt;
@@ -19420,10 +19338,7 @@ end;
 
 function UTF32String.PosIgnoreCase(const AChars: PUCS4Char; const ALength: NativeUInt; const From: NativeUInt): NativeInt;
 var
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   Buffer.Chars := AChars;
   Buffer.Length := ALength;
@@ -19433,10 +19348,7 @@ end;
 function UTF32String.PosIgnoreCase(const S: UCS4String; const From: NativeUInt): NativeInt;
 var
   L: NativeUInt;
-  Buffer: record
-    Chars: Pointer;
-    Length: NativeUInt;
-  end;
+  Buffer: PtrString;
 begin
   L := NativeUInt(Pointer(S));
   if (L = 0{nil}) then
@@ -22485,7 +22397,7 @@ begin
     // sbcs
     if (P1Length <= P2Length) then
     begin
-      Store.Modifier := (-(P2Length - P1Length)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+      Store.Modifier := (-NativeInt(P2Length - P1Length)) shr {$ifdef SMALLINT}31{$else}63{$endif};
     end else
     begin
       P1Length := P2Length;
@@ -22602,7 +22514,7 @@ begin
 
   if (L1 <= L2) then
   begin
-    L2 := (-(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
+    L2 := (-NativeInt(L2 - L1)) shr {$ifdef SMALLINT}31{$else}63{$endif};
   end else
   begin
     L1 := L2;
@@ -22887,34 +22799,34 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Pointer(Self.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (Self.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := Self._CompareByteString(PByteString(@Buffer), False);
@@ -22939,18 +22851,18 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Pointer(Self.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (Self.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
@@ -22962,16 +22874,16 @@ begin
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := Self._CompareByteString(PByteString(@Buffer), True);
@@ -22993,33 +22905,33 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Result := Self._CompareByteString(PByteString(@Buffer), False);
@@ -23040,17 +22952,17 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
-  {$ifNdef INTERNALCODEPAGE}Buffer[2]{Flags} := CodePage;{$endif}
+  {$ifNdef INTERNALCODEPAGE}Buffer.Flags := CodePage;{$endif}
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
@@ -23062,16 +22974,16 @@ begin
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
-      CP := Buffer[2]{Flags};
+      CP := Buffer.Flags;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Result := Self._CompareByteString(PByteString(@Buffer), True);
@@ -23096,33 +23008,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (Pointer(a.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (a.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -23149,33 +23061,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (Pointer(b.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (b.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -23202,33 +23114,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (Pointer(a.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (a.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -23255,33 +23167,33 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (Pointer(b.Length) <> nil) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
     if (b.Length <> L) then goto ret_non_equal;
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -23306,32 +23218,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -23356,32 +23268,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -23406,32 +23318,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -23456,32 +23368,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -23506,32 +23418,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -23556,32 +23468,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -23606,32 +23518,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
@@ -23656,32 +23568,32 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       {$ifdef INTERNALCODEPAGE}
-      CP := PWord(PByteArray(Buffer[0]{Chars}) - ASTR_OFFSET_CODEPAGE)^;
+      CP := PWord(PByteArray(Buffer.Chars) - ASTR_OFFSET_CODEPAGE)^;
       {$else}
       CP := 0;
       {$endif}
       if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
       begin
-        Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+        Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       end else
       begin
-        Buffer[2]{Flags} := 0;
+        Buffer.Flags := 0;
         PByteString(@Buffer).SetEncoding(CP);
       end;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
@@ -23706,24 +23618,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 4;
       if (X < Y) then goto ret_non_equal;
@@ -23748,16 +23660,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
@@ -23768,9 +23680,9 @@ begin
     end;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := Self.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 4;
       if (X < Y) then goto ret_non_equal;
@@ -23792,22 +23704,22 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Result := Self._CompareByteString(PByteString(@Buffer), False);
       Exit;
     end else
@@ -23828,16 +23740,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PByte(P)^;
@@ -23848,7 +23760,7 @@ begin
     end;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Result := Self._CompareByteString(PByteString(@Buffer), True);
       Exit;
     end else
@@ -23870,24 +23782,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 4;
       if (X < Y) then goto ret_non_equal;
@@ -23914,24 +23826,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 4;
       if (X < Y) then goto ret_non_equal;
@@ -23958,24 +23870,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := a.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 4;
       if (X < Y) then goto ret_non_equal;
@@ -24002,24 +23914,24 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       X := b.Length;
-      Y := Buffer[1]{Length};
+      Y := Buffer.Length;
       if (X > Y) then goto ret_non_equal;
       X := X * 4;
       if (X < Y) then goto ret_non_equal;
@@ -24044,22 +23956,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret > 0);
       Exit;
@@ -24084,22 +23996,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret < 0);
       Exit;
@@ -24124,22 +24036,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret >= 0);
       Exit;
@@ -24164,22 +24076,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret <= 0);
       Exit;
@@ -24204,22 +24116,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret < 0);
       Exit;
@@ -24244,22 +24156,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret > 0);
       Exit;
@@ -24284,22 +24196,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := a._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret <= 0);
       Exit;
@@ -24324,22 +24236,22 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, ASTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, ASTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PByte(P)^;
     if (X = Y) or (X or Y > $7f) then
     begin
-      Buffer[2]{Flags} := $ff000000;
+      Buffer.Flags := $ff000000;
       Ret := b._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret >= 0);
       Exit;
@@ -24365,14 +24277,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24380,7 +24292,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(Self.Chars)^;
       X := PWord(P)^;
@@ -24418,14 +24330,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24433,7 +24345,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(Self.Chars)^;
       X := PWord(P)^;
@@ -24473,14 +24385,14 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24492,7 +24404,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(Self.Chars)^;
       X := PWord(P)^;
@@ -24524,14 +24436,14 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     if (Self.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24543,7 +24455,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(Self.Chars)^;
       X := PWord(P)^;
@@ -24581,14 +24493,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24596,7 +24508,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(a.Chars)^;
       X := PWord(P)^;
@@ -24636,14 +24548,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24651,7 +24563,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(b.Chars)^;
       X := PWord(P)^;
@@ -24691,14 +24603,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24706,7 +24618,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(a.Chars)^;
       X := PWord(P)^;
@@ -24746,14 +24658,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24761,7 +24673,7 @@ begin
       if (L = 0) then goto ret_non_equal;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(b.Chars)^;
       X := PWord(P)^;
@@ -24799,14 +24711,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24818,7 +24730,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(a.Chars)^;
       X := PWord(P)^;
@@ -24854,14 +24766,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24873,7 +24785,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(b.Chars)^;
       X := PWord(P)^;
@@ -24909,14 +24821,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24928,7 +24840,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(a.Chars)^;
       X := PWord(P)^;
@@ -24964,14 +24876,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -24983,7 +24895,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(b.Chars)^;
       X := PWord(P)^;
@@ -25019,14 +24931,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -25038,7 +24950,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(a.Chars)^;
       X := PWord(P)^;
@@ -25074,14 +24986,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -25093,7 +25005,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(b.Chars)^;
       X := PWord(P)^;
@@ -25129,14 +25041,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (P <> nil) then
   begin
     if (a.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -25148,7 +25060,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(a.Chars)^;
       X := PWord(P)^;
@@ -25184,14 +25096,14 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (P <> nil) then
   begin
     if (b.Length <> 0) then
     begin
-      Buffer[0]{Chars} := NativeUInt(P);
+      Buffer.Chars := P;
       Dec(P, WSTR_OFFSET_LENGTH);
       L := PCardinal(P)^;
       Inc(P, WSTR_OFFSET_LENGTH);
@@ -25203,7 +25115,7 @@ begin
       end;
       {$endif}
       {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
-      Buffer[1]{Length} := L;
+      Buffer.Length := L;
 
       Y := PCardinal(b.Chars)^;
       X := PWord(P)^;
@@ -25241,16 +25153,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PWord(P)^;
@@ -25279,16 +25191,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PWord(P)^;
@@ -25319,16 +25231,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PWord(P)^;
@@ -25356,16 +25268,16 @@ var
   P: PByte;
   L: NativeUInt;
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(S);
   if (Self.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(Self.Chars)^;
     X := PWord(P)^;
@@ -25398,16 +25310,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PWord(P)^;
@@ -25436,16 +25348,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PWord(P)^;
@@ -25474,16 +25386,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PWord(P)^;
@@ -25512,16 +25424,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PWord(P)^;
@@ -25548,16 +25460,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PWord(P)^;
@@ -25587,16 +25499,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PWord(P)^;
@@ -25626,16 +25538,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PWord(P)^;
@@ -25665,16 +25577,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PWord(P)^;
@@ -25704,16 +25616,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PWord(P)^;
@@ -25743,16 +25655,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PWord(P)^;
@@ -25782,16 +25694,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(b);
   if (a.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(a.Chars)^;
     X := PWord(P)^;
@@ -25821,16 +25733,16 @@ var
   L: NativeUInt;
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   P := Pointer(a);
   if (b.Length <> 0) and (P <> nil) then
   begin
-    Buffer[0]{Chars} := NativeUInt(P);
+    Buffer.Chars := P;
     Dec(P, USTR_OFFSET_LENGTH);
     L := PCardinal(P)^;
     Inc(P, USTR_OFFSET_LENGTH);
-    Buffer[1]{Length} := L;
+    Buffer.Length := L;
 
     Y := PCardinal(b.Chars)^;
     X := PWord(P)^;
@@ -25860,22 +25772,22 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PCardinal(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (X > Y) then goto ret_non_equal;
         X := X * 4;
         if (X < Y) then goto ret_non_equal;
@@ -25883,13 +25795,13 @@ begin
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
-        if (Self.Length <> Buffer[1]{Length}) then goto ret_non_equal;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
       end;
       Ret := Self._CompareByteString(PByteString(@Buffer), False);
       Result := (Ret = 0);
@@ -25912,13 +25824,13 @@ var
   X, Y: NativeUInt;
   CP: Word;
   Ret: NativeInt;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PCardinal(Self.Chars)^;
     if (Y <= $ffff) then
     begin
@@ -25930,9 +25842,9 @@ begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
         X := Self.Length;
-        Y := Buffer[1]{Length};
+        Y := Buffer.Length;
         if (X > Y) then goto ret_non_equal;
         X := X * 4;
         if (X < Y) then goto ret_non_equal;
@@ -25940,13 +25852,13 @@ begin
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
-        if (Self.Length <> Buffer[1]{Length}) then goto ret_non_equal;
+        if (Self.Length <> Buffer.Length) then goto ret_non_equal;
       end;
       Ret := Self._CompareByteString(PByteString(@Buffer), True);
       Result := (Ret = 0);
@@ -25966,28 +25878,28 @@ function UTF32String.Compare(const AChars: PAnsiChar{/PUTF8Char}; const ALength:
 var
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PCardinal(Self.Chars)^;
     if (X = Y) or (X or Y > $7f) then
     begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
       end else
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
       end;
@@ -26007,13 +25919,13 @@ function UTF32String.CompareIgnoreCase(const AChars: PAnsiChar{/PUTF8Char}; cons
 var
   X, Y: NativeUInt;
   CP: Word;
-  Buffer: array[0..2] of NativeUInt;
+  Buffer: CachedString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
-    X := PByte(Buffer[0]{Chars})^;
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
+    X := PByte(Buffer.Chars)^;
     Y := PCardinal(Self.Chars)^;
     if (Y <= $ffff) then
     begin
@@ -26025,15 +25937,15 @@ begin
       CP := CodePage;
       if (CP = CODEPAGE_UTF8) then
       begin
-        Buffer[2]{Flags} := $ff000000;
+        Buffer.Flags := $ff000000;
       end else
       begin
         if (CP = 0) or (CP = CODEPAGE_DEFAULT) then
         begin
-          Buffer[2]{Flags} := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+          Buffer.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
         end else
         begin
-          Buffer[2]{Flags} := 0;
+          Buffer.Flags := 0;
           PByteString(@Buffer).SetEncoding(CP);
         end;
       end;
@@ -26055,12 +25967,12 @@ label
 var
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PCardinal(Self.Chars)^;
     if (X = Y) or (X or Y >= $d800) then
@@ -26085,12 +25997,12 @@ label
 var
   X, Y: NativeUInt;
   Ret: NativeInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PCardinal(Self.Chars)^;
     if (Y <= $ffff) then
@@ -26117,12 +26029,12 @@ end;
 {inline} function UTF32String.Compare(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
 var
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PCardinal(Self.Chars)^;
     if (X = Y) or (X or Y >= $d800) then
@@ -26145,12 +26057,12 @@ end;
 {inline} function UTF32String.CompareIgnoreCase(const AChars: PUnicodeChar; const ALength: NativeUInt): NativeInt;
 var
   X, Y: NativeUInt;
-  Buffer: array[0..1] of NativeUInt;
+  Buffer: PtrString;
 begin
   if (Self.Length <> 0) and (ALength <> 0) then
   begin
-    Buffer[1]{Length} := ALength;
-    Buffer[0]{Chars} := NativeUInt(AChars);
+    Buffer.Length := ALength;
+    Buffer.Chars := AChars;
     X := PWord(AChars)^;
     Y := PCardinal(Self.Chars)^;
     if (Y <= $ffff) then
@@ -27031,7 +26943,7 @@ begin
   if (NativeInt(Flags) >= SizeOf(UCS4Char)) then
   begin
     Flags := Flags shr 2;
-    Top := @PCardinalArray(P)[Flags];
+    Top := @PUTF32CharArray(P)[Flags];
     Flags := 0;
 
     repeat
@@ -27443,7 +27355,7 @@ begin
   Count := Byte(Value);
   with Self.FBuffer do P := Pointer(@Booleans[Count]);
   Count := Count xor 5;
-  FVirtuals.WriteBufferedAscii(Self, P, Pointer(@PByteArray(P)[Count]));
+  FVirtuals.WriteBufferedAscii(Self, P, @PByteCharArray(P)[Count]);
 end;
 
 procedure TCachedTextWriter.WriteBooleanOrdinal(const Value: Boolean);
@@ -27453,7 +27365,7 @@ var
 begin
   Count := Byte(Value);
   with Self.FBuffer do P := Pointer(@BooleansOrdinal[Count]);
-  FVirtuals.WriteBufferedAscii(Self, P, Pointer(@PByteArray(P)[1]));
+  FVirtuals.WriteBufferedAscii(Self, P, @PByteCharArray(P)[1]);
 end;
 
 procedure TCachedTextWriter.WriteShortInt(const Value: ShortInt);
@@ -27964,7 +27876,7 @@ var
 begin
   if (ALength <> 0) then
   for i := 0 to NativeInt(ALength) - 1 do
-    PCardinalArray(Dest)[i] := Byte(PByteArray(Src)[i]);
+    PUTF32CharArray(Dest)[i] := PByteCharArray(Src)[i];
 end;
 
 procedure TTemporaryString.InternalAppend(const MaxAppendSize: NativeUInt;
@@ -28773,7 +28685,7 @@ begin
         {$ifNdef FPC}Dec(L);{$endif}
 
         Inc(P);
-        PCardinalArray(P)[L] := 0;
+        PUTF32CharArray(P)[L] := 0;
       end else
       begin
         P := nil;

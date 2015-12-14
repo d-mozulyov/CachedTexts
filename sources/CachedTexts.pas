@@ -461,9 +461,9 @@ type
 
     {$ifdef OPERATORSUPPORT}
     class operator Implicit(const a: ByteString): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: ByteString): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     class operator Implicit(const a: ByteString): WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
+    class operator Implicit(const a: ByteString): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     class operator Implicit(const a: ByteString): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     {$endif}
@@ -712,9 +712,9 @@ type
 
     {$ifdef OPERATORSUPPORT}
     class operator Implicit(const a: UTF16String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: UTF16String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     class operator Implicit(const a: UTF16String): WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
+    class operator Implicit(const a: UTF16String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     class operator Implicit(const a: UTF16String): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     {$endif}
@@ -962,9 +962,9 @@ type
 
     {$ifdef OPERATORSUPPORT}
     class operator Implicit(const a: UTF32String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: UTF32String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     class operator Implicit(const a: UTF32String): WideString; {$ifNdef CPUINTEL}inline;{$endif}
     {$ifdef UNICODE}
+    class operator Implicit(const a: UTF32String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
     class operator Implicit(const a: UTF32String): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
     {$endif}
     {$endif}
@@ -1129,6 +1129,7 @@ type
     function GetPosition: Int64; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure SetEOF(const Value: Boolean);
     procedure OverflowReadData(var Buffer; const Count: NativeUInt);
+    function FlushReadChar: UCS4Char;
   {$ifNdef AUTOREFCOUNT}
   public
   {$endif}
@@ -1165,7 +1166,6 @@ type
 
     procedure SetSBCS(const Value: PUniConvSBCS);
     function FlushReadln(var S: ByteString): Boolean;
-    function FlushReadChar: UCS4Char;
   public
     constructor Create(const Encoding: Word; const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const Encoding: Word; const FileName: string; const DefaultByteEncoding: Word = 0);
@@ -1187,7 +1187,6 @@ type
   TUTF16TextReader = class(TCachedTextReader)
   protected
     function FlushReadln(var S: UTF16String): Boolean;
-    function FlushReadChar: UCS4Char;
   public
     constructor Create(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
@@ -1204,7 +1203,6 @@ type
   TUTF32TextReader = class(TCachedTextReader)
   protected
     function FlushReadln(var S: UTF32String): Boolean;
-    function FlushReadChar: UCS4Char;
   public
     constructor Create(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
     constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
@@ -1236,11 +1234,9 @@ type
     FFormat: record
       Args: PVarRec;
       ArgsCount: NativeUInt;
-      TopArg: PVarRec;
-    case Integer of
-      0: (CastByteString: ByteString);
-      1: (CastUTF16String: UTF16String);
-      2: (CastUTF32String: UTF16String);
+      HighArg: PVarRec;
+      FmtStr: CachedString;
+      ArgStr: CachedString;
     end;
     FVirtuals: record
       WriteBufferedAscii: procedure(Self: Pointer; From, Top: PByte);
@@ -1259,8 +1255,8 @@ type
     procedure SetEOF(const Value: Boolean);
     procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
     procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
-    procedure WriteFormatByte(S: PByte; Count: NativeUInt);
-    procedure WriteFormatWord(S: PWord; Count: NativeUInt);
+    procedure WriteFormatByte;
+    procedure WriteFormatWord;
   {$ifNdef AUTOREFCOUNT}
   public
   {$endif}
@@ -1725,6 +1721,108 @@ const
   USTR_REFCOUNT_LITERAL = -1;
   {$endif}
   UCS4STR_REFCOUNT_LITERAL = 0;
+
+
+function AStrLen(S: PByte): NativeUInt;
+label
+  found, _1, _2, _3;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+  SUB_MASK  = Integer(-$01010101);
+  OVERFLOW_MASK = Integer($80808080);
+var
+  Store: PByte;
+  X, V: NativeInt;
+begin
+  Store := S;
+  if (S = nil) then goto found;
+
+  if (NativeUInt(S) and (SizeOf(Cardinal) - 1) <> 0) then
+  begin
+    case (NativeUInt(S) and (SizeOf(Cardinal) - 1)) of
+      1:
+      begin
+      _1:
+        if (S^ = 0) then goto found;
+        Inc(S);
+        goto _2;
+      end;
+      2:
+      begin
+      _2:
+        if (S^ = 0) then goto found;
+        Inc(S);
+        goto _3;
+      end;
+    else
+    _3:
+      if (S^ = 0) then goto found;
+      Inc(S);
+    end;
+  end;
+
+  repeat
+    X := PCardinal(S)^;
+    Inc(S, CHARS_IN_CARDINAL);
+
+    V := X + SUB_MASK;
+    X := not X;
+    X := X and V;
+
+    if (X and OVERFLOW_MASK = 0) then Continue;
+    Dec(S, CHARS_IN_CARDINAL);
+    Inc(S, Byte(X and $80 = 0));
+    Inc(S, Byte(X and $8080 = 0));
+    Inc(S, Byte(X and $808080 = 0));
+    goto found;
+  until (False);
+
+found:
+  Result := NativeUInt(S) - NativeUInt(Store);
+end;
+
+function WStrLen(S: PWord): NativeUInt;
+label
+  found;
+var
+  Store: PWord;
+  X: Cardinal;
+begin
+  Store := S;
+  if (S = nil) then goto found;
+
+  if (NativeUInt(S) and (SizeOf(Cardinal) - 1) <> 0) then
+  begin
+    if (NativeUInt(S) and 1 <> 0) then
+    begin
+      repeat
+        if (S^ = 0) then goto found;
+        Inc(S);
+      until (False);
+    end else
+    begin
+      if (S^ = 0) then goto found;
+      Inc(S);
+    end;
+  end;
+
+  repeat
+    X := PCardinal(S)^;
+    if (X and $0000ffff = 0) then goto found;
+    Inc(S);
+    if (X and $ffff0000 = 0) then goto found;
+    Inc(S);
+
+    X := PCardinal(S)^;
+    if (X and $0000ffff = 0) then goto found;
+    Inc(S);
+    if (X and $ffff0000 = 0) then goto found;
+    Inc(S);
+  until (False);
+
+found:
+  Result := (NativeUInt(S) - NativeUInt(Store)) shr 1;
+end;
 
 
 type
@@ -3050,6 +3148,9 @@ end;
 
 { ECachedString }
 
+const
+  ECACHEDSTRING_LENGTH_LIMIT = 31;
+
 constructor ECachedString.Create(const ResStringRec: PResStringRec);
 begin
   inherited Create({$ifdef KOL}e_Convert,{$endif}LoadResString(ResStringRec));
@@ -3064,12 +3165,12 @@ begin
   Buffer.Ascii := False;
   if (Buffer.Chars <> nil) and (Buffer.Length > 0) then
   begin
-    if (Buffer.Length < 16) then
+    if (Buffer.Length < ECACHEDSTRING_LENGTH_LIMIT) then
     begin
       Buffer.ToString(S);
     end else
     begin
-      Buffer.Length := 16;
+      Buffer.Length := ECACHEDSTRING_LENGTH_LIMIT;
       Buffer.ToString(S);
       S := S + '...';
     end;
@@ -3087,12 +3188,12 @@ begin
   Buffer.Ascii := False;
   if (Buffer.Chars <> nil) and (Buffer.Length > 0) then
   begin
-    if (Buffer.Length < 16) then
+    if (Buffer.Length < ECACHEDSTRING_LENGTH_LIMIT) then
     begin
       Buffer.ToString(S);
     end else
     begin
-      Buffer.Length := 16;
+      Buffer.Length := ECACHEDSTRING_LENGTH_LIMIT;
       Buffer.ToString(S);
       S := S + '...';
     end;
@@ -3110,12 +3211,12 @@ begin
   Buffer.Ascii := False;
   if (Buffer.Chars <> nil) and (Buffer.Length > 0) then
   begin
-    if (Buffer.Length < 16) then
+    if (Buffer.Length < ECACHEDSTRING_LENGTH_LIMIT) then
     begin
       Buffer.ToString(S);
     end else
     begin
-      Buffer.Length := 16;
+      Buffer.Length := ECACHEDSTRING_LENGTH_LIMIT;
       Buffer.ToString(S);
       S := S + '...';
     end;
@@ -7494,7 +7595,7 @@ end;
 class operator ByteString.Implicit(const a: ByteString): AnsiString;
 {$ifNdef CPUINTEL}
 begin
-  ToAnsiString(Result);
+  a.ToAnsiString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -7507,21 +7608,10 @@ asm
 end;
 {$endif}
 
-class operator ByteString.Implicit(const a: ByteString): UTF8String;
-{$ifNdef CPUINTEL}
-begin
-  ToUTF8String(Result);
-end;
-{$else .CPUX86/CPUX64}
-asm
-  jmp ToUTF8String
-end;
-{$endif}
-
 class operator ByteString.Implicit(const a: ByteString): WideString;
 {$ifNdef CPUINTEL}
 begin
-  ToWideString(Result);
+  a.ToWideString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -7530,10 +7620,21 @@ end;
 {$endif}
 
 {$ifdef UNICODE}
+class operator ByteString.Implicit(const a: ByteString): UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  a.ToUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUTF8String
+end;
+{$endif}
+
 class operator ByteString.Implicit(const a: ByteString): UnicodeString;
 {$ifNdef CPUINTEL}
 begin
-  ToUnicodeString(Result);
+  a.ToUnicodeString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -14990,7 +15091,7 @@ end;
 class operator UTF16String.Implicit(const a: UTF16String): AnsiString;
 {$ifNdef CPUINTEL}
 begin
-  ToAnsiString(Result);
+  a.ToAnsiString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -15003,21 +15104,10 @@ asm
 end;
 {$endif}
 
-class operator UTF16String.Implicit(const a: UTF16String): UTF8String;
-{$ifNdef CPUINTEL}
-begin
-  ToUTF8String(Result);
-end;
-{$else .CPUX86/CPUX64}
-asm
-  jmp ToUTF8String
-end;
-{$endif}
-
 class operator UTF16String.Implicit(const a: UTF16String): WideString;
 {$ifNdef CPUINTEL}
 begin
-  ToWideString(Result);
+  a.ToWideString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -15026,10 +15116,21 @@ end;
 {$endif}
 
 {$ifdef UNICODE}
+class operator UTF16String.Implicit(const a: UTF16String): UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  a.ToUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUTF8String
+end;
+{$endif}
+
 class operator UTF16String.Implicit(const a: UTF16String): UnicodeString;
 {$ifNdef CPUINTEL}
 begin
-  ToUnicodeString(Result);
+  a.ToUnicodeString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -22232,7 +22333,7 @@ end;
 class operator UTF32String.Implicit(const a: UTF32String): AnsiString;
 {$ifNdef CPUINTEL}
 begin
-  ToAnsiString(Result);
+  a.ToAnsiString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -22245,21 +22346,10 @@ asm
 end;
 {$endif}
 
-class operator UTF32String.Implicit(const a: UTF32String): UTF8String;
-{$ifNdef CPUINTEL}
-begin
-  ToUTF8String(Result);
-end;
-{$else .CPUX86/CPUX64}
-asm
-  jmp ToUTF8String
-end;
-{$endif}
-
 class operator UTF32String.Implicit(const a: UTF32String): WideString;
 {$ifNdef CPUINTEL}
 begin
-  ToWideString(Result);
+  a.ToWideString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -22268,10 +22358,21 @@ end;
 {$endif}
 
 {$ifdef UNICODE}
+class operator UTF32String.Implicit(const a: UTF32String): UTF8String;
+{$ifNdef CPUINTEL}
+begin
+  a.ToUTF8String(Result);
+end;
+{$else .CPUX86/CPUX64}
+asm
+  jmp ToUTF8String
+end;
+{$endif}
+
 class operator UTF32String.Implicit(const a: UTF32String): UnicodeString;
 {$ifNdef CPUINTEL}
 begin
-  ToUnicodeString(Result);
+  a.ToUnicodeString(Result);
 end;
 {$else .CPUX86/CPUX64}
 asm
@@ -26221,6 +26322,14 @@ begin
   end;
 end;
 
+function TCachedTextReader.FlushReadChar: UCS4Char;
+begin
+  if (Self.Finishing) then Self.EOF := True
+  else Self.Flush;
+
+  Result := Self.ReadChar;
+end;
+
 
 { TByteTextReader }
 
@@ -26342,14 +26451,6 @@ begin
 
   SetSBCS(SBCS);
   inherited Create(Context, Source, Owner);
-end;
-
-function TByteTextReader.FlushReadChar: UCS4Char;
-begin
-  if (Self.Finishing) then Self.EOF := True
-  else Self.Flush;
-
-  Result := Self.ReadChar;
 end;
 
 function TByteTextReader.ReadChar: UCS4Char;
@@ -26635,14 +26736,6 @@ begin
   inherited Create(Context, Source, Owner);
 end;
 
-function TUTF16TextReader.FlushReadChar: UCS4Char;
-begin
-  if (Self.Finishing) then Self.EOF := True
-  else Self.Flush;
-
-  Result := Self.ReadChar;
-end;
-
 function TUTF16TextReader.ReadChar: UCS4Char;
 label
   buffer_too_small, unknown, done;
@@ -26888,14 +26981,6 @@ constructor TUTF32TextReader.CreateDirect(const Context: PUniConvContext;
   const Source: TCachedReader; const Owner: Boolean);
 begin
   inherited Create(Context, Source, Owner);
-end;
-
-function TUTF32TextReader.FlushReadChar: UCS4Char;
-begin
-  if (Self.Finishing) then Self.EOF := True
-  else Self.Flush;
-
-  Result := Self.ReadChar;
 end;
 
 function TUTF32TextReader.ReadChar: UCS4Char;
@@ -27244,12 +27329,12 @@ begin
   if (P = nil) then Exit;
 
   Self.FFormat.Args := @Args[0];
-  Self.FFormat.TopArg := @Args[High(Args)];
+  Self.FFormat.HighArg := @Args[High(Args)];
   Self.FFormat.ArgsCount := High(Args) + 1;
 
-  Self.FFormat.CastByteString.FChars := Pointer(P);
+  Self.FFormat.FmtStr.Chars := P;
   Dec(P);
-  Self.FFormat.CastByteString.FLength := P^;
+  Self.FFormat.FmtStr.Length := P^;
 
   {$ifdef INTERNALCODEPAGE}
   Dec(P, 2);
@@ -27257,7 +27342,7 @@ begin
   {$endif}
   if (CodePage = 0) or (CodePage = CODEPAGE_DEFAULT) then
   begin
-    Self.FFormat.CastByteString.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
+    Self.FFormat.FmtStr.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
   end else
   begin
     Value := Integer($ff000000);
@@ -27274,11 +27359,10 @@ begin
       Value := Value and $ff000000;
     end;
 
-    Self.FFormat.CastByteString.Flags := Value;
+    Self.FFormat.FmtStr.Flags := Value;
   end;
 
-  Self.WriteFormatByte(Pointer(Self.FFormat.CastByteString.FChars),
-    Self.FFormat.CastByteString.FLength);
+  Self.WriteFormatByte;
 end;
 
 procedure TCachedTextWriter.WriteFormatUTF8(const FmtStr: UTF8String;
@@ -27290,16 +27374,15 @@ begin
   if (P = nil) then Exit;
 
   Self.FFormat.Args := @Args[0];
-  Self.FFormat.TopArg := @Args[High(Args)];
+  Self.FFormat.HighArg := @Args[High(Args)];
   Self.FFormat.ArgsCount := High(Args) + 1;
 
-  Self.FFormat.CastByteString.FChars := Pointer(P);
+  Self.FFormat.FmtStr.Chars := P;
   Dec(P);
-  Self.FFormat.CastByteString.FLength := P^;
-  Self.FFormat.CastByteString.Flags := $ff000000;
+  Self.FFormat.FmtStr.Length := P^;
+  Self.FFormat.FmtStr.Flags := $ff000000;
 
-  Self.WriteFormatByte(Pointer(Self.FFormat.CastByteString.FChars),
-    Self.FFormat.CastByteString.FLength);
+  Self.WriteFormatByte;
 end;
 
 procedure TCachedTextWriter.WriteFormatUnicode(const FmtStr: UnicodeString;
@@ -27311,16 +27394,15 @@ begin
   if (P = nil) then Exit;
 
   Self.FFormat.Args := @Args[0];
-  Self.FFormat.TopArg := @Args[High(Args)];
+  Self.FFormat.HighArg := @Args[High(Args)];
   Self.FFormat.ArgsCount := High(Args) + 1;
 
-  Self.FFormat.CastByteString.FChars := Pointer(P);
+  Self.FFormat.FmtStr.Chars := P;
   Dec(P);
-  Self.FFormat.CastByteString.FLength := P^{$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)} shr 1{$ifend};
-  Self.FFormat.CastByteString.Flags := 0;
+  Self.FFormat.FmtStr.Length := P^{$if not Defined(UNICODE) and Defined(WIDE_STR_SHIFT)} shr 1{$ifend};
+  Self.FFormat.FmtStr.Flags := 0;
 
-  Self.WriteFormatWord(Pointer(Self.FFormat.CastByteString.FChars),
-    Self.FFormat.CastByteString.FLength);
+  Self.WriteFormatWord;
 end;
 
 {$ifdef NEXTGEN}
@@ -27337,12 +27419,288 @@ begin
 end;
 {$endif}
 
-procedure TCachedTextWriter.WriteFormatByte(S: PByte; Count: NativeUInt);
-begin
+const
+  FMT_CHAR_D = 0; // 'd'
+  FMT_CHAR_U = 1; // 'u'
+  FMT_CHAR_E = 2; // 'e'
+  FMT_CHAR_F = 3; // 'f'
+  FMT_CHAR_G = 4; // 'g'
+  FMT_CHAR_N = 5; // 'n'
+  FMT_CHAR_P = 6; // 'p'
+  FMT_CHAR_S = 7; // 's'
+  FMT_CHAR_X = 8; // 'x'
+  FMT_CHAR_ASTERISK = 9; // '*'
+  FMT_CHAR_MINUS   = 10; // '-'
+  FMT_CHAR_DIGIT   = 11; // 0..9
+  FMT_CHAR_POINT   = 12; // '.'
+  FMT_CHAR_PERSENT = 13; // '%'
+  FMT_CHAR_COLON   = 14; // ':'
 
+  FCD = FMT_CHAR_D; // 'd'
+  FCU = FMT_CHAR_U; // 'u'
+  FCE = FMT_CHAR_E; // 'e'
+  FCF = FMT_CHAR_F; // 'f'
+  FCG = FMT_CHAR_G; // 'g'
+  FCN = FMT_CHAR_N; // 'n'
+  FCP = FMT_CHAR_P; // 'p'
+  FCS = FMT_CHAR_S; // 's'
+  FCX = FMT_CHAR_X; // 'x'
+  FC09 = FMT_CHAR_DIGIT;
+
+  FMT_CHARS: array[Byte] of Byte = (
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // 00-0f
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // 10-1f
+     $ff, $ff, $ff, $ff, $ff, FMT_CHAR_PERSENT, $ff, $ff, {} $ff, $ff, FMT_CHAR_ASTERISK, $ff, $ff, FMT_CHAR_MINUS, FMT_CHAR_POINT, $ff, // 20-2f
+    FC09,FC09,FC09,FC09,FC09,FC09,FC09,FC09, {}FC09,FC09, FMT_CHAR_COLON, $ff, $ff, $ff, $ff, $ff, // 30-3f
+     $ff, $ff, $ff, $ff, FCD, FCE, FCF, FCG, {} $ff, $ff, $ff, $ff, $ff, $ff, FCN, $ff, // 40-4f
+     FCP, $ff, $ff, FCS, $ff, FCU, $ff, FCX, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // 50-5f
+     $ff, $ff, $ff, $ff, FCD, FCE, FCF, FCG, {} $ff, $ff, $ff, $ff, $ff, $ff, FCN, $ff, // 60-6f
+     FCP, $ff, $ff, FCS, $ff, FCU, $ff, FCX, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // 70-7f
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // 80-8f
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // 90-9f
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // a0-af
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // b0-bf
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // c0-cf
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // d0-df
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, // e0-ef
+     $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff  // f0-ff
+  );
+
+
+procedure TCachedTextWriter.WriteFormatByte;
+label
+  einvalid_format, eargument_missing, next_iteration,
+  _1, _2, _3, persent_found,
+  leftjustification_found, prec_found, type_found;
+type
+  TChar = Byte;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
+  PERSENT_XOR_MASK = $25252525;
+  SUB_MASK  = Integer(-$01010101);
+  OVERFLOW_MASK = Integer($80808080);
+  UNDEFINED_WIDTH = 0;
+  UNDEFINED_PRECISION = -1;
+  UNDEFINED_WIDTHPRECISION = Integer((UNDEFINED_PRECISION shl 16) + UNDEFINED_WIDTH);
+var
+  S, Top: PByte;
+  Arg: PVarRec;
+  X, V: NativeInt;
+  TopCardinal: PByte;
+
+  Store: packed record
+    Top: PByte;
+    TopCardinal: PByte;
+    Arg: PVarRec;
+    case Integer of
+      0: (Width, Precision: SmallInt);
+      1: (WidthPrecision: Integer);
+  end;
+begin
+  // store parameters
+  Arg := Self.FFormat.Args;
+  Dec(Arg);
+  Store.Arg := Arg;
+  S := Self.FFormat.FmtStr.Chars;
+  X := Self.FFormat.FmtStr.Length;
+  Store.Top := Pointer(@PByteCharArray(S)[X]);
+  Store.TopCardinal := Pointer(@PByteCharArray(S)[X - CHARS_IN_CARDINAL]);
+  if (X = 0) then
+  begin
+    Exit;
+
+  einvalid_format:
+    raise ECachedString.Create(
+      Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidFormat),
+      PByteString(@Self.FFormat.FmtStr));
+
+  eargument_missing:
+    raise ECachedString.Create(
+      Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SArgumentMissing),
+      PByteString(@Self.FFormat.FmtStr));
+  end;
+  Self.FFormat.ArgStr.Flags := Self.FFormat.FmtStr.Flags;
+
+  repeat
+    // unformatted substring
+    Self.FFormat.ArgStr.Chars := S;
+    TopCardinal := Store.TopCardinal;
+    repeat
+      if (NativeUInt(S) > NativeUInt(TopCardinal)) then Break;
+      X := PCardinal(S)^;
+      Inc(S, CHARS_IN_CARDINAL);
+
+      X := X xor PERSENT_XOR_MASK;
+      V := X + SUB_MASK;
+      X := not X;
+      X := X and V;
+
+      if (X and OVERFLOW_MASK = 0) then Continue;
+      Dec(S, CHARS_IN_CARDINAL);
+      Inc(S, Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0)));
+      goto persent_found;
+    until (False);
+
+    case (NativeUInt(TopCardinal) + CHARS_IN_CARDINAL - NativeUInt(S)) of
+      3:
+      begin
+      _3:
+        if (S^ = TChar('%')) then goto persent_found;
+        Inc(S);
+        goto _2;
+      end;
+      2:
+      begin
+      _2:
+        if (S^ = TChar('%')) then goto persent_found;
+        Inc(S);
+        goto _1;
+      end;
+      1:
+      begin
+      _1:
+        if (S^ = TChar('%')) then goto persent_found;
+        Inc(S);
+      end;
+    end;
+
+    Self.FFormat.ArgStr.Length := NativeUInt(S) - NativeUInt(Self.FFormat.ArgStr.Chars);
+    Self.FVirtuals.WriteByteString(Self, ByteString(Self.FFormat.ArgStr));
+    Exit;
+  persent_found:
+    Self.FFormat.ArgStr.Length := NativeUInt(S) - NativeUInt(Self.FFormat.ArgStr.Chars);
+    Self.FVirtuals.WriteByteString(Self, ByteString(Self.FFormat.ArgStr));
+
+    // skip "%"
+    Inc(S);
+    Top := Store.Top;
+    if (S = Top) then Exit;
+
+    // "%"  [index ":"] ["-"] [width] ["." prec] type
+    // "%%"
+    Arg := Store.Arg;
+    Store.WidthPrecision := UNDEFINED_WIDTHPRECISION;
+    X := S^;
+    Inc(S);
+    X := FMT_CHARS[X];
+    case NativeUInt(X) of
+      FMT_CHAR_D..FMT_CHAR_X: goto type_found;
+      FMT_CHAR_ASTERISK:
+      begin
+        if (Arg = Self.FFormat.HighArg) then goto eargument_missing;
+
+        Inc(Arg);
+      end;
+      FMT_CHAR_MINUS: goto leftjustification_found;
+      FMT_CHAR_DIGIT:
+      begin
+
+      end;
+      FMT_CHAR_POINT: goto prec_found;
+      FMT_CHAR_PERSENT: goto next_iteration;
+    else
+      goto einvalid_format;
+    end;
+
+    (*
+        FMT_CHAR_D = 0; // 'd'
+        FMT_CHAR_U = 1; // 'u'
+        FMT_CHAR_E = 2; // 'e'
+        FMT_CHAR_F = 3; // 'f'
+        FMT_CHAR_G = 4; // 'g'
+        FMT_CHAR_N = 5; // 'n'
+        FMT_CHAR_P = 6; // 'p'
+        FMT_CHAR_S = 7; // 's'
+        FMT_CHAR_X = 8; // 'x'
+        FMT_CHAR_ASTERISK = 9; // '*'
+        FMT_CHAR_MINUS   = 10; // '-'
+        FMT_CHAR_DIGIT   = 11; // 0..9
+        FMT_CHAR_POINT   = 12; // '.'
+        FMT_CHAR_PERSENT = 13; // '%'
+        FMT_CHAR_COLON   = 14; // ':'
+    *)
+
+    // width/spec/type
+    X := S^;
+    Inc(S);
+    X := FMT_CHARS[X];
+    case NativeUInt(X) of
+      FMT_CHAR_D..FMT_CHAR_X: goto type_found;
+      FMT_CHAR_ASTERISK:
+      begin
+        if (Arg = Self.FFormat.HighArg) then goto eargument_missing;
+
+        Inc(Arg);
+      end;
+      FMT_CHAR_MINUS:
+      begin
+      leftjustification_found:
+
+      end;
+      FMT_CHAR_DIGIT:
+      begin
+
+      end;
+      FMT_CHAR_POINT: goto prec_found;
+    else
+      goto einvalid_format;
+    end;
+
+
+    if (X = FMT_CHAR_POINT) then
+    begin
+    prec_found:
+
+    end;
+
+  type_found:
+    if (Arg = Self.FFormat.HighArg) then goto eargument_missing;
+    Store.Arg := Arg;
+    case NativeUInt(X) of
+      FMT_CHAR_D:
+      begin
+
+      end;
+      FMT_CHAR_U:
+      begin
+
+      end;
+      FMT_CHAR_E:
+      begin
+
+      end;
+      FMT_CHAR_F:
+      begin
+
+      end;
+      FMT_CHAR_G:
+      begin
+
+      end;
+      FMT_CHAR_N:
+      begin
+
+      end;
+      FMT_CHAR_P:
+      begin
+
+      end;
+      FMT_CHAR_S:
+      begin
+
+      end;
+      FMT_CHAR_X:
+      begin
+
+      end;
+    else
+      goto einvalid_format;
+    end;
+  next_iteration:
+  until (S = Store.Top);
 end;
 
-procedure TCachedTextWriter.WriteFormatWord(S: PWord; Count: NativeUInt);
+procedure TCachedTextWriter.WriteFormatWord;
 begin
 
 end;
@@ -28797,5 +29155,6 @@ end;
 
 initialization
   InternalLookupsInitialize;
+  TCachedTextWriter(nil).WriteFormatByte;
 
 end.

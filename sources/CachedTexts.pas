@@ -126,6 +126,9 @@ type
   {$ifend}
   TBytes = array of Byte;
   PBytes = ^TBytes;
+  {$ifdef KOL}
+  TFloatFormat = (ffGeneral, ffExponent, ffFixed, ffNumber, ffCurrency);
+  {$endif}
 
   // exception class
   ECachedText = class(Exception)
@@ -1234,9 +1237,12 @@ type
     FFormat: record
       Args: PVarRec;
       ArgsCount: NativeUInt;
-      HighArg: PVarRec;
+      TopArg: PVarRec;
       FmtStr: CachedString;
       ArgStr: CachedString;
+      case Integer of
+        0: (Width, Precision: SmallInt);
+        1: (WidthPrecision: Integer);
     end;
     FVirtuals: record
       WriteBufferedAscii: procedure(Self: Pointer; From, Top: PByte);
@@ -1255,6 +1261,7 @@ type
     procedure SetEOF(const Value: Boolean);
     procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
     procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
+    function WriteFormatArg(const ArgType: NativeUInt; const Arg: TVarRec): Boolean;
     procedure WriteFormatByte;
     procedure WriteFormatWord;
   {$ifNdef AUTOREFCOUNT}
@@ -1315,17 +1322,24 @@ type
     procedure WriteByte(const Value: Byte);
     procedure WriteSmallInt(const Value: SmallInt);
     procedure WriteWord(const Value: Word);
-    procedure WriteInteger(const Value: Integer);
-    procedure WriteCardinal(const Value: Cardinal);
-    procedure WriteInt64(const Value: Int64);
-    procedure WriteUInt(const Value: UInt64);
+    procedure WriteInteger(const Value: Integer); overload;
+    procedure WriteInteger(const Value: Integer; const Width: NativeInt; const Precision: NativeInt = -1); overload;
+    procedure WriteHex(const Value: Integer; const Digits: NativeUInt);
+    procedure WriteCardinal(const Value: Cardinal); overload;
+    procedure WriteCardinal(const Value: Cardinal; const Width: NativeInt; const Precision: NativeInt = -1); overload;
+    procedure WriteInt64(const Value: Int64); overload;
+    procedure WriteInt64(const Value: Int64; const Width: NativeInt; const Precision: NativeInt = -1); overload;
+    procedure WriteHex64(const Value: Int64; const Digits: NativeUInt);
+    procedure WriteUInt64(const Value: UInt64); overload;
+    procedure WriteUInt64(const Value: UInt64; const Width: NativeInt; const Precision: NativeInt = -1); overload;
     procedure WriteSingle(const Value: Single);
     procedure WriteDouble(const Value: Double);
     procedure WriteExtended(const Value: TExtended80Rec);
     procedure WriteCurrency(const Value: Currency);
+    procedure WriteFloatF(const Value: Extended; const Format: TFloatFormat; const Precision, Digits: NativeInt);
     procedure WriteVariant(const Value: Variant);
 
-    // Date/Time/Hex
+    // todo Date/Time
   end;
 
 
@@ -27329,8 +27343,8 @@ begin
   if (P = nil) then Exit;
 
   Self.FFormat.Args := @Args[0];
-  Self.FFormat.HighArg := @Args[High(Args)];
-  Self.FFormat.ArgsCount := High(Args) + 1;
+  Self.FFormat.TopArg := @Args[Length(Args)];
+  Self.FFormat.ArgsCount := Length(Args);
 
   Self.FFormat.FmtStr.Chars := P;
   Dec(P);
@@ -27374,8 +27388,8 @@ begin
   if (P = nil) then Exit;
 
   Self.FFormat.Args := @Args[0];
-  Self.FFormat.HighArg := @Args[High(Args)];
-  Self.FFormat.ArgsCount := High(Args) + 1;
+  Self.FFormat.TopArg := @Args[Length(Args)];
+  Self.FFormat.ArgsCount := Length(Args);
 
   Self.FFormat.FmtStr.Chars := P;
   Dec(P);
@@ -27394,8 +27408,8 @@ begin
   if (P = nil) then Exit;
 
   Self.FFormat.Args := @Args[0];
-  Self.FFormat.HighArg := @Args[High(Args)];
-  Self.FFormat.ArgsCount := High(Args) + 1;
+  Self.FFormat.TopArg := @Args[Length(Args)];
+  Self.FFormat.ArgsCount := Length(Args);
 
   Self.FFormat.FmtStr.Chars := P;
   Dec(P);
@@ -27420,6 +27434,17 @@ end;
 {$endif}
 
 const
+  BYTE_MASKS: array[0..SizeOf(NativeUInt)] of NativeUInt = (
+    $00000000, $000000ff, $0000ffff, $00ffffff, $ffffffff
+    {$ifdef LARGEINT}
+    , $000000ffffffffff, $0000ffffffffffff, $00ffffffffffffff, $ffffffffffffffff
+    {$endif}
+  );
+
+  FMT_MIN_WIDTH = -99;
+  FMT_MAX_WIDTH =  99;
+  FMT_MAX_PRECISION = 99;
+
   FMT_CHAR_D = 0; // 'd'
   FMT_CHAR_U = 1; // 'u'
   FMT_CHAR_E = 2; // 'e'
@@ -27429,12 +27454,12 @@ const
   FMT_CHAR_P = 6; // 'p'
   FMT_CHAR_S = 7; // 's'
   FMT_CHAR_X = 8; // 'x'
-  FMT_CHAR_ASTERISK = 9; // '*'
-  FMT_CHAR_MINUS   = 10; // '-'
-  FMT_CHAR_DIGIT   = 11; // 0..9
-  FMT_CHAR_POINT   = 12; // '.'
-  FMT_CHAR_PERSENT = 13; // '%'
-  FMT_CHAR_COLON   = 14; // ':'
+  FMT_CHAR_POINT    =  9; // '.'
+  FMT_CHAR_ASTERISK = 10; // '*'
+  FMT_CHAR_MINUS    = 11; // '-'
+  FMT_CHAR_DIGIT    = 12; // '0'..'9'
+  FMT_CHAR_PERSENT  = 13; // '%'
+  FMT_CHAR_COLON    = 14; // ':'
 
   FCD = FMT_CHAR_D; // 'd'
   FCU = FMT_CHAR_U; // 'u'
@@ -27466,45 +27491,117 @@ const
      $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff, {} $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff  // f0-ff
   );
 
+const
+  UNDEFINED_WIDTH = 0;
+  UNDEFINED_PRECISION = -1;
+  UNDEFINED_WIDTHPRECISION = Integer((UNDEFINED_PRECISION shl 16) + UNDEFINED_WIDTH);
+
+
+function TCachedTextWriter.WriteFormatArg(const ArgType: NativeUInt;
+  const Arg: TVarRec): Boolean;
+label
+  fail;
+begin
+  case (ArgType) of
+    FMT_CHAR_D:
+    begin
+      case Arg.VType of
+        vtInteger:
+        begin
+          Self.WriteInteger(Arg.VInteger, Self.FFormat.Width, Self.FFormat.Precision);
+        end;
+        vtInt64:
+        begin
+          Self.WriteInt64(Arg.VInt64^, Self.FFormat.Width, Self.FFormat.Precision);
+        end;
+      else
+        goto fail;
+      end;
+    end;
+    FMT_CHAR_U:
+    begin
+      case Arg.VType of
+        vtInteger:
+        begin
+          Self.WriteCardinal(Arg.VInteger, Self.FFormat.Width, Self.FFormat.Precision);
+
+
+        end;
+        vtInt64:
+        begin
+          Self.WriteUInt64(Arg.VInt64^, Self.FFormat.Width, Self.FFormat.Precision);
+
+
+        end;
+      else
+        goto fail;
+      end;
+    end;
+    FMT_CHAR_E:
+    begin
+      goto fail{todo};
+    end;
+    FMT_CHAR_F:
+    begin
+      goto fail{todo};
+    end;
+    FMT_CHAR_G:
+    begin
+      goto fail{todo};
+    end;
+    FMT_CHAR_N:
+    begin
+      goto fail{todo};
+    end;
+    FMT_CHAR_P:
+    begin
+      goto fail{todo};
+    end;
+    FMT_CHAR_S:
+    begin
+      goto fail{todo};
+    end;
+    FMT_CHAR_X:
+    begin
+      goto fail{todo};
+    end;
+  else
+  fail:
+    Result := False;
+    Exit;
+  end;
+
+  Result := True;
+end;
 
 procedure TCachedTextWriter.WriteFormatByte;
 label
   einvalid_format, eargument_missing, next_iteration,
-  _1, _2, _3, persent_found,
-  leftjustification_found, prec_found, type_found;
-type
-  TChar = Byte;
+  _1, _2, _3, fmt_substring,
+  unspecified_ordinal_found, leftjustification_found, prec_found, type_found,
+  fill_width, fill_precision;
 const
   CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
   PERSENT_XOR_MASK = $25252525;
   SUB_MASK  = Integer(-$01010101);
   OVERFLOW_MASK = Integer($80808080);
-  UNDEFINED_WIDTH = 0;
-  UNDEFINED_PRECISION = -1;
-  UNDEFINED_WIDTHPRECISION = Integer((UNDEFINED_PRECISION shl 16) + UNDEFINED_WIDTH);
 var
-  S, Top: PByte;
+  S, TopS: PByte;
   Arg: PVarRec;
-  X, V: NativeInt;
-  TopCardinal: PByte;
+  Flags, X, V: NativeInt;
+  TopSCardinal: PByte;
 
   Store: packed record
-    Top: PByte;
-    TopCardinal: PByte;
+    TopS: PByte;
+    TopSCardinal: PByte;
     Arg: PVarRec;
-    case Integer of
-      0: (Width, Precision: SmallInt);
-      1: (WidthPrecision: Integer);
   end;
-begin
+ begin
   // store parameters
-  Arg := Self.FFormat.Args;
-  Dec(Arg);
-  Store.Arg := Arg;
   S := Self.FFormat.FmtStr.Chars;
   X := Self.FFormat.FmtStr.Length;
-  Store.Top := Pointer(@PByteCharArray(S)[X]);
-  Store.TopCardinal := Pointer(@PByteCharArray(S)[X - CHARS_IN_CARDINAL]);
+  Store.TopS := Pointer(@PByteCharArray(S)[X]);
+  Store.TopSCardinal := Pointer(@PByteCharArray(S)[X - CHARS_IN_CARDINAL]);
   if (X = 0) then
   begin
     Exit;
@@ -27519,185 +27616,315 @@ begin
       Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SArgumentMissing),
       PByteString(@Self.FFormat.FmtStr));
   end;
+  Store.Arg := Self.FFormat.Args;
   Self.FFormat.ArgStr.Flags := Self.FFormat.FmtStr.Flags;
 
   repeat
     // unformatted substring
     Self.FFormat.ArgStr.Chars := S;
-    TopCardinal := Store.TopCardinal;
+    TopSCardinal := Store.TopSCardinal;
+    Flags := -1;
+    X := 0;
     repeat
-      if (NativeUInt(S) > NativeUInt(TopCardinal)) then Break;
+      Flags := Flags and X;
+      if (NativeUInt(S) > NativeUInt(TopSCardinal)) then Break;
       X := PCardinal(S)^;
       Inc(S, CHARS_IN_CARDINAL);
 
       X := X xor PERSENT_XOR_MASK;
       V := X + SUB_MASK;
       X := not X;
-      X := X and V;
 
-      if (X and OVERFLOW_MASK = 0) then Continue;
+      if (V and X and OVERFLOW_MASK = 0) then Continue;
       Dec(S, CHARS_IN_CARDINAL);
-      Inc(S, Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0)));
-      goto persent_found;
+      X := ((not X) + SUB_MASK) and X;
+      X := Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0));
+      Flags := Flags and (not NativeInt(PCardinal(S)^ and BYTE_MASKS[X]));
+      Inc(S, X);
+      goto fmt_substring;
     until (False);
 
-    case (NativeUInt(TopCardinal) + CHARS_IN_CARDINAL - NativeUInt(S)) of
+    case (NativeUInt(TopSCardinal) + CHARS_IN_CARDINAL - NativeUInt(S)) of
       3:
       begin
       _3:
-        if (S^ = TChar('%')) then goto persent_found;
+        X := S^;
+        if (X = Ord('%')) then goto fmt_substring;
+        Flags := Flags and (not X);
         Inc(S);
         goto _2;
       end;
       2:
       begin
       _2:
-        if (S^ = TChar('%')) then goto persent_found;
+        X := S^;
+        if (X = Ord('%')) then goto fmt_substring;
+        Flags := Flags and (not X);
         Inc(S);
         goto _1;
       end;
       1:
       begin
       _1:
-        if (S^ = TChar('%')) then goto persent_found;
+        X := S^;
+        if (X = Ord('%')) then goto fmt_substring;
+        Flags := Flags and (not X);
         Inc(S);
       end;
     end;
 
-    Self.FFormat.ArgStr.Length := NativeUInt(S) - NativeUInt(Self.FFormat.ArgStr.Chars);
-    Self.FVirtuals.WriteByteString(Self, ByteString(Self.FFormat.ArgStr));
-    Exit;
-  persent_found:
-    Self.FFormat.ArgStr.Length := NativeUInt(S) - NativeUInt(Self.FFormat.ArgStr.Chars);
-    Self.FVirtuals.WriteByteString(Self, ByteString(Self.FFormat.ArgStr));
-
-    // skip "%"
+    // strfmt substring
+  fmt_substring:
+    X := NativeUInt(S) - NativeUInt(Self.FFormat.ArgStr.Chars);
+    if ((not Flags) and OVERFLOW_MASK = 0) then
+    begin
+      Self.FVirtuals.WriteAscii(Self, Self.FFormat.ArgStr.Chars, X);
+    end else
+    begin
+      Self.FFormat.ArgStr.Length := X;
+      Self.FVirtuals.WriteByteString(Self, ByteString(Self.FFormat.ArgStr));
+    end;
     Inc(S);
-    Top := Store.Top;
-    if (S = Top) then Exit;
+    TopS := Store.TopS;
+    if (NativeUInt(S) >= NativeUInt(TopS)) then Exit;
 
     // "%"  [index ":"] ["-"] [width] ["." prec] type
     // "%%"
     Arg := Store.Arg;
-    Store.WidthPrecision := UNDEFINED_WIDTHPRECISION;
+    Self.FFormat.WidthPrecision := UNDEFINED_WIDTHPRECISION;
     X := S^;
     Inc(S);
     X := FMT_CHARS[X];
     case NativeUInt(X) of
       FMT_CHAR_D..FMT_CHAR_X: goto type_found;
+      FMT_CHAR_POINT: goto prec_found;
       FMT_CHAR_ASTERISK:
       begin
-        if (Arg = Self.FFormat.HighArg) then goto eargument_missing;
-
+        if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+        if (Arg.VType <> vtInteger) then goto einvalid_format;
+        V := Arg.VInteger;
         Inc(Arg);
+
+        goto unspecified_ordinal_found;
       end;
       FMT_CHAR_MINUS: goto leftjustification_found;
       FMT_CHAR_DIGIT:
       begin
+        // unspecified digits (0..999) --> ordinal
+        Dec(S);
+        V := S^;
+        Inc(S);
+        Dec(V, Ord('0'));
 
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := V * 10;
+          V := V + X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+          if (NativeUInt(X) < 10) then
+          begin
+            V := V * 10;
+            V := V + X;
+          unspecified_ordinal_found:
+            if (S = TopS) then goto einvalid_format;
+            X := S^;
+            Inc(S);
+            Dec(X, Ord('0'));
+          end;
+        end;
+
+        X := FMT_CHARS[X + Ord('0')];
+        case NativeUInt(X) of
+          FMT_CHAR_D..FMT_CHAR_X:
+          begin
+            Self.FFormat.Width := V;
+            if (V < FMT_MIN_WIDTH) then goto einvalid_format;
+            if (V > FMT_MAX_WIDTH) then goto einvalid_format;
+            goto type_found;
+          end;
+          FMT_CHAR_POINT:
+          begin
+            Self.FFormat.Width := V;
+            if (V < FMT_MIN_WIDTH) then goto einvalid_format;
+            if (V > FMT_MAX_WIDTH) then goto einvalid_format;
+            goto prec_found;
+          end;
+          FMT_CHAR_COLON:
+          begin
+            if (NativeUInt(V) >= Self.FFormat.ArgsCount) then goto eargument_missing;
+            Arg := Self.FFormat.Args;
+            Inc(Arg, V);
+          end;
+        else
+          goto einvalid_format;
+        end;
       end;
-      FMT_CHAR_POINT: goto prec_found;
-      FMT_CHAR_PERSENT: goto next_iteration;
+      FMT_CHAR_PERSENT:
+      begin
+        Self.FBuffer.Ascii[0] := Ord('%');
+        Self.FVirtuals.WriteBufferedAscii(Self, @Self.FBuffer.Ascii[0], @Self.FBuffer.Ascii[1]);
+        goto next_iteration;
+      end;
     else
       goto einvalid_format;
     end;
 
     (*
-        FMT_CHAR_D = 0; // 'd'
-        FMT_CHAR_U = 1; // 'u'
-        FMT_CHAR_E = 2; // 'e'
-        FMT_CHAR_F = 3; // 'f'
-        FMT_CHAR_G = 4; // 'g'
-        FMT_CHAR_N = 5; // 'n'
-        FMT_CHAR_P = 6; // 'p'
-        FMT_CHAR_S = 7; // 's'
-        FMT_CHAR_X = 8; // 'x'
-        FMT_CHAR_ASTERISK = 9; // '*'
-        FMT_CHAR_MINUS   = 10; // '-'
-        FMT_CHAR_DIGIT   = 11; // 0..9
-        FMT_CHAR_POINT   = 12; // '.'
-        FMT_CHAR_PERSENT = 13; // '%'
-        FMT_CHAR_COLON   = 14; // ':'
+        FMT_CHAR_POINT    =  9; // '.'
+        FMT_CHAR_ASTERISK = 10; // '*'
+        FMT_CHAR_MINUS    = 11; // '-'
+        FMT_CHAR_DIGIT    = 12; // '0'..'9'
+        FMT_CHAR_PERSENT  = 13; // '%'
+        FMT_CHAR_COLON    = 14; // ':'
     *)
 
-    // width/spec/type
+    // width (precision/type)
+    if (S = TopS) then goto einvalid_format;
     X := S^;
     Inc(S);
     X := FMT_CHARS[X];
     case NativeUInt(X) of
       FMT_CHAR_D..FMT_CHAR_X: goto type_found;
+      FMT_CHAR_POINT: goto prec_found;
       FMT_CHAR_ASTERISK:
       begin
-        if (Arg = Self.FFormat.HighArg) then goto eargument_missing;
-
+        // width argument
+        if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+        if (Arg.VType <> vtInteger) then goto einvalid_format;
+        V := Arg.VInteger;
         Inc(Arg);
+
+        if (V < FMT_MIN_WIDTH) then goto einvalid_format;
+        if (V > FMT_MAX_WIDTH) then goto einvalid_format;
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Dec(X, Ord('0'));
+        goto fill_width;
       end;
       FMT_CHAR_MINUS:
       begin
       leftjustification_found:
-
+        // negative width digits
+        V := 0;
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := V - X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+          if (NativeUInt(X) < 10) then
+          begin
+            V := V * 10;
+            V := V - X;
+            if (S = TopS) then goto einvalid_format;
+            X := S^;
+            Inc(S);
+            Dec(X, Ord('0'));
+          end;
+        end;
+        goto fill_width;
       end;
       FMT_CHAR_DIGIT:
       begin
+        // width digits
+        Dec(S);
+        V := S^;
+        Inc(S);
+        Dec(V, Ord('0'));
 
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := V * 10;
+          V := V + X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+        end;
+
+      fill_width:
+        Self.FFormat.Width := V;
+        X := FMT_CHARS[X + Ord('0')];
       end;
-      FMT_CHAR_POINT: goto prec_found;
     else
       goto einvalid_format;
     end;
 
-
+    // precision
     if (X = FMT_CHAR_POINT) then
     begin
     prec_found:
+      TopS := Store.TopS;
+      if (S = TopS) then goto einvalid_format;
+      X := S^;
+      Inc(S);
+      if (X = Ord('*')) then
+      begin
+        // precision argument
+        if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+        if (Arg.VType <> vtInteger) then goto einvalid_format;
+        V := Arg.VInteger;
+        Inc(Arg);
 
+        if (NativeUInt(V) > FMT_MAX_PRECISION) then goto einvalid_format;
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        goto fill_precision;
+      end else
+      begin
+        // precision digits
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+          if (NativeUInt(X) < 10) then
+          begin
+            V := V * 10;
+            V := V + X;
+            if (S = TopS) then goto einvalid_format;
+            X := S^;
+            Inc(S);
+            Dec(X, Ord('0'));
+          end;
+
+        fill_precision:
+          Self.FFormat.Precision := V;
+        end;
+        X := FMT_CHARS[X + Ord('0')];
+      end;
     end;
 
   type_found:
-    if (Arg = Self.FFormat.HighArg) then goto eargument_missing;
+    if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+    Inc(Arg);
     Store.Arg := Arg;
-    case NativeUInt(X) of
-      FMT_CHAR_D:
-      begin
+    Dec(Arg);
+    if (not Self.WriteFormatArg(X, Arg^)) then goto einvalid_format;
 
-      end;
-      FMT_CHAR_U:
-      begin
-
-      end;
-      FMT_CHAR_E:
-      begin
-
-      end;
-      FMT_CHAR_F:
-      begin
-
-      end;
-      FMT_CHAR_G:
-      begin
-
-      end;
-      FMT_CHAR_N:
-      begin
-
-      end;
-      FMT_CHAR_P:
-      begin
-
-      end;
-      FMT_CHAR_S:
-      begin
-
-      end;
-      FMT_CHAR_X:
-      begin
-
-      end;
-    else
-      goto einvalid_format;
-    end;
   next_iteration:
-  until (S = Store.Top);
+  until (S = Store.TopS);
 end;
 
 procedure TCachedTextWriter.WriteFormatWord;
@@ -27751,7 +27978,25 @@ begin
   // todo
 end;
 
+procedure TCachedTextWriter.WriteInteger(const Value: Integer;
+  const Width: NativeInt; const Precision: NativeInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteHex(const Value: Integer;
+  const Digits: NativeUInt);
+begin
+  // todo
+end;
+
 procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal;
+  const Width: NativeInt; const Precision: NativeInt);
 begin
   // todo
 end;
@@ -27761,7 +28006,25 @@ begin
   // todo
 end;
 
-procedure TCachedTextWriter.WriteUInt(const Value: UInt64);
+procedure TCachedTextWriter.WriteInt64(const Value: Int64;
+  const Width: NativeInt; const Precision: NativeInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteHex64(const Value: Int64;
+  const Digits: NativeUInt);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUInt64(const Value: UInt64);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteUInt64(const Value: UInt64;
+  const Width: NativeInt; const Precision: NativeInt);
 begin
   // todo
 end;
@@ -27782,6 +28045,12 @@ begin
 end;
 
 procedure TCachedTextWriter.WriteCurrency(const Value: Currency);
+begin
+  // todo
+end;
+
+procedure TCachedTextWriter.WriteFloatF(const Value: Extended;
+  const Format: TFloatFormat; const Precision, Digits: NativeInt);
 begin
   // todo
 end;
@@ -29155,6 +29424,5 @@ end;
 
 initialization
   InternalLookupsInitialize;
-  TCachedTextWriter(nil).WriteFormatByte;
 
 end.

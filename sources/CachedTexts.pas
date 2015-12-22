@@ -237,39 +237,6 @@ var
   DEFAULT_UNICONV_SBCS_INDEX: NativeUInt;
 
 type
-
-{ TUniConvReReader class }
-
-  TUniConvReReader = class(TCachedReReader)
-  protected
-    FGap: record
-      Data: array[0..15] of Byte;
-      Size: NativeUInt;
-    end;
-    FContext: PUniConvContext;
-    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
-  public
-    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
-    property Context: PUniConvContext read FContext;
-  end;
-
-
-{ TUniConvReWriter class }
-
-  TUniConvReWriter = class(TCachedReWriter)
-  protected
-    FGap: record
-      Data: array[0..15] of Byte;
-      Size: NativeUInt;
-    end;
-    FContext: PUniConvContext;
-    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
-  public
-    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
-    property Context: PUniConvContext read FContext;
-  end;
-
-type
   PCachedStringKind = ^TCachedStringKind;
   TCachedStringKind = (csNone, csByte, csUTF16, csUTF32);
 
@@ -1119,6 +1086,38 @@ type
   end;
 
 
+{ TUniConvReReader class }
+
+  TUniConvReReader = class(TCachedReReader)
+  protected
+    FGap: record
+      Data: array[0..15] of Byte;
+      Size: NativeUInt;
+    end;
+    FContext: PUniConvContext;
+    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
+  public
+    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
+    property Context: PUniConvContext read FContext;
+  end;
+
+
+{ TUniConvReWriter class }
+
+  TUniConvReWriter = class(TCachedReWriter)
+  protected
+    FGap: record
+      Data: array[0..15] of Byte;
+      Size: NativeUInt;
+    end;
+    FContext: PUniConvContext;
+    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
+  public
+    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
+    property Context: PUniConvContext read FContext;
+  end;
+
+
 { TCachedTextBuffer class }
 
   TCachedTextBuffer = class
@@ -1134,7 +1133,7 @@ type
     FCurrent: PByte;
     FOverflow: PByte;
 
-    function AllocateInternalContext: PUniConvContext;
+    function GetInternalContext: PUniConvContext;
     procedure FieldsCopy;
     function GetSource: TCachedReader;
     function GetTarget: TCachedWriter;
@@ -1143,14 +1142,15 @@ type
     function GetMargin: NativeInt; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function GetPosition: Int64; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure SetEOF(const Value: Boolean); virtual;
-    function InternalFlush: NativeUInt;
+    procedure OverflowReaderSkip(const Count: NativeUInt);
+    function Flush: NativeUInt;
   {$ifNdef AUTOREFCOUNT}
   public
   {$endif}
     destructor Destroy; override;
   public
-    constructor Create(const Context: PUniConvContext; const DataBuffer: TCachedBuffer; const Owner: Boolean);
-    procedure BeforeDestruction; override;
+    procedure Initialize(const Context: PUniConvContext; const DataBuffer: TCachedBuffer; const Owner: Boolean);
+    procedure Finalize;
   end;
 
 
@@ -1161,18 +1161,18 @@ type
     procedure OverflowReadData(var Buffer; const Count: NativeUInt);
     function FlushReadChar: UCS4Char;
   public
+    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure Skip(const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function Flush: NativeUInt;
+    function Readln(var S: UnicodeString): Boolean; virtual; abstract;
+    function ReadChar: UCS4Char; virtual; abstract;
+
     property Current: PByte read FCurrent write FCurrent;
     property Overflow: PByte read FOverflow;
     property Margin: NativeInt read GetMargin;
     property Finishing: Boolean read FFinishing;
     property EOF: Boolean read FEOF write SetEOF;
-  public
-    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
-    procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    function Readln(var S: UnicodeString): Boolean; virtual; abstract;
-    function ReadChar: UCS4Char; virtual; abstract;
-
     property Converter: TUniConvReReader read GetUniConvReReaderConverter;
     property Source: TCachedReader read GetSource;
     property Owner: Boolean read FOwner write FOwner;
@@ -1239,6 +1239,8 @@ type
   end;
 
 
+{ TFloatSettings object }
+
   TFloatSettings = object
   protected
     F: packed record
@@ -1267,16 +1269,12 @@ type
   protected
     FVirtuals: record
       WriteBufferedAscii: procedure(Self: Pointer; From, Top: PByte);
-      WriteCRLF: procedure(Self: Pointer);
       WriteAscii: procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
       WriteUnicodeAscii: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
-      WriteUCS4Ascii: procedure(Self: Pointer; const AChars: PUCS4Char; const ALength: NativeUInt);
       WriteSBCSCharsInternal: procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
       WriteUTF8Chars: procedure(Self: Pointer; const AChars: PUTF8Char; const ALength: NativeUInt);
       WriteUnicodeChars: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
     end;
-    FContext: TUniConvContext;
-    FUTF32Context: TUniConvContext;
     FSBCS: record
       Default: TCachedEncoding;
       DefaultConverter: Pointer;
@@ -1289,40 +1287,43 @@ type
       Spaces: array[0..7] of Byte;
       Ascii: array[0..31] of Byte;
       NullChars: array[0..7] of Byte;
+      Str: CachedString;
     end;
     FFormat: record
       Args: PVarRec;
       ArgsCount: NativeUInt;
       TopArg: PVarRec;
       FmtStr: CachedString;
-      FmtSubString: CachedString;
       Settings: TFloatSettings;
     end;
+    FHugeContext: TUniConvContext;
+    FUTF32Context: TUniConvContext;
 
     procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
     procedure WriteContextData(var Context: TUniConvContext);
+    procedure WriteBufferedSBCS(const CodePage: Word);
+    function GetSBCSConverter(var Encoding: TCachedEncoding; const CodePage: Word): Pointer; virtual;
+    procedure InitContexts; virtual; abstract;
+    procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
     function WriteFormatArg(const ArgType: NativeUInt; const Arg: TVarRec): Boolean;
     procedure WriteFormatByte;
     procedure WriteFormatWord;
-    function GetSBCSConverter(var Encoding: TCachedEncoding; const CodePage: Word): Pointer; virtual;
-    procedure WriteContextSBCS(const CodePage: Word);
-    procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
   public
-    FloatSettings: TFloatSettings;
+    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure WriteData(const Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function Flush: NativeUInt;
+
     property Current: PByte read FCurrent write FCurrent;
     property Overflow: PByte read FOverflow;
     property Margin: NativeInt read GetMargin;
     property EOF: Boolean read FEOF write SetEOF;
-  public
-    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
-    procedure WriteData(const Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-
     property Converter: TUniConvReWriter read GetUniConvReWriterConverter;
     property Target: TCachedWriter read GetTarget;
     property Owner: Boolean read FOwner write FOwner;
     property FileName: string read FFileName;
   public
+    FloatSettings: TFloatSettings;
+
     procedure WriteCRLF; virtual; abstract;
     procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt); virtual; abstract;
     procedure WriteUnicodeAscii(const AChars: PUnicodeChar; const ALength: NativeUInt); virtual; abstract;
@@ -1392,6 +1393,7 @@ type
 
     procedure SetEncoding(const Value: Word);
     function GetSBCSConverter(var Encoding: TCachedEncoding; const CodePage: Word): Pointer; override;
+    procedure InitContexts; override;
     procedure WriteBufferedAscii(From, Top: PByte); override;
     procedure WriteSBCSCharsToSBCS(const AChars: PAnsiChar; const ALength: NativeUInt);
     procedure WriteSBCSCharsToUTF8(const AChars: PAnsiChar; const ALength: NativeUInt);
@@ -1417,6 +1419,7 @@ type
 
   TUTF16TextWriter = class(TCachedTextWriter)
   protected
+    procedure InitContexts; override;
     procedure WriteBufferedAscii(From, Top: PByte); override;
     procedure WriteSBCSCharsInternal(const AChars: PAnsiChar; const ALength: NativeUInt);
   public
@@ -1437,6 +1440,7 @@ type
 
   TUTF32TextWriter = class(TCachedTextWriter)
   protected
+    procedure InitContexts; override;
     procedure WriteBufferedAscii(From, Top: PByte); override;
     procedure WriteSBCSCharsInternal(const AChars: PAnsiChar; const ALength: NativeUInt);
   public
@@ -1959,168 +1963,6 @@ begin
 
   Move(UniConv.UNICONV_SUPPORTED_SBCS_HASH, UNICONV_SUPPORTED_SBCS_HASH, SizeOf(UNICONV_SUPPORTED_SBCS_HASH));
   Move(UniConv.UNICONV_UTF8CHAR_SIZE, UNICONV_UTF8CHAR_SIZE, SizeOf(UNICONV_UTF8CHAR_SIZE));
-end;
-
-type
-  TGap16 = record
-    Data: array[0..15] of Byte;
-    Size: NativeUInt;
-  end;
-  PGap16 = ^TGap16;
-
-function Gap16Clear(Data: PByte; Size: NativeUInt; Gap: PGap16): NativeUInt;
-begin
-  if (Size >= Gap.Size) then
-  begin
-    Result := Gap.Size;
-    Move(Gap.Data, Data^, Result);
-    Gap.Size := 0;
-  end else
-  // Size < Gap.Size
-  begin
-    Result := Size;
-    Move(Gap.Data, Data^, Result);
-
-    Move(Gap.Data[Result], Gap.Data, Gap.Size - Result);
-    Dec(Gap.Size, Result);
-  end;
-end;
-
-{ TUniConvReReader }
-
-constructor TUniConvReReader.Create(const Context: PUniConvContext;
-  const Source: TCachedReader; const Owner: Boolean;
-  const BufferSize: NativeUInt);
-begin
-  FContext := Context;
-  inherited Create(InternalCallback, Source, Owner, BufferSize);
-end;
-
-function TUniConvReReader.InternalCallback(Sender: TCachedBuffer; Data: PByte;
-  Size: NativeUInt): NativeUInt;
-var
-  Context: PUniConvContext;
-  Reader: TCachedReader;
-  Gap: PGap16;
-  R: NativeInt;
-begin
-  Context := Self.Context;
-  Reader := Self.Source;
-  Gap := PGap16(@Self.FGap);
-
-  Result := Gap16Clear(Data, Size, Gap);
-  Inc(Data, Result);
-  Dec(Size, Result);
-
-  if (Size <> 0) and (not Reader.EOF) then
-  repeat
-    // conversion
-    Context.Destination := Data;
-    Context.DestinationSize := Size;
-    Context.ModeFinalize := Reader.Finishing;
-    Context.Source := Reader.Current;
-    Context.SourceSize := Reader.Margin;
-    R := Context.Convert;
-
-    // increment
-    Inc(Data, Context.DestinationWritten);
-    Dec(Size, Context.DestinationWritten);
-    Inc(Result, Context.DestinationWritten);
-    Inc(Reader.Current, Context.SourceRead);
-
-    // next iteration
-    if (R <= 0) then
-    begin
-      // reader buffer fully read
-      if (Reader.Finishing) then
-      begin
-        Reader.EOF := True;
-        Exit;
-      end else
-      begin
-        Reader.Flush;
-      end;
-    end else
-    // if (R > 0) then
-    begin
-      // destination too small
-      // convert to Gap
-      Context.Destination := @Gap.Data;
-      Context.DestinationSize := SizeOf(Gap.Data);
-      Context.Source := Reader.Current;
-      Context.SourceSize := Reader.Margin;
-      Context.Convert;
-
-      // converted sizes
-      Gap.Size := Context.DestinationWritten;
-      Inc(Reader.Current, Context.SourceRead);
-
-      // copy Gap bytes
-      Inc(Result, Gap16Clear(Data, Size, Gap));
-      Exit;
-    end;
-  until (False);
-end;
-
-
-{ TUniConvReWriter }
-
-constructor TUniConvReWriter.Create(const Context: PUniConvContext;
-  const Target: TCachedWriter; const Owner: Boolean;
-  const BufferSize: NativeUInt);
-begin
-  FContext := Context;
-  inherited Create(InternalCallback, Target, Owner, BufferSize);
-end;
-
-function TUniConvReWriter.InternalCallback(Sender: TCachedBuffer; Data: PByte;
-  Size: NativeUInt): NativeUInt;
-var
-  Context: PUniConvContext;
-  Writer: TCachedWriter;
-  Gap: PGap16;
-  R: NativeInt;
-begin
-  Context := Self.Context;
-  Writer := Self.Target;
-  Gap := PGap16(@Self.FGap);
-  Result := 0;
-  if (Writer.EOF) then Exit;
-
-  Context.ModeFinalize := (Size < Self.Memory.Size);
-  Inc(Writer.Current, Gap16Clear(Writer.Current, Gap.Size, Gap));
-  if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
-
-  repeat
-    // conversion
-    Context.Source := Data;
-    Context.SourceSize := Size;
-    Context.Destination := Writer.Current;
-    Context.DestinationSize := Writer.Margin + 16;
-    R := Context.Convert;
-
-    // increment
-    Inc(Data, Context.SourceRead);
-    Dec(Size, Context.SourceRead);
-    Inc(Result, Context.SourceRead);
-    Inc(Writer.Current, Context.DestinationWritten);
-
-    // next iteration
-    if (R > 0) then
-    begin
-      // writer buffer fully written
-      Writer.Flush;
-    end else
-    // if (R <= 0) then
-    begin
-      // data buffer fully read
-      Move(Data^, Gap.Data, Size);
-      Gap.Size := Size;
-      Inc(Result, Size);
-      if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
-      Exit;
-    end;
-  until (False);
 end;
 
 
@@ -26205,30 +26047,179 @@ begin
 end;
 
 
+type
+  TGap16 = record
+    Data: array[0..15] of Byte;
+    Size: NativeUInt;
+  end;
+  PGap16 = ^TGap16;
+
+function Gap16Clear(Data: PByte; Size: NativeUInt; Gap: PGap16): NativeUInt;
+begin
+  if (Size >= Gap.Size) then
+  begin
+    Result := Gap.Size;
+    Move(Gap.Data, Data^, Result);
+    Gap.Size := 0;
+  end else
+  // Size < Gap.Size
+  begin
+    Result := Size;
+    Move(Gap.Data, Data^, Result);
+
+    Move(Gap.Data[Result], Gap.Data, Gap.Size - Result);
+    Dec(Gap.Size, Result);
+  end;
+end;
+
+
+{ TUniConvReReader }
+
+constructor TUniConvReReader.Create(const Context: PUniConvContext;
+  const Source: TCachedReader; const Owner: Boolean;
+  const BufferSize: NativeUInt);
+begin
+  FContext := Context;
+  inherited Create(InternalCallback, Source, Owner, BufferSize);
+end;
+
+function TUniConvReReader.InternalCallback(Sender: TCachedBuffer; Data: PByte;
+  Size: NativeUInt): NativeUInt;
+var
+  Context: PUniConvContext;
+  Reader: TCachedReader;
+  Gap: PGap16;
+  R: NativeInt;
+begin
+  Context := Self.Context;
+  Reader := Self.Source;
+  Gap := PGap16(@Self.FGap);
+
+  Result := Gap16Clear(Data, Size, Gap);
+  Inc(Data, Result);
+  Dec(Size, Result);
+
+  if (Size <> 0) and (not Reader.EOF) then
+  repeat
+    // conversion
+    Context.Destination := Data;
+    Context.DestinationSize := Size;
+    Context.ModeFinalize := Reader.Finishing;
+    Context.Source := Reader.Current;
+    Context.SourceSize := Reader.Margin;
+    R := Context.Convert;
+
+    // increment
+    Inc(Data, Context.DestinationWritten);
+    Dec(Size, Context.DestinationWritten);
+    Inc(Result, Context.DestinationWritten);
+    Inc(Reader.Current, Context.SourceRead);
+
+    // next iteration
+    if (R <= 0) then
+    begin
+      // reader buffer fully read
+      if (Reader.Finishing) then
+      begin
+        Reader.EOF := True;
+        Exit;
+      end else
+      begin
+        Reader.Flush;
+      end;
+    end else
+    // if (R > 0) then
+    begin
+      // destination too small
+      // convert to Gap
+      Context.Destination := @Gap.Data;
+      Context.DestinationSize := SizeOf(Gap.Data);
+      Context.Source := Reader.Current;
+      Context.SourceSize := Reader.Margin;
+      Context.Convert;
+
+      // converted sizes
+      Gap.Size := Context.DestinationWritten;
+      Inc(Reader.Current, Context.SourceRead);
+
+      // copy Gap bytes
+      Inc(Result, Gap16Clear(Data, Size, Gap));
+      Exit;
+    end;
+  until (False);
+end;
+
+
+{ TUniConvReWriter }
+
+constructor TUniConvReWriter.Create(const Context: PUniConvContext;
+  const Target: TCachedWriter; const Owner: Boolean;
+  const BufferSize: NativeUInt);
+begin
+  FContext := Context;
+  inherited Create(InternalCallback, Target, Owner, BufferSize);
+end;
+
+function TUniConvReWriter.InternalCallback(Sender: TCachedBuffer; Data: PByte;
+  Size: NativeUInt): NativeUInt;
+var
+  Context: PUniConvContext;
+  Writer: TCachedWriter;
+  Gap: PGap16;
+  R: NativeInt;
+begin
+  Context := Self.Context;
+  Writer := Self.Target;
+  Gap := PGap16(@Self.FGap);
+  Result := 0;
+  if (Writer.EOF) then Exit;
+
+  Context.ModeFinalize := (Size < Self.Memory.Size);
+  Inc(Writer.Current, Gap16Clear(Writer.Current, Gap.Size, Gap));
+  if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
+
+  repeat
+    // conversion
+    Context.Source := Data;
+    Context.SourceSize := Size;
+    Context.Destination := Writer.Current;
+    Context.DestinationSize := Writer.Margin + 16;
+    R := Context.Convert;
+
+    // increment
+    Inc(Data, Context.SourceRead);
+    Dec(Size, Context.SourceRead);
+    Inc(Result, Context.SourceRead);
+    Inc(Writer.Current, Context.DestinationWritten);
+
+    // next iteration
+    if (R > 0) then
+    begin
+      // writer buffer fully written
+      Writer.Flush;
+    end else
+    // if (R <= 0) then
+    begin
+      // data buffer fully read
+      Move(Data^, Gap.Data, Size);
+      Gap.Size := Size;
+      Inc(Result, Size);
+      if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
+      Exit;
+    end;
+  until (False);
+end;
+
+
 { TCachedTextBuffer }
 
-
-(*  TCachedTextBuffer = class
-  protected
-    FInternalContext: PUniConvContext;
-    FFileName: string;
-    FKind: TCachedBufferKind;
-    FFinishing: Boolean;
-    FEOF: Boolean;
-    FOwner: Boolean;
-    FDataBuffer: TCachedBuffer;
-    FTextConverter: TCachedBuffer;
-    FCurrent: PByte;
-    FOverflow: PByte;
-  end;  *)
-
-constructor TCachedTextBuffer.Create(const Context: PUniConvContext;
+procedure TCachedTextBuffer.Initialize(const Context: PUniConvContext;
   const DataBuffer: TCachedBuffer; const Owner: Boolean);
 begin
-  inherited Create;
+  Finalize;
+
   FKind := DataBuffer.Kind;
   FOwner := Owner;
-
   if (Context <> nil) and
     (@PUniConvContextEx(Context).FConvertProc <> @TUniConvContextEx.convert_copy) then
   begin
@@ -26256,41 +26247,60 @@ begin
   FEOF := FDataBuffer.EOF;
 end;
 
-procedure TCachedTextBuffer.BeforeDestruction;
+procedure TCachedTextBuffer.Finalize;
 begin
-  FDataBuffer.Current := FCurrent;
-  inherited;
+  if (FDataBuffer <> nil) then
+  begin
+    FDataBuffer.Current := FCurrent;
+
+    if (FTextConverter <> nil) then
+    begin
+      if (FKind = cbReader) then
+      begin
+        FOwner := FOwner or TUniConvReReader(FDataBuffer).Owner;
+        TUniConvReReader(FDataBuffer).Owner := False;
+        FDataBuffer := TUniConvReReader(FDataBuffer).Source;
+      end else
+      begin
+        FOwner := FOwner or TUniConvReWriter(FDataBuffer).Owner;
+        TUniConvReWriter(FDataBuffer).Owner := False;
+        FDataBuffer := TUniConvReWriter(FDataBuffer).Target;
+      end;
+
+      FTextConverter.Free;
+      FTextConverter := nil;
+    end;
+
+    if (FOwner) then FDataBuffer.Free;
+
+    FDataBuffer := nil;
+    FCurrent := nil;
+    FOverflow := nil;
+    FFinishing := False;
+    FEOF := False;
+    FOwner := False;
+  end;
+
+  if (FFileName <> '') then FFileName := '';
 end;
 
 destructor TCachedTextBuffer.Destroy;
 begin
-  if (FTextConverter <> nil) then
-  begin
-    if (FKind = cbReader) then
-    begin
-      FOwner := FOwner or TUniConvReReader(FDataBuffer).Owner;
-      TUniConvReReader(FDataBuffer).Owner := False;
-      FDataBuffer := TUniConvReReader(FDataBuffer).Source;
-    end else
-    begin
-      FOwner := FOwner or TUniConvReWriter(FDataBuffer).Owner;
-      TUniConvReWriter(FDataBuffer).Owner := False;
-      FDataBuffer := TUniConvReWriter(FDataBuffer).Target;
-    end;
-
-    FTextConverter.Free;
-    FTextConverter := nil;
-  end;
-
-  if (FOwner) then FDataBuffer.Free;
+  Finalize;
+  if (FInternalContext <> nil) then Dispose(FInternalContext);
   inherited;
 end;
 
-function TCachedTextBuffer.AllocateInternalContext: PUniConvContext;
+function TCachedTextBuffer.GetInternalContext: PUniConvContext;
 begin
-  GetMem(Result, SizeOf(TUniConvContext));
-  FillChar(Result^, SizeOf(TUniConvContext), #0);
-  FInternalContext := Result;
+  Result := FInternalContext;
+
+  if (Result = nil) then
+  begin
+    GetMem(Result, SizeOf(TUniConvContext));
+    FillChar(Result^, SizeOf(TUniConvContext), #0);
+    FInternalContext := Result;
+  end;
 end;
 
 function TCachedTextBuffer.GetSource: TCachedReader;
@@ -26340,7 +26350,15 @@ begin
   end;
 end;
 
-function TCachedTextBuffer.InternalFlush: NativeUInt;
+procedure TCachedTextBuffer.OverflowReaderSkip(const Count: NativeUInt);
+begin
+  Dec(FCurrent, Count);
+  FDataBuffer.Current := FCurrent;
+  (FDataBuffer as TCachedReader).Skip(Count);
+  FieldsCopy;
+end;
+
+function TCachedTextBuffer.Flush: NativeUInt;
 begin
   FDataBuffer.Current := FCurrent;
   Result := FDataBuffer.Flush;
@@ -26375,12 +26393,13 @@ end;
 constructor TCachedTextReader.Create(const Context: PUniConvContext;
   const Source: TCachedReader; const Owner: Boolean);
 begin
-  inherited Create(Context, Source, Owner);
+  inherited Create;
+  Initialize(Context, Source, Owner);
 end;
 
 function TCachedTextReader.Flush: NativeUInt;
 begin
-  Result := InternalFlush;
+  Result := inherited Flush;
 end;
 
 procedure TCachedTextReader.OverflowReadData(var Buffer; const Count: NativeUInt);
@@ -26405,6 +26424,21 @@ begin
     FCurrent := P;
     Dec(P, Count);
     NcMove(P^, Buffer, Count);
+  end;
+end;
+
+procedure TCachedTextReader.Skip(const Count: NativeUInt);
+var
+  P: PByte;
+begin
+  P := FCurrent;
+  Inc(P, Count);
+  if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+  begin
+    OverflowReaderSkip(Count);
+  end else
+  begin
+    FCurrent := P;
   end;
 end;
 
@@ -26446,7 +26480,7 @@ begin
   BOM := DetectBOM(Source);
   SBCS := DetectSBCS(Encoding);
   DefaultSBCS := DetectSBCS(DefaultByteEncoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
 
   if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
     BOM := bomUTF8;
@@ -26495,7 +26529,7 @@ var
 begin
   BOM := DetectBOM(Source);
   SBCS := DetectSBCS(DefaultByteEncoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
 
   if (BOM = bomNone) then
   begin
@@ -26793,7 +26827,7 @@ var
 begin
   BOM := DetectBOM(Source);
   {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
 
   if (BOM = bomUTF16) then
   begin
@@ -27040,7 +27074,7 @@ var
 begin
   BOM := DetectBOM(Source);
   {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
 
   if (BOM = bomUTF32) then
   begin
@@ -27207,32 +27241,28 @@ const
   ASCII_NULLS = $30303030;
 var
   VWBufferedAscii: procedure(From, Top: PByte) of object;
-  VWCRLF: procedure of object;
   VWAscii: procedure(const AChars: PAnsiChar; const ALength: NativeUInt) of object;
   VWUnicodeAscii: procedure(const AChars: PUnicodeChar; const ALength: NativeUInt) of object;
-  VWUCS4Ascii: procedure(const AChars: PUCS4Char; const ALength: NativeUInt) of object;
   VWUTF8Chars: procedure(const AChars: PUTF8Char; const ALength: NativeUInt) of object;
   VWUnicodeChars: procedure(const AChars: PUnicodeChar; const ALength: NativeUInt) of object;
 begin
-  inherited Create(Context, Target, Owner);
+  inherited Create;
+  Initialize(Context, Target, Owner);
 
   // SBCS
   FSBCS.DefaultConverter := Self.GetSBCSConverter(FSBCS.Default, CODEPAGE_DEFAULT);
   FSBCS.CurrentConverter := Self.GetSBCSConverter(FSBCS.Current, CODEPAGE_DEFAULT);
+  InitContexts;
 
   // virtual methods
   VWBufferedAscii := Self.WriteBufferedAscii;
-  VWCRLF := Self.WriteCRLF;
   VWAscii := Self.WriteAscii;
   VWUnicodeAscii := Self.WriteUnicodeAscii;
-  VWUCS4Ascii := Self.WriteUCS4Ascii;
   VWUTF8Chars := Self.WriteUTF8Chars;
   VWUnicodeChars := Self.WriteUnicodeChars;
   Self.FVirtuals.WriteBufferedAscii := TMethod(VWBufferedAscii).Code;
-  Self.FVirtuals.WriteCRLF := TMethod(VWCRLF).Code;
   Self.FVirtuals.WriteAscii := TMethod(VWAscii).Code;
   Self.FVirtuals.WriteUnicodeAscii := TMethod(VWUnicodeAscii).Code;
-  Self.FVirtuals.WriteUCS4Ascii := TMethod(VWUCS4Ascii).Code;
   { heir contructor assign Self.FVirtuals.WriteSBCSCharsInternal }
   Self.FVirtuals.WriteUTF8Chars := TMethod(VWUTF8Chars).Code;
   Self.FVirtuals.WriteUnicodeChars := TMethod(VWUnicodeChars).Code;
@@ -27255,7 +27285,7 @@ end;
 
 function TCachedTextWriter.Flush: NativeUInt;
 begin
-  Result := InternalFlush;
+  Result := inherited Flush;
 end;
 
 procedure TCachedTextWriter.OverflowWriteData(const Buffer;
@@ -27295,7 +27325,7 @@ begin
   P := FCurrent;
 
   // write data
-  if (not Assigned(TUniConvContextEx(Context).FConvertProc)) then
+  if (@PUniConvContextEx(@Context).FConvertProc <> @TUniConvContextEx.convert_copy) then
   begin
     Count := Context.SourceSize;
     Inc(P, Count);
@@ -27363,10 +27393,10 @@ begin
   if (Result = nil) then Result := SBCS.AllocFillUCS2(SBCS.FUCS2.Original, ccOriginal);
 end;
 
-procedure TCachedTextWriter.WriteContextSBCS(const CodePage: Word);
+procedure TCachedTextWriter.WriteBufferedSBCS(const CodePage: Word);
 begin
   Self.FSBCS.CurrentConverter := Self.GetSBCSConverter(Self.FSBCS.Current, CodePage);
-  Self.FVirtuals.WriteSBCSCharsInternal(Self, FContext.Source, FContext.SourceSize);
+  Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
 end;
 
 procedure TCachedTextWriter.WriteByteString(const S: ByteString);
@@ -27387,16 +27417,16 @@ begin
       if (Integer(Index) >= 0) then
       begin
         Index := Index shr 24;
-        FContext.SourceSize := {$ifdef CPUX86}S.{$endif}Length;
+        FBuffer.Str.Length := {$ifdef CPUX86}S.{$endif}Length;
 
         if (Index <> Byte(FSBCS.Current.SBCSIndex)) then
         begin
           if (Index <> DEFAULT_UNICONV_SBCS_INDEX) then
           begin
-            FContext.Source := S.Chars;
+            FBuffer.Str.Chars := S.Chars;
             Index := Index * SizeOf(TUniConvSBCS);
             Inc(Index, NativeUInt(@UNICONV_SUPPORTED_SBCS));
-            Self.WriteContextSBCS(PUniConvSBCS(Index).CodePage);
+            Self.WriteBufferedSBCS(PUniConvSBCS(Index).CodePage);
             Exit;
           end else
           begin
@@ -27405,7 +27435,7 @@ begin
           end;
         end;
 
-        Self.FVirtuals.WriteSBCSCharsInternal(Self, S.Chars, {S.Length}FContext.SourceSize);
+        Self.FVirtuals.WriteSBCSCharsInternal(Self, S.Chars, {S.Length}FBuffer.Str.Length);
         Exit;
       end else
       begin
@@ -27462,9 +27492,9 @@ begin
   P := Pointer(S);
   if (P <> nil) then
   begin
-    FContext.Source := P;
+    FBuffer.Str.Chars := P;
     Dec(P);
-    FContext.SourceSize := P^;
+    FBuffer.Str.Length := P^;
     {$ifdef INTERNALCODEPAGE}
     Dec(P, 2);
     CodePage := PWord(P)^;
@@ -27472,7 +27502,7 @@ begin
 
     if (CodePage = CODEPAGE_UTF8) then
     begin
-      Self.FVirtuals.WriteUTF8Chars(Self, FContext.Source, FContext.SourceSize);
+      Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
       Exit;
     end else
     begin
@@ -27480,7 +27510,7 @@ begin
       begin
         if (CodePage <> 0) and (CodePage <> CODEPAGE_DEFAULT) then
         begin
-          Self.WriteContextSBCS(CodePage);
+          Self.WriteBufferedSBCS(CodePage);
           Exit;
         end else
         begin
@@ -27489,7 +27519,7 @@ begin
         end;
       end;
 
-      Self.FVirtuals.WriteSBCSCharsInternal(Self, FContext.Source, FContext.SourceSize);
+      Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
     end;
   end;
 end;
@@ -27502,12 +27532,12 @@ begin
   Length := PByte(@S)^;
   if (Length <> 0) then
   begin
-    FContext.SourceSize := Length;
-    NativeUInt(TUniConvContextEx(FContext).FSource) := NativeUInt(@S[1]);
+    FBuffer.Str.Length := Length;
+    NativeUInt(FBuffer.Str.Chars) := NativeUInt(@S[1]);
 
     if (CodePage = CODEPAGE_UTF8) then
     begin
-      Self.FVirtuals.WriteUTF8Chars(Self, FContext.Source, FContext.SourceSize);
+      Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
       Exit;
     end else
     begin
@@ -27515,7 +27545,7 @@ begin
       begin
         if (CodePage <> 0) and (CodePage <> CODEPAGE_DEFAULT) then
         begin
-          Self.WriteContextSBCS(CodePage);
+          Self.WriteBufferedSBCS(CodePage);
           Exit;
         end else
         begin
@@ -27524,7 +27554,7 @@ begin
         end;
       end;
 
-      Self.FVirtuals.WriteSBCSCharsInternal(Self, FContext.Source, FContext.SourceSize);
+      Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
     end;
   end;
 end;
@@ -27620,9 +27650,9 @@ begin
       begin
         if (CP <> 0) and (CP <> CODEPAGE_DEFAULT) then
         begin
-          FContext.Source := AChars;
-          FContext.SourceSize := ALength;
-          Self.WriteContextSBCS(CP);
+          FBuffer.Str.Chars := AChars;
+          FBuffer.Str.Length := ALength;
+          Self.WriteBufferedSBCS(CP);
           Exit;
         end else
         begin
@@ -27940,11 +27970,11 @@ var
       PByteString(@Self.FFormat.FmtStr));
   end;
   Store.Arg := Self.FFormat.Args;
-  Self.FFormat.FmtSubString.Flags := Self.FFormat.FmtStr.Flags;
+  Self.FBuffer.Str.Flags := Self.FFormat.FmtStr.Flags;
 
   repeat
     // unformatted substring
-    Self.FFormat.FmtSubString.Chars := S;
+    Self.FBuffer.Str.Chars := S;
     TopSCardinal := Store.TopSCardinal;
     Flags := -1;
     X := -1;
@@ -27997,14 +28027,14 @@ var
     end;
 
   write_substring:
-    X := NativeUInt(S) - NativeUInt(Self.FFormat.FmtSubString.Chars);
+    X := NativeUInt(S) - NativeUInt(Self.FBuffer.Str.Chars);
     if ((not Flags) and OVERFLOW_MASK = 0) then
     begin
-      Self.FVirtuals.WriteAscii(Self, Self.FFormat.FmtSubString.Chars, X);
+      Self.FVirtuals.WriteAscii(Self, Self.FBuffer.Str.Chars, X);
     end else
     begin
-      Self.FFormat.FmtSubString.Length := X;
-      Self.{FVirtuals.}WriteByteString({Self, }ByteString(Self.FFormat.FmtSubString));
+      Self.FBuffer.Str.Length := X;
+      Self.{FVirtuals.}WriteByteString({Self, }ByteString(Self.FBuffer.Str));
     end;
     Inc(S);
     TopS := Store.TopS;
@@ -28417,7 +28447,7 @@ var
   SrcBOM, DestBOM: TBOM;
 begin
   Self.SetEncoding(Encoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
   Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
 
   SrcBOM := bomNone;
@@ -28506,6 +28536,24 @@ begin
     Result := SBCS.FUTF8.Original;
     if (Result = nil) then Result := SBCS.AllocFillUTF8(SBCS.FUTF8.Original, ccOriginal);
   end;
+end;
+
+procedure TByteTextWriter.InitContexts;
+var
+  Flags: Cardinal;
+begin
+  Flags := CHARCASE_FLAGS[0];
+  if (FSBCS = nil) then
+  begin
+    Flags := Flags + (Cardinal(bomUTF8) shl ENCODING_DESTINATION_OFFSET);
+  end else
+  begin
+    TUniConvContextEx(FHugeContext).FCallbacks.Writer := FSBCSValues;
+  end;
+
+  TUniConvContextEx(FHugeContext).F.Flags := Flags;
+  TUniConvContextEx(FUTF32Context).F.Flags := Flags + Cardinal(bomUTF32);
+  TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_universal;
 end;
 
 procedure TByteTextWriter.WriteCRLF;
@@ -28755,7 +28803,7 @@ var
   Context: PUniConvContext;
 begin
   {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
   Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
 
   if (BOM = bomUTF16) then
@@ -28782,6 +28830,16 @@ constructor TUTF16TextWriter.CreateDirect(const Context: PUniConvContext;
 begin
   FVirtuals.WriteSBCSCharsInternal := Pointer(@TUTF16TextWriter.WriteSBCSCharsInternal);
   inherited Create(Context, Target, Owner);
+end;
+
+procedure TUTF16TextWriter.InitContexts;
+var
+  Flags: Cardinal;
+begin
+  Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF16) shl ENCODING_DESTINATION_OFFSET);
+  TUniConvContextEx(FHugeContext).F.Flags := Flags;
+  TUniConvContextEx(FUTF32Context).F.Flags := Flags + Cardinal(bomUTF32);
+  TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_universal;
 end;
 
 procedure TUTF16TextWriter.WriteCRLF;
@@ -29020,7 +29078,7 @@ var
   Context: PUniConvContext;
 begin
   {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.AllocateInternalContext;
+  Context := Self.GetInternalContext;
   Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
 
   if (BOM = bomUTF32) then
@@ -29047,6 +29105,15 @@ constructor TUTF32TextWriter.CreateDirect(const Context: PUniConvContext;
 begin
   FVirtuals.WriteSBCSCharsInternal := Pointer(@TUTF32TextWriter.WriteSBCSCharsInternal);
   inherited Create(Context, Target, Owner);
+end;
+
+procedure TUTF32TextWriter.InitContexts;
+var
+  Flags: Cardinal;
+begin
+  Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
+  TUniConvContextEx(FHugeContext).F.Flags := Flags;
+  TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_copy;
 end;
 
 procedure TUTF32TextWriter.WriteCRLF;

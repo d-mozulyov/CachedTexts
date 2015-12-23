@@ -4692,13 +4692,6 @@ end;
 function ByteString._GetBool(S: PByte; L: NativeUInt): Boolean;
 label
   fail;
-type
-  TStrAsData = packed record
-  case Integer of
-    0: (Bytes: array[0..High(Integer) - 1] of Byte);
-    1: (Words: array[0..High(Integer) div 2 - 1] of Word);
-    2: (Dwords: array[0..High(Integer) div 4 - 1] of Cardinal);
-  end;
 var
   Marker: NativeInt;
   Buffer: ByteString;
@@ -4706,46 +4699,47 @@ begin
   Buffer.Chars := Pointer(S);
   Buffer.Length := L;
 
-  with TStrAsData(Pointer(Buffer.Chars)^) do
+  // byte ascii, ignore case
+  with PMemoryItems(Buffer.Chars)^ do
   case L of
-   1: case (Bytes[0]) of
-        $30:
-        begin
-          // "0"
-          Result := False;
-          Exit;
-        end;
-        $31:
-        begin
-          // "1"
-          Result := True;
-          Exit;
-        end;
-      end;
-   2: if (Words[0] or $2020 = $6F6E) then
-      begin
-        // "no"
-        Result := False;
-        Exit;
-      end;
-   3: if (Words[0] + Bytes[2] shl 16 or $202020 = $736579) then
-      begin
-        // "yes"
-        Result := True;
-        Exit;
-      end;
-   4: if (Dwords[0] or $20202020 = $65757274) then
-      begin
-        // "true"
-        Result := True;
-        Exit;
-      end;
-   5: if (Dwords[0] or $20202020 = $736C6166) and (Bytes[4] or $20 = $65) then
-      begin
-        // "false"
-        Result := False;
-        Exit;
-      end;
+    1: case (Bytes[0]) of // "0", "1"
+         $30:
+         begin
+           // "0"
+           Result := False;
+           Exit;
+         end;
+         $31:
+         begin
+           // "1"
+           Result := True;
+           Exit;
+         end;
+       end;
+    2: if (Words[0] or $2020 = $6F6E) then
+    begin
+      // "no"
+      Result := False;
+      Exit;
+    end;
+    3: if (Words[0] + Bytes[2] shl 16 or $202020 = $736579) then
+    begin
+      // "yes"
+      Result := True;
+      Exit;
+    end;
+    4: if (Cardinals[0] or $20202020 = $65757274) then
+    begin
+      // "true"
+      Result := True;
+      Exit;
+    end;
+    5: if (Cardinals[0] or $20202020 = $736C6166) and (Bytes[4] or $20 = $65) then
+    begin
+      // "false"
+      Result := False;
+      Exit;
+    end;
   end;
 
 fail:
@@ -12614,12 +12608,6 @@ end;
 function UTF16String._GetBool(S: PWord; L: NativeUInt): Boolean;
 label
   fail;
-type
-  TStrAsData = packed record
-  case Integer of
-    0: (Words: array[0..High(Integer) div 2 - 1] of Word);
-    1: (Dwords: array[0..High(Integer) div 4 - 1] of Cardinal);
-  end;
 var
   Marker: NativeInt;
   Buffer: ByteString;
@@ -12627,49 +12615,49 @@ begin
   Buffer.Chars := Pointer(S);
   Buffer.Length := L;
 
-  with TStrAsData(Pointer(Buffer.Chars)^) do
+  // utf16 ascii, ignore case
+  with PMemoryItems(Buffer.Chars)^ do
   case L of
-   1: case (Words[0]) of
-        $0030:
-        begin
-          // "0"
-          Result := False;
-          Exit;
-        end;
-        $0031:
-        begin
-          // "1"
-          Result := True;
-          Exit;
-        end;
-      end;
-   2: if (Dwords[0] or $00200020 = $006F006E) then
-      begin
-        // "no"
-        Result := False;
-        Exit;
-      end;
-   3: if (Dwords[0] or $00200020 = $00650079) and (Words[2] or $0020 = $0073) then
-      begin
-        // "yes"
-        Result := True;
-        Exit;
-      end;
-   4: if (Dwords[0] or $00200020 = $00720074) and
-         (Dwords[1] or $00200020 = $00650075) then
-      begin
-        // "true"
-        Result := True;
-        Exit;
-      end;
-   5: if (Dwords[0] or $00200020 = $00610066) and
-         (Dwords[1] or $00200020 = $0073006C) and
-         (Words[4] or $0020 = $0065) then
-      begin
-        // "false"
-        Result := False;
-        Exit;
-      end;
+    1: case (Words[0]) of // "0", "1"
+         $0030:
+         begin
+           // "0"
+           Result := False;
+           Exit;
+         end;
+         $0031:
+         begin
+           // "1"
+           Result := True;
+           Exit;
+         end;
+       end;
+    2: if (Cardinals[0] or $00200020 = $006F006E) then
+    begin
+      // "no"
+      Result := False;
+      Exit;
+    end;
+    3: if (Cardinals[0] or $00200020 = $00650079) and (Words[2] or $0020 = $0073) then
+    begin
+      // "yes"
+      Result := True;
+      Exit;
+    end;
+    4: if (Cardinals[0] or $00200020 = $00720074) and
+       (Cardinals[1] or $00200020 = $00650075) then
+    begin
+      // "true"
+      Result := True;
+      Exit;
+    end;
+    5: if (Cardinals[0] or $00200020 = $00610066) and
+       (Cardinals[1] or $00200020 = $0073006C) and (Words[4] or $0020 = $0065) then
+    begin
+      // "false"
+      Result := False;
+      Exit;
+    end;
   end;
 
 fail:
@@ -19384,10 +19372,6 @@ end;
 function UTF32String._GetBool(S: PCardinal; L: NativeUInt): Boolean;
 label
   fail;
-type
-  TStrAsData = packed record
-    Dwords: array[0..High(Integer) div 4 - 1] of Cardinal;
-  end;
 var
   Marker: NativeInt;
   Buffer: ByteString;
@@ -19395,50 +19379,57 @@ begin
   Buffer.Chars := Pointer(S);
   Buffer.Length := L;
 
-  with TStrAsData(Pointer(Buffer.Chars)^) do
+  // utf32 ascii, ignore case
+  with PMemoryItems(Buffer.Chars)^ do
   case L of
-   1: case (Dwords[0]) of
-        Ord('0'):
-        begin
-          // "0"
-          Result := False;
-          Exit;
-        end;
-        Ord('1'):
-        begin
-          // "1"
-          Result := True;
-          Exit;
-        end;
-      end;
-   2: if (Dwords[0] or $20 = Ord('n')) and (Dwords[1] or $20 = Ord('o')) then
-      begin
-        // "no"
-        Result := False;
-        Exit;
-      end;
-   3: if (Dwords[0] or $20 = Ord('y')) and (Dwords[1] or $20 = Ord('e')) and
-         (Dwords[2] or $20 = Ord('s')) then
-      begin
-        // "yes"
-        Result := True;
-        Exit;
-      end;
-   4: if (Dwords[0] or $20 = Ord('t')) and (Dwords[1] or $20 = Ord('r')) and
-         (Dwords[2] or $20 = Ord('u')) and (Dwords[3] or $20 = Ord('e')) then
-      begin
-        // "true"
-        Result := True;
-        Exit;
-      end;
-   5: if (Dwords[0] or $20 = Ord('f')) and (Dwords[1] or $20 = Ord('a')) and
-         (Dwords[2] or $20 = Ord('l')) and (Dwords[3] or $20 = Ord('s')) and
-         (Dwords[4] or $20 = Ord('e')) then
-      begin
-        // "false"
-        Result := False;
-        Exit;
-      end;
+    1: case (Cardinals[0]) of // "0", "1"
+         $00000030:
+         begin
+           // "0"
+           Result := False;
+           Exit;
+         end;
+         $00000031:
+         begin
+           // "1"
+           Result := True;
+           Exit;
+         end;
+       end;
+    2: if (Cardinals[0] or $00000020 = $0000006E) and
+       (Cardinals[1] or $00000020 = $0000006F) then
+    begin
+      // "no"
+      Result := False;
+      Exit;
+    end;
+    3: if (Cardinals[0] or $00000020 = $00000079) and
+       (Cardinals[1] or $00000020 = $00000065) and
+       (Cardinals[2] or $00000020 = $00000073) then
+    begin
+      // "yes"
+      Result := True;
+      Exit;
+    end;
+    4: if (Cardinals[0] or $00000020 = $00000074) and
+       (Cardinals[1] or $00000020 = $00000072) and
+       (Cardinals[2] or $00000020 = $00000075) and
+       (Cardinals[3] or $00000020 = $00000065) then
+    begin
+      // "true"
+      Result := True;
+      Exit;
+    end;
+    5: if (Cardinals[0] or $00000020 = $00000066) and
+       (Cardinals[1] or $00000020 = $00000061) and
+       (Cardinals[2] or $00000020 = $0000006C) and
+       (Cardinals[3] or $00000020 = $00000073) and
+       (Cardinals[4] or $00000020 = $00000065) then
+    begin
+      // "false"
+      Result := False;
+      Exit;
+    end;
   end;
 
 fail:

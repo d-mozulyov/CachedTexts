@@ -1275,7 +1275,7 @@ type
       WriteUTF8Chars: procedure(Self: Pointer; const AChars: PUTF8Char; const ALength: NativeUInt);
       WriteUnicodeChars: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
     end;
-    FSBCS: record
+    FSBCSLookup: record
       Default: TCachedEncoding;
       DefaultConverter: Pointer;
       Current: TCachedEncoding;
@@ -1287,7 +1287,8 @@ type
       Spaces: array[0..7] of Byte;
       Ascii: array[0..31] of Byte;
       NullChars: array[0..7] of Byte;
-      Str: CachedString;
+      Cached: CachedString;
+      Str: UnicodeString;
     end;
     FFormat: record
       Args: PVarRec;
@@ -1301,7 +1302,7 @@ type
 
     procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
     procedure WriteContextData(var Context: TUniConvContext);
-    procedure WriteBufferedSBCS(const CodePage: Word);
+    procedure WriteBufferedSBCSChars(const CodePage: Word);
     function GetSBCSConverter(var Encoding: TCachedEncoding; const CodePage: Word): Pointer; virtual;
     procedure InitContexts; virtual; abstract;
     procedure WriteBufferedAscii(From, Top: PByte); virtual; abstract;
@@ -1562,6 +1563,17 @@ type
     // high level UTF32String.Assign + Append
     procedure Append(const AChars: PUCS4Char; const ALength: NativeUInt; const CharCase: TCharCase = ccOriginal); overload;
     procedure Append(const S: UCS4String; const NullTerminated: Boolean = True; const CharCase: TCharCase = ccOriginal); overload;
+  public
+    // boolean, ordinal and float
+    procedure AppendBoolean(const Value: Boolean);
+    procedure AppendInteger(const Value: Integer);
+    procedure AppendCardinal(const Value: Cardinal);
+    procedure AppendHex(const Value: Integer; const Digits: NativeUInt);
+    procedure AppendInt64(const Value: Int64);
+    procedure AppendUInt64(const Value: UInt64);
+    procedure AppendHex64(const Value: Int64; const Digits: NativeUInt);
+    procedure AppendFloat(const Value: Extended; const Settings: TFloatSettings); overload;
+    procedure AppendFloat(const Value: Extended); overload;
   end;
   PTemporaryString = ^TTemporaryString;
 
@@ -27232,6 +27244,9 @@ end;
 
 { TCachedTextWriter }
 
+const
+  WRITER_OVERFLOW_LIMIT = 128;
+
 constructor TCachedTextWriter.Create(const Context: PUniConvContext;
   const Target: TCachedWriter; const Owner: Boolean);
 const
@@ -27250,8 +27265,8 @@ begin
   Initialize(Context, Target, Owner);
 
   // SBCS
-  FSBCS.DefaultConverter := Self.GetSBCSConverter(FSBCS.Default, CODEPAGE_DEFAULT);
-  FSBCS.CurrentConverter := Self.GetSBCSConverter(FSBCS.Current, CODEPAGE_DEFAULT);
+  FSBCSLookup.DefaultConverter := Self.GetSBCSConverter(FSBCSLookup.Default, CODEPAGE_DEFAULT);
+  FSBCSLookup.CurrentConverter := Self.GetSBCSConverter(FSBCSLookup.Current, CODEPAGE_DEFAULT);
   InitContexts;
 
   // virtual methods
@@ -27346,7 +27361,7 @@ begin
   if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then goto flush;
   repeat
     Context.Destination := P;
-    Context.DestinationSize := NativeUInt(Self.FOverflow) - NativeUInt(P) + 1024;
+    Context.DestinationSize := NativeUInt(Self.FOverflow) - NativeUInt(P) + WRITER_OVERFLOW_LIMIT;
 
     R := TUniConvContextEx(Context).FConvertProc(@Context);
     P := Context.Destination;
@@ -27393,10 +27408,10 @@ begin
   if (Result = nil) then Result := SBCS.AllocFillUCS2(SBCS.FUCS2.Original, ccOriginal);
 end;
 
-procedure TCachedTextWriter.WriteBufferedSBCS(const CodePage: Word);
+procedure TCachedTextWriter.WriteBufferedSBCSChars(const CodePage: Word);
 begin
-  Self.FSBCS.CurrentConverter := Self.GetSBCSConverter(Self.FSBCS.Current, CodePage);
-  Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
+  Self.FSBCSLookup.CurrentConverter := Self.GetSBCSConverter(Self.FSBCSLookup.Current, CodePage);
+  Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
 end;
 
 procedure TCachedTextWriter.WriteByteString(const S: ByteString);
@@ -27417,25 +27432,25 @@ begin
       if (Integer(Index) >= 0) then
       begin
         Index := Index shr 24;
-        FBuffer.Str.Length := {$ifdef CPUX86}S.{$endif}Length;
+        FBuffer.Cached.Length := {$ifdef CPUX86}S.{$endif}Length;
 
-        if (Index <> Byte(FSBCS.Current.SBCSIndex)) then
+        if (Index <> Byte(FSBCSLookup.Current.SBCSIndex)) then
         begin
           if (Index <> DEFAULT_UNICONV_SBCS_INDEX) then
           begin
-            FBuffer.Str.Chars := S.Chars;
+            FBuffer.Cached.Chars := S.Chars;
             Index := Index * SizeOf(TUniConvSBCS);
             Inc(Index, NativeUInt(@UNICONV_SUPPORTED_SBCS));
-            Self.WriteBufferedSBCS(PUniConvSBCS(Index).CodePage);
+            Self.WriteBufferedSBCSChars(PUniConvSBCS(Index).CodePage);
             Exit;
           end else
           begin
-            Self.FSBCS.Current.NativeFlags := Self.FSBCS.Default.NativeFlags;
-            Self.FSBCS.CurrentConverter := Self.FSBCS.DefaultConverter;
+            Self.FSBCSLookup.Current.NativeFlags := Self.FSBCSLookup.Default.NativeFlags;
+            Self.FSBCSLookup.CurrentConverter := Self.FSBCSLookup.DefaultConverter;
           end;
         end;
 
-        Self.FVirtuals.WriteSBCSCharsInternal(Self, S.Chars, {S.Length}FBuffer.Str.Length);
+        Self.FVirtuals.WriteSBCSCharsInternal(Self, S.Chars, {S.Length}FBuffer.Cached.Length);
         Exit;
       end else
       begin
@@ -27492,9 +27507,9 @@ begin
   P := Pointer(S);
   if (P <> nil) then
   begin
-    FBuffer.Str.Chars := P;
+    FBuffer.Cached.Chars := P;
     Dec(P);
-    FBuffer.Str.Length := P^;
+    FBuffer.Cached.Length := P^;
     {$ifdef INTERNALCODEPAGE}
     Dec(P, 2);
     CodePage := PWord(P)^;
@@ -27502,24 +27517,24 @@ begin
 
     if (CodePage = CODEPAGE_UTF8) then
     begin
-      Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
+      Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
       Exit;
     end else
     begin
-      if (CodePage <> Self.FSBCS.Current.CodePage) then
+      if (CodePage <> Self.FSBCSLookup.Current.CodePage) then
       begin
         if (CodePage <> 0) and (CodePage <> CODEPAGE_DEFAULT) then
         begin
-          Self.WriteBufferedSBCS(CodePage);
+          Self.WriteBufferedSBCSChars(CodePage);
           Exit;
         end else
         begin
-          Self.FSBCS.Current.NativeFlags := Self.FSBCS.Default.NativeFlags;
-          Self.FSBCS.CurrentConverter := Self.FSBCS.DefaultConverter;
+          Self.FSBCSLookup.Current.NativeFlags := Self.FSBCSLookup.Default.NativeFlags;
+          Self.FSBCSLookup.CurrentConverter := Self.FSBCSLookup.DefaultConverter;
         end;
       end;
 
-      Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
+      Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
     end;
   end;
 end;
@@ -27532,29 +27547,29 @@ begin
   Length := PByte(@S)^;
   if (Length <> 0) then
   begin
-    FBuffer.Str.Length := Length;
-    NativeUInt(FBuffer.Str.Chars) := NativeUInt(@S[1]);
+    FBuffer.Cached.Length := Length;
+    NativeUInt(FBuffer.Cached.Chars) := NativeUInt(@S[1]);
 
     if (CodePage = CODEPAGE_UTF8) then
     begin
-      Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
+      Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
       Exit;
     end else
     begin
-      if (CodePage <> Self.FSBCS.Current.CodePage) then
+      if (CodePage <> Self.FSBCSLookup.Current.CodePage) then
       begin
         if (CodePage <> 0) and (CodePage <> CODEPAGE_DEFAULT) then
         begin
-          Self.WriteBufferedSBCS(CodePage);
+          Self.WriteBufferedSBCSChars(CodePage);
           Exit;
         end else
         begin
-          Self.FSBCS.Current.NativeFlags := Self.FSBCS.Default.NativeFlags;
-          Self.FSBCS.CurrentConverter := Self.FSBCS.DefaultConverter;
+          Self.FSBCSLookup.Current.NativeFlags := Self.FSBCSLookup.Default.NativeFlags;
+          Self.FSBCSLookup.CurrentConverter := Self.FSBCSLookup.DefaultConverter;
         end;
       end;
 
-      Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Str.Chars, FBuffer.Str.Length);
+      Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
     end;
   end;
 end;
@@ -27646,18 +27661,18 @@ begin
       Exit;
     end else
     begin
-      if (CP <> Self.FSBCS.Current.CodePage) then
+      if (CP <> Self.FSBCSLookup.Current.CodePage) then
       begin
         if (CP <> 0) and (CP <> CODEPAGE_DEFAULT) then
         begin
-          FBuffer.Str.Chars := AChars;
-          FBuffer.Str.Length := ALength;
-          Self.WriteBufferedSBCS(CP);
+          FBuffer.Cached.Chars := AChars;
+          FBuffer.Cached.Length := ALength;
+          Self.WriteBufferedSBCSChars(CP);
           Exit;
         end else
         begin
-          Self.FSBCS.Current.NativeFlags := Self.FSBCS.Default.NativeFlags;
-          Self.FSBCS.CurrentConverter := Self.FSBCS.DefaultConverter;
+          Self.FSBCSLookup.Current.NativeFlags := Self.FSBCSLookup.Default.NativeFlags;
+          Self.FSBCSLookup.CurrentConverter := Self.FSBCSLookup.DefaultConverter;
         end;
       end;
 
@@ -27949,7 +27964,7 @@ var
     TopSCardinal: PByte;
     Arg: PVarRec;
   end;
- begin
+begin
   // store parameters
   S := Self.FFormat.FmtStr.Chars;
   X := Self.FFormat.FmtStr.Length;
@@ -27970,11 +27985,11 @@ var
       PByteString(@Self.FFormat.FmtStr));
   end;
   Store.Arg := Self.FFormat.Args;
-  Self.FBuffer.Str.Flags := Self.FFormat.FmtStr.Flags;
+  Self.FBuffer.Cached.Flags := Self.FFormat.FmtStr.Flags;
 
   repeat
     // unformatted substring
-    Self.FBuffer.Str.Chars := S;
+    Self.FBuffer.Cached.Chars := S;
     TopSCardinal := Store.TopSCardinal;
     Flags := -1;
     X := -1;
@@ -28027,14 +28042,14 @@ var
     end;
 
   write_substring:
-    X := NativeUInt(S) - NativeUInt(Self.FBuffer.Str.Chars);
+    X := NativeUInt(S) - NativeUInt(Self.FBuffer.Cached.Chars);
     if ((not Flags) and OVERFLOW_MASK = 0) then
     begin
-      Self.FVirtuals.WriteAscii(Self, Self.FBuffer.Str.Chars, X);
+      Self.FVirtuals.WriteAscii(Self, Self.FBuffer.Cached.Chars, X);
     end else
     begin
-      Self.FBuffer.Str.Length := X;
-      Self.{FVirtuals.}WriteByteString({Self, }ByteString(Self.FBuffer.Str));
+      Self.FBuffer.Cached.Length := X;
+      Self.WriteByteString(ByteString(Self.FBuffer.Cached));
     end;
     Inc(S);
     TopS := Store.TopS;
@@ -28392,6 +28407,7 @@ begin
 end;
 {$else .CPUX86}
 asm
+  pop ebp
   lea edx, [EAX].TCachedTextWriter.FloatSettings
   jmp WriteFloat
 end;
@@ -28770,28 +28786,177 @@ begin
     Self.Flush;
 end;
 
+// result = length
 procedure TByteTextWriter.WriteSBCSCharsToSBCS(const AChars: PAnsiChar;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Converter: Pointer;
 begin
-  // todo
+  P := Self.FCurrent;
+  Converter := Self.FSBCSLookup.CurrentConverter;
+  Inc(P, ALength);
+  if (Converter = nil) then
+  begin
+    // write data
+    if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+    begin
+      Self.OverflowWriteData(AChars^, ALength);
+    end else
+    begin
+      Self.FCurrent := P;
+      Dec(P, ALength);
+      NcMove(AChars^, P^, ALength);
+    end;
+  end else
+  begin
+    // sbcs_from_sbcs
+    if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+    begin
+      FHugeContext.Source := AChars;
+      FHugeContext.SourceSize := ALength;
+      TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
+      TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_sbcs);
+      TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_sbcs;
+      Self.WriteContextData(FHugeContext);
+    end else
+    begin
+      Self.FCurrent := P;
+      Dec(P, ALength);
+      UniConv.sbcs_from_sbcs(Pointer(P), AChars, ALength, Converter);
+    end;
+  end;
 end;
 
+// result = min: length; max: length*3
 procedure TByteTextWriter.WriteSBCSCharsToUTF8(const AChars: PAnsiChar;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Limit, Count: NativeUInt;
 begin
-  // todo
+  P := Self.FCurrent;
+  Limit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+
+  if (Limit > NativeUInt(Self.FOverflow)) then
+  begin
+    FHugeContext.Source := AChars;
+    FHugeContext.SourceSize := ALength;
+    TUniConvContextEx(FHugeContext).FCallbacks.Converter := Self.FSBCSLookup.CurrentConverter;
+    TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_utf8_from_sbcs);
+    TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.utf8_from_sbcs;
+    Self.WriteContextData(FHugeContext);
+  end else
+  begin
+    Count := UniConv.utf8_from_sbcs(PUTF8Char(P), AChars, ALength, Self.FSBCSLookup.CurrentConverter);
+    Inc(P, Count);
+
+    Self.FCurrent := P;
+    if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+      Self.Flush;
+  end;
 end;
 
+// result = min: length/6; max: length
 procedure TByteTextWriter.WriteUTF8Chars(const AChars: PUTF8Char;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Converter: Pointer;
+  Limit, Count: NativeUInt;
 begin
-  // todo
+  P := Self.FCurrent;
+  Converter := Self.FSBCSValues;
+  Inc(P, ALength);
+  if (Converter = nil) then
+  begin
+    // write data
+    if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+    begin
+      Self.OverflowWriteData(AChars^, ALength);
+    end else
+    begin
+      Self.FCurrent := P;
+      Dec(P, ALength);
+      NcMove(AChars^, P^, ALength);
+    end;
+  end else
+  begin
+    // sbcs_from_utf8
+    Limit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+    if (Limit > NativeUInt(Self.FOverflow)) then
+    begin
+      FHugeContext.Source := AChars;
+      FHugeContext.SourceSize := {ALength}(Limit + WRITER_OVERFLOW_LIMIT) - NativeUInt(P);
+      TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
+      TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_utf8);
+      TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf8;
+      Self.WriteContextData(FHugeContext);
+    end else
+    begin
+      Count := UniConv.sbcs_from_utf8(Pointer(P), AChars,
+        {ALength}(Limit + WRITER_OVERFLOW_LIMIT) - NativeUInt(P), Converter);
+      Inc(P, Count);
+
+      Self.FCurrent := P;
+      if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+        Self.Flush;
+    end;
+  end;
 end;
 
+// result = min: length/2; max: length*3
 procedure TByteTextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Converter: Pointer;
+  Limit, Count: NativeUInt;
 begin
-  // todo
+  FHugeContext.Source := AChars;
+  FHugeContext.SourceSize := ALength;
+  P := Self.FCurrent;
+  Converter := Self.FSBCSValues;
+  if (Converter = nil) then
+  begin
+    // result = min: length; max: length*3
+    // utf8_from_utf16
+    Limit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+    if (Limit > NativeUInt(Self.FOverflow)) then
+    begin
+      TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_utf8_from_utf16);
+      TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.utf8_from_utf16;
+      Self.WriteContextData(FHugeContext);
+    end else
+    begin
+      Count := UniConv.utf8_from_utf16(PUTF8Char(P), FHugeContext.Source, FHugeContext.SourceSize);
+      Inc(P, Count);
+
+      Self.FCurrent := P;
+      if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+        Self.Flush;
+    end;
+  end else
+  begin
+    // result = min: length/2; max: length
+    // sbcs_from_utf16
+    Limit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+    if (Limit > NativeUInt(Self.FOverflow)) then
+    begin
+      TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
+      TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_utf16);
+      TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf16;
+      Self.WriteContextData(FHugeContext);
+    end else
+    begin
+      Count := UniConv.sbcs_from_utf16(Pointer(P), FHugeContext.Source, FHugeContext.SourceSize, Converter);
+      Inc(P, Count);
+
+      Self.FCurrent := P;
+      if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+        Self.Flush;
+    end;
+  end;
 end;
 
 
@@ -29051,22 +29216,82 @@ begin
     Self.Flush;
 end;
 
+// result = length * SizeOf(WideChar)
 procedure TUTF16TextWriter.WriteSBCSCharsInternal(const AChars: PAnsiChar;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Limit: NativeUInt;
 begin
-  // todo
+  P := Self.FCurrent;
+  Limit := (ALength + ALength) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+
+  if (Limit > NativeUInt(Self.FOverflow)) then
+  begin
+    FHugeContext.Source := AChars;
+    FHugeContext.SourceSize := ALength;
+    TUniConvContextEx(FHugeContext).FCallbacks.Converter := Self.FSBCSLookup.CurrentConverter;
+    TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_utf16_from_sbcs);
+    TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.utf16_from_sbcs;
+    Self.WriteContextData(FHugeContext);
+  end else
+  begin
+    UniConv.utf16_from_sbcs(Pointer(P), AChars, ALength, Self.FSBCSLookup.CurrentConverter);
+    Inc(P, ALength + ALength);
+
+    Self.FCurrent := P;
+    if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+      Self.Flush;
+  end;
 end;
 
+// result = (min: length/3; max: length) * SizeOf(WideChar)
 procedure TUTF16TextWriter.WriteUTF8Chars(const AChars: PUTF8Char;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Limit, Count: NativeUInt;
 begin
-  // todo
+  P := Self.FCurrent;
+  Limit := (ALength + ALength) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+
+  if (Limit > NativeUInt(Self.FOverflow)) then
+  begin
+    FHugeContext.Source := AChars;
+    FHugeContext.SourceSize := ALength;
+    TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_utf16_from_utf8);
+    TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.utf16_from_utf8;
+    Self.WriteContextData(FHugeContext);
+  end else
+  begin
+    Count := UniConv.utf16_from_utf8(Pointer(P), AChars, ALength);
+    Inc(P, Count + Count);
+
+    Self.FCurrent := P;
+    if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
+      Self.Flush;
+  end;
 end;
 
 procedure TUTF16TextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
+var
+  P: PByte;
+  Size: NativeUInt;
 begin
-  // todo
+  P := FCurrent;
+  Size := ALength + ALength;
+  Inc(P, Size);
+
+  if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
+  begin
+    OverflowWriteData(AChars^, Size);
+  end else
+  begin
+    FCurrent := P;
+    Dec(P, Size);
+    NcMove(AChars^, P^, Size);
+  end;
 end;
 
 
@@ -29113,6 +29338,7 @@ var
 begin
   Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
   TUniConvContextEx(FHugeContext).F.Flags := Flags;
+  TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_universal;
   TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_copy;
 end;
 
@@ -29395,19 +29621,41 @@ end;
 procedure TUTF32TextWriter.WriteSBCSCharsInternal(const AChars: PAnsiChar;
   const ALength: NativeUInt);
 begin
-  // todo
+  with TUniConvContextEx(FHugeContext) do
+  begin
+    Source := AChars;
+    SourceSize := ALength;
+    F.Flags := (F.Flags and -32);
+    FCallbacks.Converter := Self.FSBCSLookup.CurrentConverter;
+  end;
+
+  Self.WriteContextData(FHugeContext);
 end;
 
 procedure TUTF32TextWriter.WriteUTF8Chars(const AChars: PUTF8Char;
   const ALength: NativeUInt);
 begin
-  // todo
+  with TUniConvContextEx(FHugeContext) do
+  begin
+    Source := AChars;
+    SourceSize := ALength;
+    F.Flags := (F.Flags and -32) + Cardinal(bomUTF8);
+  end;
+
+  Self.WriteContextData(FHugeContext);
 end;
 
 procedure TUTF32TextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
 begin
-  // todo
+  with TUniConvContextEx(FHugeContext) do
+  begin
+    Source := AChars;
+    SourceSize := ALength + ALength;
+    F.Flags := (F.Flags and -32) + Cardinal(bomUTF16);
+  end;
+
+  Self.WriteContextData(FHugeContext);
 end;
 
 
@@ -30524,6 +30772,64 @@ begin
   Buffer.Assign(S, NullTerminated);
   Self.Append(Buffer, CharCase);
 end;
+
+procedure TTemporaryString.AppendBoolean(const Value: Boolean);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendInteger(const Value: Integer);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendCardinal(const Value: Cardinal);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendHex(const Value: Integer; const Digits: NativeUInt);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendInt64(const Value: Int64);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendUInt64(const Value: UInt64);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendHex64(const Value: Int64; const Digits: NativeUInt);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendFloat(const Value: Extended;
+ const Settings: TFloatSettings);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendFloat(const Value: Extended);
+{$ifNdef CPUINTEL}
+begin
+  AppendFloat(Value, DefaultFloatSettings);
+end;
+{$else}
+asm
+  {$ifdef CPUX86}
+  pop ebp
+  lea edx, DefaultFloatSettings
+  {$else .CPUX64}
+  lea rdx, DefaultFloatSettings
+  {$endif}
+  jmp TTemporaryString.AppendFloat
+end;
+{$endif}
 
 
 initialization

@@ -1269,6 +1269,38 @@ type
   PFloatSettings = ^TFloatSettings;
 
 
+{ TDateTimeSettings object }
+
+  TDateFormat = (dateYYYYMMDD, dateDDMMYYYY, dateDDMMYY, dateMMDDYYYY, dateMMDDYY);
+  TTimeFormat = (timeHHMM, timeHHMMSS, timeHHMMSSZZZ, timeHHMMSSZZZZZZ);
+  TDateTimeSeparator = (sepNone, sepDot, sepDash, sepSlash, sepColon, sepSpace, sepT);
+
+  TDateTimeSettings = object
+  protected
+    F: packed record
+    case Integer of
+      0: (
+            DateSeparator: TDateTimeSeparator;
+            DateFormat: TDateFormat;
+            TimeSeparator: TDateTimeSeparator;
+            TimeFormat: TTimeFormat;
+            MSecSeparator: TDateTimeSeparator;
+            BetweenSeparator: TDateTimeSeparator;
+         );
+      1: (DateOptions, Align: Cardinal);
+      2: (_: Word; TimeOptions: Cardinal);
+    end;
+  public
+    property DateFormat: TDateFormat read F.DateFormat write F.DateFormat;
+    property DateSeparator: TDateTimeSeparator read F.DateSeparator write F.DateSeparator;
+    property TimeFormat: TTimeFormat read F.TimeFormat write F.TimeFormat;
+    property TimeSeparator: TDateTimeSeparator read F.TimeSeparator write F.TimeSeparator;
+    property MSecSeparator: TDateTimeSeparator read F.MSecSeparator write F.MSecSeparator;
+    property BetweenSeparator: TDateTimeSeparator read F.BetweenSeparator write F.BetweenSeparator;
+  end;
+  PDateTimeSettings = ^TDateTimeSettings;
+
+
 { TCachedTextWriter class }
 
   TCachedTextWriter = class(TCachedTextBuffer)
@@ -1328,6 +1360,7 @@ type
     property FileName: string read FFileName;
   public
     FloatSettings: TFloatSettings;
+    DateTimeSettings: TDateTimeSettings;
 
     procedure WriteCRLF; virtual; abstract;
     procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt); virtual; abstract;
@@ -1375,8 +1408,12 @@ type
     procedure WriteFloat(const Value: TExtended80Rec); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     {$ifend}
     procedure WriteVariant(const Value: Variant);
-
-    // todo Date/Time
+    procedure WriteDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure WriteDate(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure WriteTime(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure WriteDateTime(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
   end;
 
 
@@ -1572,6 +1609,12 @@ type
     procedure AppendHex64(const Value: Int64; const Digits: NativeUInt = 0);
     procedure AppendFloat(const Value: Extended; const Settings: TFloatSettings); overload;
     procedure AppendFloat(const Value: Extended); overload;
+    procedure AppendDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure AppendDate(const Value: TDateTime); overload;
+    procedure AppendTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure AppendTime(const Value: TDateTime); overload;
+    procedure AppendDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure AppendDateTime(const Value: TDateTime); overload;
   end;
   PTemporaryString = ^TTemporaryString;
 
@@ -1960,6 +2003,7 @@ var
   UNICONV_SUPPORTED_SBCS_HASH: array[0..High(UniConv.UNICONV_SUPPORTED_SBCS_HASH)] of Integer;
   UNICONV_UTF8CHAR_SIZE: TUniConvBB;
   DefaultFloatSettings: TFloatSettings;
+  DefaultDateTimeSettings: TDateTimeSettings;
 
 procedure InternalLookupsInitialize;
 begin
@@ -1970,6 +2014,13 @@ begin
   DefaultFloatSettings.Format := ffGeneral;
   DefaultFloatSettings.DecimalDot := True;
   DefaultFloatSettings.F.WidthPrecision := UNDEFINED_WIDTHPRECISION;
+
+  DefaultDateTimeSettings.DateFormat := dateYYYYMMDD;
+  DefaultDateTimeSettings.DateSeparator := sepDash;
+  DefaultDateTimeSettings.TimeFormat := timeHHMMSS;
+  DefaultDateTimeSettings.TimeSeparator := sepColon;
+  DefaultDateTimeSettings.MSecSeparator := sepDot;
+  DefaultDateTimeSettings.BetweenSeparator := sepSpace;
 
   Move(UniConv.UNICONV_SUPPORTED_SBCS_HASH, UNICONV_SUPPORTED_SBCS_HASH, SizeOf(UNICONV_SUPPORTED_SBCS_HASH));
   Move(UniConv.UNICONV_UTF8CHAR_SIZE, UNICONV_UTF8CHAR_SIZE, SizeOf(UNICONV_UTF8CHAR_SIZE));
@@ -2493,7 +2544,7 @@ date:
   end;
   Days := Days - {I div 100}CC + ({I div 400}CC shr 2);
   // Days := Days + {I div 4}((CC*25) + YY shr 2) - DateDelta;
-  Days := Days - 693594 + YY shr 2;
+  Days := Days {$ifNdef KOL}- 693594{$endif} + YY shr 2;
   Days := Days + CC*25;
 
 year_calculated:
@@ -3357,6 +3408,331 @@ begin
     end;
   end;
 
+  Result := P;
+end;
+
+
+function FailureDateTime(const Value: {TDateTime}Double): ECachedText;
+var
+  ResStringRec: PResStringRec;
+begin
+  ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTimeFloat);
+  Result := ECachedText.CreateResFmt(ResStringRec, [Value]);
+end;
+
+// out Quads: days, seconds, zzzzzz (microseconds)
+procedure SeparateDateTime(var DigitsRec: TDigitsRec;
+  {$ifdef CPUX86}var{$endif} X: {TDateTime}Double; const DateOnly: Boolean);
+label
+  fail;
+type
+  HugeIntegerArray = array[0..High(Integer) div SizeOf(Integer) - 1] of Integer;
+  PHugeIntegerArray = ^HugeIntegerArray;
+const
+  SECPERMINUTE = 60;
+  SECPERHOUR = 60 * SECPERMINUTE;
+  SECPERDAY = 24 * SECPERHOUR;
+  MICROSECPERSEC = 1000000;
+
+  DATEDELTA = 693594;
+var
+  P: PInteger;
+  Value: Integer;
+  {$ifNdef CPUX86}
+    DBLROUND_CONST: Double;
+  {$endif}
+begin
+  P := Pointer(@DigitsRec.Quads[0]);
+  {$ifNdef CPUX86}
+    DBLROUND_CONST := CachedTexts.DBLROUND_CONST;
+  {$endif}
+
+  // P^ := Trunc(X + DateDelta)
+  // X := Frac(X + DateDelta)
+  {$ifNdef KOL}
+  X := X + DATEDELTA;
+  {$endif}
+  PDouble(P)^ := X + DBLROUND_CONST;
+  Value := PHugeIntegerArray(P)[0];
+  if ({$ifNdef CPUX86}Value{$else}P^{$endif} > X) then
+  begin
+    Dec(Value);
+    P^ := Value;
+  end;
+  if (Cardinal(Value) > {31.12.9999}2958465 + DATEDELTA) then goto fail;
+  X := X - {$ifNdef CPUX86}Value{$else}P^{$endif};
+  Inc(P);
+  if (DateOnly) then
+  begin
+    Exit;
+  fail:
+    raise FailureDateTime(X);
+  end;
+
+  // P^ := Trunc(X * SECPERDAY)
+  // X := Frac(X * SECPERDAY)
+  X := X * SECPERDAY;
+  PDouble(P)^ := X + DBLROUND_CONST;
+  Value := PHugeIntegerArray(P)[0];
+  if ({$ifNdef CPUX86}Value{$else}P^{$endif} > X) then
+  begin
+    Dec(Value);
+    P^ := Value;
+  end;
+  X := X - {$ifNdef CPUX86}Value{$else}P^{$endif};
+  Inc(P);
+
+  // P^ := Trunc(X * MICROSECPERSEC);
+  PDouble(P)^ := X * MICROSECPERSEC + DBLROUND_CONST;
+  if (P^ = MICROSECPERSEC) then P^ := MICROSECPERSEC - 1;
+end;
+
+
+const
+  DATETIME_SEPARATORS: array[0..Ord(High(TDateTimeSeparator))] of Byte = (
+    {sepNone} 0,
+     {sepDot} Ord('.'),
+    {sepDash} Ord('-'),
+   {sepSlash} Ord('/'),
+   {sepColon} Ord(':'),
+   {sepSpace} Ord(' '),
+       {sepT} Ord('T')
+  );
+
+function WriteDateAscii(var DigitsRec: TDigitsRec; P: PByte;
+  const Settings: TDateTimeSettings): PByte;
+type
+  PHugeCardinalArray = ^HugeCardinalArray;
+const
+  D1 = 365;
+  D4 = D1 * 4 + 1;
+  D100 = D4 * 25 - 1;
+  D400 = D100 * 4 + 1;
+
+  MONTH_TABLES: array[Boolean] of PMonthTable = (@STD_MONTH_TABLE, @LEAP_MONTH_TABLE);
+
+  // L:28, DD:24, MM:20, SEP2:16, SEP1:12, YYYY:8, SEPCHAR: 0
+  FORMAT_SETTINGS: array[0..2*Ord(High(TDateFormat)) + 1] of Cardinal = (
+    {Sep + dateYYYYMMDD} $a8574000,
+    {Sep + dateDDMMYYYY} $a0352600,
+      {Sep + dateDDMMYY} $80352400,
+    {Sep + dateMMDDYYYY} $a3052600,
+      {Sep + dateMMDDYY} $83052400,
+          {dateYYYYMMDD} $864ff000,
+          {dateDDMMYYYY} $802ff400,
+            {dateDDMMYY} $602ff200,
+          {dateMMDDYYYY} $820ff400,
+            {dateMMDDYY} $620ff200
+  );
+
+var
+  Y, M, D: NativeInt;
+  Fmt, X: NativeInt;
+
+  T: Cardinal;
+  MonthTable: PHugeCardinalArray;
+
+  Store: record
+  case Integer of
+    0: (IntegerValue: Integer);
+    1: (DoubleValue: Double; Fmt: NativeInt);
+  end;
+begin
+  // format settings
+  Fmt := Settings.F.DateOptions;
+  Y := Byte(Fmt);
+  Store.Fmt := FORMAT_SETTINGS[Byte(Fmt shr 8) + (Y - 1) and 5] + DATETIME_SEPARATORS[Y];
+
+  // four hundred years
+  D := DigitsRec.Quads[0];
+  Dec(D);
+  Y := 1;
+  if (D >= 4*D400) then
+  repeat
+    Dec(D, 4*D400);
+    Inc(Y, 4*400);
+  until (D < 4*D400);
+  if (D >= D400) then
+  repeat
+    Dec(D, D400);
+    Inc(Y, 400);
+  until (D < D400);
+
+  // Y := Y + 100 * (D div D100)
+  // D := D mod D100
+  if (D >= 4*D100) then
+  begin
+    Inc(Y, 3*100);
+    D := D - 3*D100;
+  end else
+  begin
+    begin
+      // M := D div D100
+      PHugeCardinalArray(@Store)[0] := D;
+      Store.DoubleValue := Store.IntegerValue * (1 / D100) + DBLROUND_CONST;
+      M := Store.IntegerValue;
+    end;
+    Inc(Y, M * 100);
+    D := D - M * D100;
+    if (D < 0) then // round fix
+    begin
+      Inc(D, D100);
+      Dec(Y, 100);
+    end;
+  end;
+
+  // Y := Y + 4 * (D div D4)
+  // D := D mod D4
+  M := (D * $59C7) shr 25; // M := D div D4
+  Inc(Y, M * 4);
+  D := D - M * D4;
+
+  // Y := Y + (D div D1)
+  // D := D mod D1
+  if (D >= 4*D1) then
+  begin
+    Inc(Y, 3);
+    D := D - 3*D1;
+  end else
+  begin
+    M := (D * $59D) shr 19; // M := D div D1
+    Inc(Y, M);
+    D := D - M * D1;
+  end;
+
+  // detect month/day
+  T := (D shl 16) + 32;
+  MonthTable := Pointer(MONTH_TABLES[Y and 3 = 0]);
+  M := NativeInt(MonthTable);
+  Inc(NativeInt(MonthTable), (6 * SizeOf(Cardinal)) and -Ord(MonthTable[6] < T));
+  Inc(NativeInt(MonthTable), (3 * SizeOf(Cardinal)) and -Ord(MonthTable[3] < T));
+  Inc(NativeInt(MonthTable), (1 * SizeOf(Cardinal)) and -Ord(MonthTable[1] < T));
+  Inc(NativeInt(MonthTable), (1 * SizeOf(Cardinal)) and -Ord(MonthTable[1] < T));
+  D := (T shr 16 + 1) - PMonthInfo(MonthTable).Before;
+  M := (NativeInt(MonthTable) - M) shr 2 + 1;
+
+  // YYYY
+  X := (Y * $147B) shr 19; // X := Y div 100
+  Y := Y - (X * 100);      // Y := Y mod 100
+  {$ifNdef CPUX86}
+    Fmt := Store.Fmt;
+    PWord(@PByteCharArray(P)[(Fmt shr 8) and $f])^ := DIGITS_LOOKUP_ASCII[X];
+  {$else}
+    PWord(@PByteCharArray(P)[(Store.Fmt shr 8) and $f])^ := DIGITS_LOOKUP_ASCII[X];
+    Fmt := Store.Fmt;
+  {$endif}
+  PWord(@PByteCharArray(P)[(Fmt shr 8) and $f + 2])^ := DIGITS_LOOKUP_ASCII[Y];
+
+  // separators
+  Y := Fmt and $7f;
+  PByteCharArray(P)[(Fmt shr 12) and $f] := Y;
+  PByteCharArray(P)[(Fmt shr 16) and $f] := Y;
+
+  // MM, DD
+  PWord(@PByteCharArray(P)[(Fmt shr 20) and $f])^ := DIGITS_LOOKUP_ASCII[M];
+  PWord(@PByteCharArray(P)[(Fmt shr 24) and $f])^ := DIGITS_LOOKUP_ASCII[D];
+
+  // Result
+  Inc(P, Fmt shr 28);
+  Result := P;
+end;
+
+function WriteTimeAscii(var DigitsRec: TDigitsRec; P: PByte;
+  const Settings: TDateTimeSettings): PByte;
+const
+  SECPERMINUTE = 60;
+  SECPERHOUR = 60 * SECPERMINUTE;
+  SECPERDAY = 24 * SECPERHOUR;
+  MICROSECPERSEC = 1000000;
+
+  // L:28, ZZ: 24, SEPZZ: 20, SS:16, MM:12, USEZZ:8, SEPZZCHAR: 0
+  FORMAT_SETTINGS: array[0..4*Ord(High(TTimeFormat)) + 3] of Cardinal = (
+           // TimeSep: True, MicroSep: True
+            {timeHHMM} $5fff3000,
+          {timeHHMMSS} $8ff63000,
+       {timeHHMMSSZZZ} $c9863100,
+    {timeHHMMSSZZZZZZ} $f9863100,
+           // TimeSep: False, MicroSep: True
+            {timeHHMM} $4fff2000,
+          {timeHHMMSS} $6ff42000,
+       {timeHHMMSSZZZ} $a7642100,
+    {timeHHMMSSZZZZZZ} $d7642100,
+           // TimeSep: True, MicroSep: False
+            {timeHHMM} $5fff3000,
+          {timeHHMMSS} $8ff63000,
+       {timeHHMMSSZZZ} $b8f63100,
+    {timeHHMMSSZZZZZZ} $e8f63100,
+           // TimeSep: False, MicroSep: False
+            {timeHHMM} $4fff2000,
+          {timeHHMMSS} $6ff42000,
+       {timeHHMMSSZZZ} $96f42100,
+    {timeHHMMSSZZZZZZ} $c6f42100
+  );
+
+var
+  Fmt: NativeInt;
+  H, M, S: NativeInt;
+  PZZ: PWord;
+
+  Store: record
+  case Integer of
+    0: (IntegerValue: Integer);
+    1: (DoubleValue: Double; Microseconds: NativeInt);
+  end;
+begin
+  // time separator
+  Fmt := Settings.F.TimeOptions;
+  S := DATETIME_SEPARATORS[Byte(Fmt)];
+  Inc(P, 2);
+  PNativeInt(P)^ := S + S shl 24;
+  Dec(P, 2);
+
+  // format settings
+  S := Byte(Fmt shr 16);
+  Fmt := FORMAT_SETTINGS[((S - 1) and 8) +
+    (-NativeInt(Byte(Fmt and $7f = 0)) and 4) + Byte(Fmt shr 8)];
+  Fmt := Fmt + DATETIME_SEPARATORS[S];
+  Store.Microseconds := DigitsRec.Quads[2];
+
+  // HH(ascii), MM, SS
+  S := DigitsRec.Quads[1];
+  H := (S * $91A3) shr 27; // H := S div SECPERHOUR
+  S := S - H * SECPERHOUR; // S := S mod SECPERHOUR
+  PWord(P)^ := DIGITS_LOOKUP_ASCII[H];
+  M := (S * $889) shr 17;    // M := S div SECPERMINUTE
+  S := S - M * SECPERMINUTE; // S := S mod SECPERMINUTE
+
+  // MM(ascii), SS(ascii)
+  PWord(@PByteCharArray(P)[(Fmt shr 12) and $f])^ := DIGITS_LOOKUP_ASCII[M];
+  PWord(@PByteCharArray(P)[(Fmt shr 16) and $f])^ := DIGITS_LOOKUP_ASCII[S];
+
+  // ZZ
+  if (Fmt and 256 <> 0) then
+  begin
+    PByteCharArray(P)[(Fmt shr 20) and $f] := Fmt;
+
+    Store.DoubleValue := Store.Microseconds * (1 / 10000) + DBLROUND_CONST;
+    M := Store.IntegerValue;
+    S := Store.Microseconds;
+    S := S - M * 10000;
+    if (S < 0) then // round fix
+    begin
+      Dec(M);
+      Inc(S, 10000);
+    end;
+    PZZ := Pointer(@PByteCharArray(P)[(Fmt shr 24) and $f]);
+    PZZ^ := DIGITS_LOOKUP_ASCII[M];
+
+    M := (S * $147B) shr 19; // M := S div 100
+    S := S - (M * 100);      // S := S mod 100
+    Inc(PZZ);
+    PZZ^ := DIGITS_LOOKUP_ASCII[M];
+    Inc(PZZ);
+    PZZ^ := DIGITS_LOOKUP_ASCII[S];
+  end;
+
+  // Result
+  Inc(P, Fmt shr 28);
   Result := P;
 end;
 
@@ -27649,8 +28025,9 @@ begin
   FBuffer.Constants[2] := Ord('%');
   FBuffer.Constants[High(FBuffer.Constants)] := Ord('-');
 
-  // float settigns
+  // settigns
   Self.FloatSettings := DefaultFloatSettings;
+  Self.DateTimeSettings := DefaultDateTimeSettings;
 end;
 
 function TCachedTextWriter.Flush: NativeUInt;
@@ -28681,21 +29058,21 @@ begin
   begin
     if (Digits <= 1) and (Value < DIGITS_2) then
     begin
-      PWord(@Self.FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[Value];
+      PWord(@FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[Value];
       X := Byte(Value >= DIGITS_1);
-      FVirtuals.WriteBufferedAscii(Self, @Self.FBuffer.Digits.Ascii[31 - X], 1 + X);
+      FVirtuals.WriteBufferedAscii(Self, @FBuffer.Digits.Ascii[31 - X], 1 + X);
       Exit;
     end;
 
-    P := WriteCardinalAscii(Self.FBuffer.Digits, Cardinal(Value), Digits);
+    P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
   end else
   begin
-    P := WriteCardinalAscii(Self.FBuffer.Digits, Cardinal(-Value), Digits);
+    P := WriteCardinalAscii(FBuffer.Digits, Cardinal(-Value), Digits);
     Dec(P);
     P^ := Ord('-');
   end;
 
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@Self.FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteHex(const Value: Integer;
@@ -28703,8 +29080,8 @@ procedure TCachedTextWriter.WriteHex(const Value: Integer;
 var
   P: PByte;
 begin
-  P := WriteHexAscii(Self.FBuffer.Digits, Cardinal(Value), Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@Self.FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  P := WriteHexAscii(FBuffer.Digits, Cardinal(Value), Digits);
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal;
@@ -28715,14 +29092,14 @@ var
 begin
   if (Digits <= 1) and (Value < DIGITS_2) then
   begin
-    PWord(@Self.FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[Value];
+    PWord(@FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[Value];
     X := Byte(Value >= DIGITS_1);
-    FVirtuals.WriteBufferedAscii(Self, @Self.FBuffer.Digits.Ascii[31 - X], 1 + X);
+    FVirtuals.WriteBufferedAscii(Self, @FBuffer.Digits.Ascii[31 - X], 1 + X);
     Exit;
   end;
 
-  P := WriteCardinalAscii(Self.FBuffer.Digits, Cardinal(Value), Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@Self.FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteInt64(const Value: Int64;
@@ -28748,7 +29125,7 @@ begin
     P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
   end;
 
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@Self.FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteHex64(const Value: Int64;
@@ -28756,8 +29133,8 @@ procedure TCachedTextWriter.WriteHex64(const Value: Int64;
 var
   P: PByte;
 begin
-  P := WriteHex64Ascii(Self.FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@Self.FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  P := WriteHex64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteUInt64(const Value: UInt64;
@@ -28765,14 +29142,8 @@ procedure TCachedTextWriter.WriteUInt64(const Value: UInt64;
 var
   P: PByte;
 begin
-  P := WriteUInt64Ascii(Self.FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Int64(Value), Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@Self.FBuffer.Digits.Quads[0]) - NativeUInt(P));
-end;
-
-procedure TCachedTextWriter.WriteFloat(const Value: Extended;
-  const Settings: TFloatSettings);
-begin
-  // todo
+  P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Int64(Value), Digits);
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteFloat(const Value: Extended);
@@ -28788,22 +29159,105 @@ asm
 end;
 {$ifend}
 
-{$if not Defined(FPC) and (CompilerVersion >= 23)}
-procedure TCachedTextWriter.WriteFloat(const Value: TExtended80Rec;
+procedure TCachedTextWriter.WriteFloat(const Value: Extended;
   const Settings: TFloatSettings);
 begin
   // todo
 end;
 
+{$if not Defined(FPC) and (CompilerVersion >= 23)}
 procedure TCachedTextWriter.WriteFloat(const Value: TExtended80Rec);
 begin
   WriteFloat(Value, Self.FloatSettings);
+end;
+
+procedure TCachedTextWriter.WriteFloat(const Value: TExtended80Rec;
+  const Settings: TFloatSettings);
+begin
+  // todo
 end;
 {$ifend}
 
 procedure TCachedTextWriter.WriteVariant(const Value: Variant);
 begin
   // todo
+end;
+
+procedure TCachedTextWriter.WriteDate(const Value: TDateTime);
+{$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
+begin
+  WriteDate(Value, Self.DateTimeSettings);
+end;
+{$else .CPUX86}
+asm
+  pop ebp
+  lea edx, [EAX].TCachedTextWriter.DateTimeSettings
+  jmp WriteDate
+end;
+{$ifend}
+
+procedure TCachedTextWriter.WriteDate(const Value: TDateTime;
+  const Settings: TDateTimeSettings);
+var
+  P: PByte;
+begin
+  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, True);
+  P := WriteDateAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], Settings);
+  FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
+end;
+
+procedure TCachedTextWriter.WriteTime(const Value: TDateTime);
+{$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
+begin
+  WriteTime(Value, Self.DateTimeSettings);
+end;
+{$else .CPUX86}
+asm
+  pop ebp
+  lea edx, [EAX].TCachedTextWriter.DateTimeSettings
+  jmp WriteTime
+end;
+{$ifend}
+
+procedure TCachedTextWriter.WriteTime(const Value: TDateTime;
+  const Settings: TDateTimeSettings);
+var
+  P: PByte;
+begin
+  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
+  P := WriteTimeAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], Settings);
+  FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
+end;
+
+procedure TCachedTextWriter.WriteDateTime(const Value: TDateTime);
+{$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
+begin
+  WriteDateTime(Value, Self.DateTimeSettings);
+end;
+{$else .CPUX86}
+asm
+  pop ebp
+  lea edx, [EAX].TCachedTextWriter.DateTimeSettings
+  jmp WriteDateTime
+end;
+{$ifend}
+
+procedure TCachedTextWriter.WriteDateTime(const Value: TDateTime;
+  const Settings: TDateTimeSettings);
+var
+  P: PByte;
+  Sep: NativeUInt;
+begin
+  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
+  P := WriteDateAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], Settings);
+  Sep := Byte(Settings.BetweenSeparator);
+  if (Sep <> NativeUInt(sepNone)) then
+  begin
+    P^ := DATETIME_SEPARATORS[Sep];
+    Inc(P);
+  end;
+  P := WriteTimeAscii(FBuffer.Digits, P, Settings);
+  FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
 end;
 
 
@@ -31268,12 +31722,6 @@ begin
   Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Quads[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendFloat(const Value: Extended;
- const Settings: TFloatSettings);
-begin
-  // todo
-end;
-
 procedure TTemporaryString.AppendFloat(const Value: Extended);
 {$ifNdef CPUINTEL}
 begin
@@ -31290,6 +31738,104 @@ asm
   jmp TTemporaryString.AppendFloat
 end;
 {$endif}
+
+procedure TTemporaryString.AppendFloat(const Value: Extended;
+ const Settings: TFloatSettings);
+begin
+  // todo
+end;
+
+procedure TTemporaryString.AppendDate(const Value: TDateTime);
+{$ifNdef CPUINTEL}
+begin
+  AppendDate(Value, DefaultDateTimeSettings);
+end;
+{$else}
+asm
+  {$ifdef CPUX86}
+  pop ebp
+  lea edx, DefaultDateTimeSettings
+  {$else .CPUX64}
+  lea rdx, DefaultDateTimeSettings
+  {$endif}
+  jmp TTemporaryString.AppendDate
+end;
+{$endif}
+
+procedure TTemporaryString.AppendDate(const Value: TDateTime;
+  const Settings: TDateTimeSettings);
+var
+  DigitsRec: TDigitsRec;
+  P: PByte;
+begin
+  SeparateDateTime(DigitsRec, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, True);
+  P := WriteDateAscii(DigitsRec, @DigitsRec.Ascii[0], Settings);
+  Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+end;
+
+procedure TTemporaryString.AppendTime(const Value: TDateTime);
+{$ifNdef CPUINTEL}
+begin
+  AppendTime(Value, DefaultDateTimeSettings);
+end;
+{$else}
+asm
+  {$ifdef CPUX86}
+  pop ebp
+  lea edx, DefaultDateTimeSettings
+  {$else .CPUX64}
+  lea rdx, DefaultDateTimeSettings
+  {$endif}
+  jmp TTemporaryString.AppendTime
+end;
+{$endif}
+
+procedure TTemporaryString.AppendTime(const Value: TDateTime;
+  const Settings: TDateTimeSettings);
+var
+  DigitsRec: TDigitsRec;
+  P: PByte;
+begin
+  SeparateDateTime(DigitsRec, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
+  P := WriteTimeAscii(DigitsRec, @DigitsRec.Ascii[0], Settings);
+  Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+end;
+
+procedure TTemporaryString.AppendDateTime(const Value: TDateTime);
+{$ifNdef CPUINTEL}
+begin
+  AppendDateTime(Value, DefaultDateTimeSettings);
+end;
+{$else}
+asm
+  {$ifdef CPUX86}
+  pop ebp
+  lea edx, DefaultDateTimeSettings
+  {$else .CPUX64}
+  lea rdx, DefaultDateTimeSettings
+  {$endif}
+  jmp TTemporaryString.AppendDateTime
+end;
+{$endif}
+
+procedure TTemporaryString.AppendDateTime(const Value: TDateTime;
+  const Settings: TDateTimeSettings);
+var
+  DigitsRec: TDigitsRec;
+  P: PByte;
+  Sep: NativeUInt;
+begin
+  SeparateDateTime(DigitsRec, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
+  P := WriteDateAscii(DigitsRec, @DigitsRec.Ascii[0], Settings);
+  Sep := Byte(Settings.BetweenSeparator);
+  if (Sep <> NativeUInt(sepNone)) then
+  begin
+    P^ := DATETIME_SEPARATORS[Sep];
+    Inc(P);
+  end;
+  P := WriteTimeAscii(DigitsRec, P, Settings);
+  Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+end;
 
 
 initialization

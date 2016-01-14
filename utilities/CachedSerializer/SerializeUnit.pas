@@ -1553,12 +1553,12 @@ begin
       Item := @Items[0];
 
       // length/data condition
-      if (KnownLength) or ((Offset + SameDataSize) div FCharSize >= UnknownLenghtRangeMin) then
+      if (KnownLength) or ((Offset + SameDataSize) div FCharSize <= UnknownLenghtRangeMin) then
       begin
         TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize, True);
       end else
       begin
-        TextBufferIncludeLengthCondition(Level, Offset, SameDataSize, SameDataSize, False);
+        TextBufferIncludeLengthCondition(Level, Offset, SameDataSize, MaxDataSize, False);
         TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize, False);
 
         UnknownLenghtRangeMin := (Offset + SameDataSize) div FCharSize;

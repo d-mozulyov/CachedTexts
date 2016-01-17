@@ -1255,7 +1255,7 @@ type
            Format: TFloatFormat;
            GeneralCompact: Boolean;
            DecimalDot: Boolean;
-           Reserved: Byte;
+           ThousandSpace: Boolean;
            Precision: SmallInt;
            Digits: SmallInt;
          );
@@ -1266,6 +1266,7 @@ type
     property Format: TFloatFormat read F.Format write F.Format;
     property GeneralCompact: Boolean read F.GeneralCompact write F.GeneralCompact;
     property DecimalDot: Boolean read F.DecimalDot write F.DecimalDot;
+    property ThousandSpace: Boolean read F.ThousandSpace write F.ThousandSpace;
     property Precision: SmallInt read F.Precision write F.Precision;
     property Digits: SmallInt read F.Digits write F.Digits;
   end;
@@ -1624,7 +1625,7 @@ const
       Format: ffGeneral;
       GeneralCompact: False;
       DecimalDot: True;
-      Reserved: 0;
+      ThousandSpace: True;
       Precision: 15;
       Digits: 0;
     );
@@ -1641,19 +1642,6 @@ const
     );
   );
 
-// !!!temporary
-type
-  TFloatValue = packed record
-  case Integer of
-    0: (Value: Extended);
-    1: (Cardinals: array[0..1] of Cardinal);
-    2: (_: array[1..SizeOf(Extended) - SizeOf(Word)] of Byte; HighWord: Word);
-    3: (Int64Value: Int64);
-  end;
-  PFloatValue = ^TFloatValue;
-
-function WriteFloatAscii(var DigitsRec: TDigitsRec; const Float: PFloatValue;
-  const ASettings: PFloatSettings): NativeUInt;
 
 implementation
 
@@ -3761,7 +3749,89 @@ begin
 end;
 
 
-(*type
+type
+  TStoredFloatSettings = object(TFloatSettings)
+    Exp: NativeInt;
+  end;
+  PStoredFloatSettings = ^TStoredFloatSettings;
+
+
+function WriteNumberDigits(var DigitsRec: TDigitsRec; Src: PByte;
+  const Settings: TStoredFloatSettings): PByte;
+const
+  THOUSAND_SEPARATORS: array[Boolean] of Byte = (Ord(','), Ord(#32));
+var
+  Separator: Cardinal;
+  P: PByte;
+  Count, N: NativeInt;
+begin
+  // first 1..3 digits
+  N := Settings.Exp;
+  Count := (((N - Byte(N = 3)) * 11) shr 5) * 3;
+  P := @DigitsRec.Ascii[0];
+  Dec(N, Count);
+  PCardinal(P)^ := PCardinal(Src)^;
+  Inc(Src, N);
+  Inc(P, N);
+
+  // triples
+  if (Count > 0) then
+  begin
+    Separator := THOUSAND_SEPARATORS[Settings.ThousandSpace];
+    repeat
+      Dec(Count, 3);
+      PCardinal(P)^ := (PCardinal(Src)^ shl 8) + Separator;
+      Inc(Src, 3);
+      Inc(P, 3 + 1);
+    until (Count = 0);
+  end;
+
+  // result
+  Result := P;
+end;
+
+function WriteExponent(P: PByte; const Settings: TStoredFloatSettings): PByte;
+const
+  SHIFTS: array[1..4] of Byte = (24, 16, 8, 0);
+var
+  Exp: NativeInt;
+  Digits, V: NativeInt;
+begin
+  Exp := Settings.Exp - 1;
+
+  P^ := Ord('E');
+  Inc(P);
+  if (Exp >= 0) then
+  begin
+    if (Settings.Format = ffExponent) then
+    begin
+      P^ := Ord('+');
+      Inc(P);
+    end;
+  end else
+  begin
+    Exp := -Exp;
+    P^ := Ord('-');
+    Inc(P);
+  end;
+
+  Digits := Settings.Digits;
+  Digits := Digits and (-NativeInt(Byte(NativeUInt(Digits) <= 4)));
+  V := 1 + Byte(Byte(Exp > 9) + Byte(Exp > 99) + Byte(Exp > 999));
+  if (Digits <= V) then Digits := V;
+
+  V := (Exp * $147B) shr 19; // V := Exp div 100;
+  V := (DIGITS_LOOKUP_ASCII[Exp - (V * 100){Exp mod 100}] shl 16) + DIGITS_LOOKUP_ASCII[V];
+  PCardinal(P)^ := V shr SHIFTS[Digits];
+  Inc(P, Digits);
+
+  Result := P;
+end;
+
+function WriteFloatAscii(var DigitsRec: TDigitsRec;
+  const Float: Pointer;
+  const Settings: TFloatSettings): NativeUInt;
+type
   TFloatValue = packed record
   case Integer of
     0: (Value: Extended);
@@ -3769,16 +3839,16 @@ end;
     2: (_: array[1..SizeOf(Extended) - SizeOf(Word)] of Byte; HighWord: Word);
     3: (Int64Value: Int64);
   end;
-  PFloatValue = ^TFloatValue;*)
-
-
-function WriteFloatAscii(var DigitsRec: TDigitsRec; const Float: PFloatValue;
-  const ASettings: PFloatSettings): NativeUInt;
 label
-  zero, stored_tenpower, mode_general, found, done;
+  float_zero, float_zero_decimals, float_unsupported, exp_corrective,
+  fixed_nullchars, precision_decimals,
+  round_large_decimal, fixup_int64_overflow, stored_tenpower, check_int64_overflow,
+  store_int64_digits, write_negative_exp, write_enotation, write_exponent,
+  write_fully_float, write_separated_decimals, write_decimals, done;
 const
   CMinExtPrecision = 2;
   CMaxExtPrecision = {$ifdef CPUX86}18{$else}17{$endif};
+  DECIMAL_SEPARATORS: array[Boolean] of Byte = (Ord(','), Ord('.'));
 
   e3 = Int64(1000);
   e5 = e3 * 100;
@@ -3792,7 +3862,7 @@ const
 
 var
   Exp: NativeInt;
-  P: PByte;
+  P, Src: PByte;
   {$ifNdef CPUX86}
   N: Int64;
   {$endif}
@@ -3800,78 +3870,30 @@ var
 
   TenPowers: PTenPowers;
   TenPowerPtr: PDouble;
-  Quads, TopQuad: PCardinal;
+  Quad, TopQuad: PCardinal;
   U, V: NativeInt;
 
-  Store: record
-    Sign: Boolean;
-    Settings: TFloatSettings;
+  Store: packed record
+    Settings: TStoredFloatSettings;
+    Float: TFloatValue;
+    {$ifdef CPUX86}Align: Word;{$endif}
   case Integer of
-    0: (DoubleValue: Double);
-    1: (Int64Value: Int64);
+    0: (DoubleValue: Double; Sign, ENotation, ENotationCompact: Boolean; NullChars: Byte);
+    1: (Int64Value: Int64; SignENotationCompactNullChars: NativeInt);
     2: (Cardinals: array[0..1] of Cardinal);
   end;
 begin
-  // sign, 0, +-INF, NaN
-  Exp := Float.HighWord;
-  Store.Sign := (Exp > $7fff);
-  Exp := Exp and $7fff;
-  Float.HighWord := Exp;
-  {$ifNdef CPUX86}Exp := Exp shr 4;{$endif}
-  if (NativeUInt(Exp + (-1)) >= {$ifdef CPUX86}$7fff{$else}$7ff{$endif} - 1) then
-  begin
-    if (Exp <> 0) then
-    begin
-      // +-INF/NaN
-      P := @DigitsRec.Ascii[0];
-      if (Float.Cardinals[0] = 0) and
-        (Float.Cardinals[1]{$ifdef CPUX86} = $80000000{$else} and $000fffff = 0{$endif}) then
-      begin
-        PCardinal(P)^ := Ord('I') + (Ord('N') shl 8) + (Ord('F') shl 16);
-      end else
-      begin
-        PCardinal(P)^ := Ord('N') + (Ord('a') shl 8) + (Ord('N') shl 16);
-        Store.Sign := False;
-      end;
-      Inc(P, 3);
-      goto done;
-    end else
-    if (Float.Cardinals[0] = 0) and
-      (Float.Cardinals[1] {$ifNdef CPUX86}and $000fffff{$endif} = 0) then
-      goto zero;
-  end;
-
-  // decimal exponent
-  {$ifNdef CPUX86}
-  if (Exp = 0) then
-  begin
-    N := Float.Int64Value;
-    if (N and $0008000000000000 = 0) then
-    repeat
-      Dec(Exp);
-      N := N + N;
-    until (N and $0008000000000000 <> 0);
-  end;
-  {$endif}
-  Exp := SmallInt(((Exp - {$ifdef CPUX86}$3fff{$else}$3ff{$endif}) * 19728) shr 16) + 1;
-
-  // store exponent
-  PNativeInt(@DigitsRec.Ascii)^ := Exp;
-
   // settings, precision, decimals
-  Decimals := ASettings.F.Options;
-  Precision := ASettings.F.PrecisionWidth;
-  Store.Settings.F.Options := Decimals;
+  Exp{Options} := Settings.F.Options;
+  Precision := Settings.F.PrecisionWidth;
+  Store.Settings.F.Options := Exp{Options};
   Store.Settings.F.PrecisionWidth := Precision;
-  if (Byte(Decimals) > Byte(ffExponent)) then
-  begin
-    Decimals := SmallInt(Precision shr 16);
-  end else
-  begin
-    Decimals := 9999;
-    Store.Settings.F.Digits := 9999;
-  end;
+  Decimals := SmallInt(Precision shr 16);
   Precision := SmallInt(Precision);
+
+  // float, exp
+  Store.Float.Int64Value := TFloatValue(Float^).Int64Value;
+  Exp := TFloatValue(Float^).HighWord;
 
   // min/max precision bounds
   if (NativeUInt(Precision + (-CMinExtPrecision)) >
@@ -3884,24 +3906,177 @@ begin
     Store.Settings.F.Precision := Precision;
   end;
 
-  // digits count
-  Decimals := Decimals + Exp;
-  if (NativeUInt(Decimals) > NativeUInt(Precision)) then
+  // sign, 0, +-INF, NaN
+  Store.SignENotationCompactNullChars := (Exp shr 15);
+  Exp := Exp and $7fff;
+  Store.Float.HighWord := Exp;
+  {$ifNdef CPUX86}Exp := Exp shr 4;{$endif}
+  if (NativeUInt(Exp + (-1)) >= {$ifdef CPUX86}$7fff{$else}$7ff{$endif} - 1) then
   begin
-    if (Decimals < 0) then
+    if (Exp <> 0) then
     begin
-    zero:
+      // +-INF/NaN
+      P := @DigitsRec.Ascii[0];
+      if (Store.Float.Cardinals[0] = 0) and
+        (Store.Float.Cardinals[1]{$ifdef CPUX86} = $80000000{$else} and $000fffff = 0{$endif}) then
+      begin
+        PCardinal(P)^ := Ord('I') + (Ord('N') shl 8) + (Ord('F') shl 16);
+      end else
+      begin
+        PCardinal(P)^ := Ord('N') + (Ord('a') shl 8) + (Ord('N') shl 16);
+        Store.Sign := False;
+      end;
+      Inc(P, 3);
+      goto done;
+    end else
+    if (Store.Float.Cardinals[0] = 0) and
+      (Store.Float.Cardinals[1] {$ifNdef CPUX86}and $000fffff{$endif} = 0) then
+    begin
+    float_zero:
       P := @DigitsRec.Ascii[0];
       P^ := Ord('0');
       Inc(P);
       Store.Sign := False;
-      goto found;
-    end;
 
-    Decimals := Precision;
+      case Store.Settings.Format of
+        ffGeneral: ;
+        ffNumber, ffFixed:
+        begin
+          Decimals := Store.Settings.Digits;
+          if (Decimals > 0) then goto float_zero_decimals;
+        end;
+        ffExponent:
+        begin
+          Decimals := Store.Settings.Precision;
+          Dec(Decimals);
+
+        float_zero_decimals:
+          P^ := DECIMAL_SEPARATORS[Store.Settings.DecimalDot];
+          Inc(P);
+          repeat
+            Dec(Decimals, SizeOf(Cardinal));
+            PCardinal(P)^ := $30303030;
+            Inc(P, SizeOf(Cardinal));
+          until (Decimals <= 0);
+          Inc(P, Decimals);
+
+          Store.Settings.Exp := 1;
+          if (Store.Settings.Format = ffExponent) then goto write_exponent;
+        end;
+      else
+      float_unsupported:
+        raise ECachedText.Create('Unsupported float format');
+      end;
+
+      goto done;
+    end;
   end;
 
-  // int64 value
+  // decimal exponent
+  {$ifNdef CPUX86}
+  if (Exp = 0) then
+  begin
+    N := Store.Float.Int64Value;
+    if (N and $0008000000000000 = 0) then
+    repeat
+      Dec(Exp);
+      N := N + N;
+    until (N and $0008000000000000 <> 0);
+  end;
+  {$endif}
+  Exp := SmallInt(((Exp - {$ifdef CPUX86}$3fff{$else}$3ff{$endif}) * $4D10) shr 16) + 1;
+  TenPowers := @TEN_POWERS[True];
+  if (Exp >= 0) then
+  begin
+    if (Exp <= 9) then
+    begin
+      TenPowerPtr := @TenPowers[Exp];
+      goto exp_corrective;
+    end else
+    begin
+      Store.DoubleValue := CachedTexts.TenPower(TenPowers, Exp);
+      TenPowerPtr := @Store.DoubleValue;
+      goto exp_corrective;
+    end;
+  end else
+  begin
+    Exp := -Exp;
+    Dec(TenPowers);
+    if (Exp <= 9) then
+    begin
+      TenPowerPtr := @TenPowers[Exp];
+    end else
+    begin
+      Store.DoubleValue := CachedTexts.TenPower(TenPowers, Exp);
+      TenPowerPtr := @Store.DoubleValue;
+    end;
+    Exp := -Exp;
+
+  exp_corrective:
+    Inc(Exp, Byte(Store.Float.Value >= TenPowerPtr^));
+  end;
+  Store.Settings.Exp := Exp;
+
+  // check float format, digits count
+  case Store.Settings.Format of
+    ffExponent:
+    begin
+      goto precision_decimals;
+    end;
+    ffFixed, ffNumber:
+    begin
+      if (Exp > Precision) then
+        Store.Settings.Format := {ENotation}ffCurrency;
+
+      Decimals := Decimals + Exp;
+      if (NativeUInt(Decimals) <= NativeUInt(Precision)) then
+      begin
+        if (Decimals <= Exp) then
+        begin
+          Exp := Exp - Decimals;
+          goto fixed_nullchars;
+        end;
+      end else
+      begin
+        if (Decimals < 0) then
+        begin
+          Store.Settings.Format := ffFixed{/ffNumber};
+          goto float_zero;
+        end;
+        Exp := Decimals - Precision;
+      fixed_nullchars:
+        if (Store.Settings.Format <> {ENotation}ffCurrency) then
+        begin
+          P := Pointer(@DigitsRec.Quads[0]);
+          Store.NullChars := Exp;
+          Dec(P, Exp);
+          repeat
+            Dec(Exp, SizeOf(Cardinal));
+            PCardinal(P)^ := $30303030;
+            Inc(P, SizeOf(Cardinal));
+          until (Exp <= 0);
+        end;
+
+        Exp := Store.Settings.Exp;
+        if (Decimals > Precision) then goto precision_decimals;
+      end;
+    end;
+    ffGeneral:
+    begin
+      if (Exp > Precision) or (Exp < -3) then
+      begin
+        Store.Settings.Format := {ENotation}ffCurrency;
+        Store.ENotationCompact := Store.Settings.GeneralCompact;
+      end;
+
+    precision_decimals:
+      Decimals := Precision;
+    end;
+  else
+    goto float_unsupported;
+  end;
+
+  // multiplier, int64 digits
   Exp := -(Exp - Decimals);
   TenPowers := @TEN_POWERS[False];
   if (Exp >= 0) then
@@ -3916,6 +4091,13 @@ begin
     begin
       Store.DoubleValue := TenPowers[9] * TenPowers[Exp - 9];
       goto stored_tenpower;
+    round_large_decimal:
+      Store.Int64Value := Round(Store.Float.Value * TenPowerPtr^);
+      goto check_int64_overflow;
+    fixup_int64_overflow:
+      Store.Int64Value := Round(Store.Int64Value * (1 / 10));
+      Inc(Store.Settings.Exp);
+      goto store_int64_digits;
     end else
     begin
       TenPowerPtr := @TenPowers[Exp];
@@ -3926,92 +4108,165 @@ begin
   stored_tenpower:
     TenPowerPtr := @Store.DoubleValue;
   end;
-  if (Decimals > 15) then
-  begin
-    Store.Int64Value := Round(Float.Value * TenPowerPtr^);
-  end else
-  begin
-    Store.DoubleValue := Float.Value * TenPowerPtr^ + DBLROUND_CONST;
-    Store.Cardinals[1] := Store.Cardinals[1] and ((1 shl (51 - 32)) - 1);
-  end;
-  if (Store.Int64Value >= DECIMAL_OVERFLOWS[Decimals]) then
-  begin
-    Store.Int64Value := Round(Store.Int64Value * (1 / 10));
-    Inc(PNativeInt(@DigitsRec.Ascii)^{Exp});
-  end;
-  if (Store.Int64Value = 0){???} then goto zero;
+  if (Decimals > 15) then goto round_large_decimal;
+  Store.DoubleValue := Store.Float.Value * TenPowerPtr^ + DBLROUND_CONST;
+  Store.Cardinals[1] := Store.Cardinals[1] and ((1 shl (51 - 32)) - 1);
+check_int64_overflow:
+  if (Store.Int64Value >= DECIMAL_OVERFLOWS[Decimals]) then goto fixup_int64_overflow;
 
-  // write int64 digits
-  TopQuad := SeparateUInt64(@DigitsRec.Quads[0], Store.Int64Value);
-  Dec(TopQuad);
-  if (TopQuad^ = 0) then
+store_int64_digits:
+  // store int64 digits
+  TopQuad := @DigitsRec.Quads[0];
+  Quad := SeparateUInt64(TopQuad, Store.Int64Value);
+  Dec(Quad);
+  if {ffGeneral, ENotation}(NativeUInt(Store.Settings.Format) - 1 > 2) and (Quad^ = 0) then
   begin
-    Dec(TopQuad);
-    if (TopQuad^ = 0) then
+    Dec(Quad);
+    if (Quad^ = 0) then
     begin
-      Dec(TopQuad);
-      if (TopQuad^ = 0) then
+      Dec(Quad);
+      if (Quad^ = 0) then
       begin
-        Dec(TopQuad);
-        if (TopQuad^ = 0) then Dec(TopQuad);
+        Dec(Quad);
+        if (Quad^ = 0) then Dec(Quad);
       end;
     end;
   end;
-  Quads := @DigitsRec.Quads[0];
-  Inc(TopQuad);
-  P := Pointer(Quads);
+  Src := Pointer(TopQuad);
+  Inc(Quad);
+  Dec(Src, Store.NullChars);
   repeat
-    Dec(TopQuad);
-
-    // V := U div 100;
-    // U := U mod 100;
-    U := TopQuad^;
+    Dec(Quad);
+    U := Quad^;
     V := (U * $147B) shr 19;
     U := U - (V * 100);
-
-    // values
     V := DIGITS_LOOKUP_ASCII[V];
-    Dec(P, SizeOf(Cardinal));
-    PCardinal(P)^ := (DIGITS_LOOKUP_ASCII[U] shl 16) + V;
-  until (Quads = TopQuad);
+    Dec(Src, SizeOf(Cardinal));
+    PCardinal(Src)^ := (DIGITS_LOOKUP_ASCII[U] shl 16) + V;
+    if (Quad = TopQuad) then Break;
 
-  U := TopQuad^;
-  Inc(P, SizeOf(Cardinal) - 1);
-  Dec(P, Byte(Byte(U > 9) + Byte(U > 99) + Byte(U > 999)));
-  Decimals := NativeUInt(@DigitsRec.Quads[0]) - NativeUInt(P);
-  U := PCardinal(@DigitsRec.Ascii[28])^ xor $30303030;
-  Dec(Decimals, Byte(Byte(U and $ff000000 = 0) +
-    Byte(U and $ffff0000 = 0) + Byte(U and $ffffff00 = 0)));
+    Dec(Quad);
+    U := Quad^;
+    V := (U * $147B) shr 19;
+    U := U - (V * 100);
+    V := DIGITS_LOOKUP_ASCII[V];
+    Dec(Src, SizeOf(Cardinal));
+    PCardinal(Src)^ := (DIGITS_LOOKUP_ASCII[U] shl 16) + V;
+  until (Quad = TopQuad);
+
+  U := Quad^;
+  Inc(Src, SizeOf(Cardinal) - 1);
+  Dec(Src, Byte(Byte(U > 9) + Byte(U > 99) + Byte(U > 999)));
+  Decimals := NativeUInt(TopQuad) - NativeUInt(Src);
 
   // format chars
-  // todo
-  Move(P^, DigitsRec.Ascii, Decimals);
-  P := @DigitsRec.Ascii[Decimals];
+  P := @DigitsRec.Ascii[0];
+  case Cardinal(Store.Settings.Format) of
+    Ord(ffNumber), Ord(ffFixed):
+    begin
+      Exp := Store.Settings.Exp;
+      if (Exp <= 0) then goto write_negative_exp;
+      if (Store.Settings.Format = ffFixed) then goto write_fully_float;
 
-  case Store.Settings.Format of
-    ffGeneral:
-    begin
-    mode_general:
-
-      // todo
+      Dec(Decimals, Exp);
+      P := WriteNumberDigits(PDigitsRec(P)^, Src, Store.Settings);
+      Inc(Src, Exp);
+      if (Decimals > 0) then goto write_separated_decimals;
     end;
-    ffNumber, ffFixed:
+	  Ord(ffExponent):
     begin
-	    if (PSmallInt(@DigitsRec.Ascii)^{Exp} > Store.Settings.Precision) then goto mode_general;
-      //FormatNumber();
-    end;
-	  ffExponent:
-    begin
-      //первый символ, DecimalSeparator, остальные символы
-      //FormatExponent();
+      goto write_enotation;
     end;
   else
-    raise ECachedText.Create('Unsupported float format');
+    // ffGeneral, ENotation
+    U := PCardinal(@DigitsRec.Ascii[28])^ xor $30303030;
+    Dec(Decimals, Byte(Byte(U and $ff000000 = 0) +
+      Byte(U and $ffff0000 = 0) + Byte(U and $ffffff00 = 0)));
+
+    if (Store.Settings.Format = ffGeneral) then
+    begin
+      Exp := Store.Settings.Exp;
+      if (Exp > 0) then
+      begin
+        if (Decimals >= Exp) then goto write_fully_float;
+
+        Dec(Exp, Decimals);
+        repeat
+          Dec(Decimals, SizeOf(Cardinal));
+          PCardinal(P)^ := PCardinal(Src)^;
+          Inc(Src, SizeOf(Cardinal));
+          Inc(P, SizeOf(Cardinal));
+        until (Decimals <= 0);
+        Inc(P, Decimals);
+        repeat
+          Dec(Exp, SizeOf(Cardinal));
+          PCardinal(P)^ := $30303030;
+          Inc(P, SizeOf(Cardinal));
+        until (Exp <= 0);
+        Inc(P, Exp);
+      end else
+      begin
+        if (not Store.Settings.GeneralCompact) then
+        begin
+        write_negative_exp:
+          P^ := Ord('0');
+          Inc(P);
+        end;
+        Exp := -Exp;
+        P^ := DECIMAL_SEPARATORS[Store.Settings.DecimalDot];
+        Inc(P);
+
+        if (Exp <> 0) then
+        repeat
+          Dec(Exp, SizeOf(Cardinal));
+          PCardinal(P)^ := $30303030;
+          Inc(P, SizeOf(Cardinal));
+        until (Exp <= 0);
+        Inc(P, Exp);
+        goto write_decimals;
+      end;
+    end else
+    begin
+      // ENotation
+      if (not Store.ENotationCompact) or (Store.Settings.Exp > 0) then
+      begin
+      write_enotation:
+        Dec(Decimals);
+        P^ := Src^;
+        Inc(Src);
+        Inc(P);
+      end;
+      Store.ENotation := True;
+      if (Decimals <> 0) then goto write_separated_decimals;
+    write_exponent:
+      P := WriteExponent(P, Store.Settings);
+      goto done;
+    end;
+
+  write_fully_float:
+    Dec(Decimals, Exp);
+    repeat
+      Dec(Exp, SizeOf(Cardinal));
+      PCardinal(P)^ := PCardinal(Src)^;
+      Inc(Src, SizeOf(Cardinal));
+      Inc(P, SizeOf(Cardinal));
+    until (Exp <= 0);
+    Inc(P, Exp);
+    Inc(Src, Exp);
+    if (Decimals = 0) then goto done;
+  write_separated_decimals:
+    P^ := DECIMAL_SEPARATORS[Store.Settings.DecimalDot];
+    Inc(P);
+  write_decimals:
+    repeat
+      Dec(Decimals, SizeOf(Cardinal));
+      PCardinal(P)^ := PCardinal(Src)^;
+      Inc(Src, SizeOf(Cardinal));
+      Inc(P, SizeOf(Cardinal));
+    until (Decimals <= 0);
+    Inc(P, Decimals);
+    if (Store.ENotation) then goto write_exponent;
   end;
-
-found: //?
-// todo
-
 
 done:
   Result := (NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0])) shl 1 +
@@ -4241,8 +4496,8 @@ begin
   Self.FChars := Pointer(P);
   if (P = nil) then
   begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
+    Pointer(Self.FLength) := P{0};
+    Pointer(Self.F.NativeFlags) := P{0};
   end else
   begin
     Dec(P);
@@ -4270,8 +4525,8 @@ begin
   Self.FChars := Pointer(P);
   if (P = nil) then
   begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
+    Pointer(Self.FLength) := P{0};
+    Pointer(Self.F.NativeFlags) := P{0};
   end else
   begin
     Dec(P);
@@ -4288,7 +4543,7 @@ begin
   Self.FLength := L;
   if (L = 0) then
   begin
-    Self.FChars := Pointer(L){nil};
+    NativeUInt(Self.FChars) := L{nil};
     Self.F.NativeFlags := L{0};
   end else
   begin
@@ -4312,8 +4567,8 @@ begin
   Self.FChars := Pointer(P);
   if (P = nil) then
   begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
+    Pointer(Self.FLength) := P{0};
+    Pointer(Self.F.NativeFlags) := P{0};
   end else
   begin
     Dec(P);
@@ -19529,8 +19784,8 @@ begin
   Self.FChars := Pointer(P);
   if (P = nil) then
   begin
-    Self.FLength := NativeUInt(P){0};
-    Self.F.NativeFlags := NativeUInt(P){0};
+    Pointer(Self.FLength) := P{0};
+    Pointer(Self.F.NativeFlags) := P{0};
   end else
   begin
     Dec(P);
@@ -29444,8 +29699,21 @@ end;
 
 procedure TCachedTextWriter.WriteFloat(const Value: Extended;
   const Settings: TFloatSettings);
+var
+  P: PByte;
+  Count: NativeUInt;
 begin
-  // todo
+  {$ifdef CPUX86}
+    Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, Pointer(@Value), Settings);
+  {$else}
+    PExtended(@FBuffer.Digits.Ascii)^ := Value;
+    Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, @FBuffer.Digits.Ascii, Settings);
+  {$endif}
+
+  P := @FBuffer.Digits.Ascii[0];
+  Dec(P, Count and 1);
+  Count := Count shr 1;
+  FVirtuals.WriteBufferedAscii(Self, P, Count);
 end;
 
 procedure TCachedTextWriter.WriteVariant(const Value: Variant);
@@ -30850,7 +31118,7 @@ begin
   if (CodePage = CODEPAGE_UTF8) then
   begin
     Self.FEncoding.Flags := $ff000000 or CODEPAGE_UTF8 or (Ord(csByte) shl 16);
-    Self.FBuffer.Flags := $ff000000;
+    Self.FBuffer.Flags := $ff000000 + ((ALength - 1) shr 31){ALength = 0};
     ASize := ALength;
   end else
   begin
@@ -30864,13 +31132,12 @@ begin
     Index := Byte(Value shr 16);
     SBCS := Pointer(Index * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
     Index := Index shl 24;
-    Self.FBuffer.NativeFlags := Index;
-
     Inc(Index, SBCS.CodePage);
     Inc(Index, Ord(csByte) shl 16);
-    Self.FEncoding.NativeFlags := Index;
 
     ASize := Self.FBuffer.Length;
+    Self.FEncoding.NativeFlags := Index;
+    Self.FBuffer.NativeFlags := (Index and $ff000000) + Byte(ASize = 0);
   end;
 
   if (ASize <> 0) then
@@ -30893,7 +31160,7 @@ var
 begin
   Self.FBuffer.Length := ALength;
   Self.FEncoding.Flags := $ff000000 or CODEPAGE_UTF16 or (Ord(csUTF16) shl 16);
-  Self.FBuffer.NativeFlags := 0;
+  Self.FBuffer.NativeFlags := Byte(ALength = 0);
 
   if (ALength <> 0) then
   begin
@@ -30915,7 +31182,7 @@ var
 begin
   Self.FBuffer.Length := ALength;
   Self.FEncoding.Flags := $ff000000 or CODEPAGE_UTF32 or (Ord(csUTF32) shl 16);
-  Self.FBuffer.NativeFlags := 0;
+  Self.FBuffer.NativeFlags := Byte(ALength = 0);
 
   if (ALength <> 0) then
   begin
@@ -31430,50 +31697,54 @@ var
   MaxAppendSize: NativeUInt;
   AFlags, SourceFlags, Kind: NativeUInt;
 begin
-  AFlags := Byte(CharCase);
   MaxAppendSize := S.Length;
-  Kind := Byte(StringKind);
+  SourceFlags := S.Flags;
+  AFlags := Self.FBuffer.NativeFlags;
+  if (MaxAppendSize = 0) then Exit;
 
-  case Kind of
-    Ord(csByte):
+  AFlags := AFlags and (SourceFlags or NativeUInt(-2));
+  Self.FBuffer.NativeFlags := AFlags;
+  AFlags := AFlags and NativeUInt($ff000000);
+  Inc(AFlags, Byte(CharCase));
+
+  Kind := Byte(Self.StringKind);
+  if (Kind = NativeUInt(csByte)) then
+  begin
+    // csByte
+    if (Integer(AFlags) < 0) then
     begin
-      AFlags := AFlags + (Self.FBuffer.Flags and $ff000000);
-
-      if (Integer(AFlags) < 0) then
+      if (NativeInt(SourceFlags) and 1 = 0{not Ascii}) then
       begin
-        SourceFlags := S.Flags;
-        if (SourceFlags and 1 = 0{not Ascii}) then
+        if (Integer(SourceFlags) >= 0) then
         begin
-          if (Integer(SourceFlags) >= 0) then
+          // UTF8 <-- SBCS
+          MaxAppendSize := MaxAppendSize * 3;
+        end else
+        begin
+          // UTF8 <-- UTF8
+          if (AFlags and 3 <> 0) then
           begin
-            // UTF8 <-- SBCS
             MaxAppendSize := MaxAppendSize * 3;
-          end else
-          begin
-            // UTF8 <-- UTF8
-            if (AFlags and 3 <> 0) then
-            begin
-              MaxAppendSize := MaxAppendSize * 3;
-              MaxAppendSize := MaxAppendSize shr 1;
-            end;
+            MaxAppendSize := MaxAppendSize shr 1;
           end;
         end;
       end;
     end;
-    Ord(csUTF16):
+  end else
+  begin
+    if (Kind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
+      // csUTF16, csUTF32
+      AFlags := AFlags and $7f;
       MaxAppendSize := MaxAppendSize shl 1;
-    end;
-    Ord(csUTF32):
+      Inc(MaxAppendSize, NativeUInt(-(NativeInt(Kind) and 1)) and MaxAppendSize);
+    end else
     begin
-      MaxAppendSize := MaxAppendSize shl 2;
-    end
-  else
-    raise ECachedString.Create(Pointer(@SStringNotInitialized));
+      raise ECachedString.Create(Pointer(@SStringNotInitialized));
+    end;
   end;
 
-  if (MaxAppendSize <> 0) then
-    Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
+  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF16String;
@@ -31490,33 +31761,36 @@ var
   MaxAppendSize: NativeUInt;
   AFlags, Kind: NativeUInt;
 begin
-  AFlags := Byte(CharCase);
   MaxAppendSize := S.Length;
-  Kind := Byte(StringKind);
+  AFlags := Self.FBuffer.NativeFlags;
+  if (MaxAppendSize = 0) then Exit;
 
-  case Kind of
-    Ord(csByte):
+  Self.FBuffer.NativeFlags := AFlags and (S.F.NativeFlags or NativeUInt(-2));
+  AFlags := AFlags and NativeUInt($ff000000);
+  Inc(AFlags, Byte(CharCase));
+
+  Kind := Byte(Self.StringKind);
+  if (Kind <> NativeUInt(csByte)) then
+  begin
+    if (Kind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
-      AFlags := AFlags + (Self.FBuffer.Flags and $ff000000);
-    end;
-    Ord(csUTF16):
-    begin
+      // csUTF16, csUTF32
+      AFlags := AFlags and $7f;
       MaxAppendSize := MaxAppendSize shl 1;
-    end;
-    Ord(csUTF32):
+      Inc(MaxAppendSize, NativeUInt(-(NativeInt(Kind) and 1)) and MaxAppendSize);
+    end else
     begin
-      MaxAppendSize := MaxAppendSize shl 2;
-    end
-  else
-    raise ECachedString.Create(Pointer(@SStringNotInitialized));
+      raise ECachedString.Create(Pointer(@SStringNotInitialized));
+    end;
   end;
 
-  if (MaxAppendSize <> 0) then
-    Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
+  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF32String;
   const CharCase: TCharCase);
+label
+  done;
 const
   CONVERSIONS: array[0..3{TCachedStringKind}] of {TCachedStringConversion} Pointer =
   (
@@ -31527,34 +31801,41 @@ const
   );
 var
   MaxAppendSize: NativeUInt;
-  AFlags, Kind: NativeUInt;
+  AFlags, SourceFlags, Kind: NativeUInt;
 begin
-  AFlags := Byte(CharCase);
   MaxAppendSize := S.Length;
+  SourceFlags := S.F.NativeFlags or NativeUInt(-2);
+  AFlags := Self.FBuffer.NativeFlags;
+  if (MaxAppendSize = 0) then Exit;
+
+  AFlags := AFlags and SourceFlags;
+  Self.FBuffer.NativeFlags := AFlags;
+  AFlags := AFlags and NativeUInt($ff000000);
+  Inc(AFlags, Byte(CharCase));
+
   Kind := Byte(StringKind);
-
-  case Kind of
-    Ord(csByte):
+  SourceFlags := {not Ascii}not SourceFlags;
+  if (Kind = NativeUInt(csByte)) then
+  begin
+    SourceFlags := SourceFlags and (AFlags shr 31);
+    if (SourceFlags = 0) then goto done;
+  end else
+  begin
+    if (Kind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
-      AFlags := AFlags + (Self.FBuffer.Flags and $ff000000);
-
-      if (Integer(AFlags) < 0) and (not S.Ascii) then
-        MaxAppendSize := MaxAppendSize shl 2;
+      // csUTF16, csUTF32
+      AFlags := AFlags and $7f;
+      SourceFlags := {not Ascii}SourceFlags or {Kind = csUTF32}(Kind and 1);
+    end else
+    begin
+      raise ECachedString.Create(Pointer(@SStringNotInitialized));
     end;
-    Ord(csUTF16):
-    begin
-      MaxAppendSize := MaxAppendSize shl (1 + Byte(not S.Ascii));
-    end;
-    Ord(csUTF32):
-    begin
-      MaxAppendSize := MaxAppendSize shl 2;
-    end
-  else
-    raise ECachedString.Create(Pointer(@SStringNotInitialized));
   end;
 
-  if (MaxAppendSize <> 0) then
-    Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
+  MaxAppendSize := MaxAppendSize shl 1;
+  Inc(MaxAppendSize, NativeUInt(-NativeInt(SourceFlags)) and MaxAppendSize);
+done:
+  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
 end;
 
 function TTemporaryString.EmulateShortString: PShortString;
@@ -31802,8 +32083,11 @@ procedure TTemporaryString.Append(const AChars: PAnsiChar;
 var
   Buffer: ByteString;
 begin
-  Buffer.Assign(AChars, ALength, CodePage);
-  Self.Append(Buffer, CharCase);
+  if (ALength <> 0) then
+  begin
+    Buffer.Assign(AChars, ALength, CodePage);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.Append(const S: AnsiString;
@@ -31812,8 +32096,11 @@ procedure TTemporaryString.Append(const S: AnsiString;
 var
   Buffer: ByteString;
 begin
-  Buffer.Assign(S{$ifNdef INTERNALCODEPAGE}, CodePage{$endif});
-  Self.Append(Buffer, CharCase);
+  if (Pointer(S) <> nil) then
+  begin
+    Buffer.Assign(S{$ifNdef INTERNALCODEPAGE}, CodePage{$endif});
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.{$ifdef UNICODE}Append{$else}AppendUTF8{$endif}(
@@ -31822,8 +32109,11 @@ procedure TTemporaryString.{$ifdef UNICODE}Append{$else}AppendUTF8{$endif}(
 var
   Buffer: ByteString;
 begin
-  Buffer.{$ifdef UNICODE}Assign{$else}AssignUTF8{$endif}(S);
-  Self.Append(Buffer, CharCase);
+  if (Pointer(S) <> nil) then
+  begin
+    Buffer.{$ifdef UNICODE}Assign{$else}AssignUTF8{$endif}(S);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.Append(const S: ShortString; const CodePage: Word;
@@ -31831,8 +32121,11 @@ procedure TTemporaryString.Append(const S: ShortString; const CodePage: Word;
 var
   Buffer: ByteString;
 begin
-  Buffer.Assign(S, CodePage);
-  Self.Append(Buffer, CharCase);
+  if (PByte(@S)^ <> 0) then
+  begin
+    Buffer.Assign(S, CodePage);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.Append(const S: TBytes; const CodePage: Word;
@@ -31840,8 +32133,11 @@ procedure TTemporaryString.Append(const S: TBytes; const CodePage: Word;
 var
   Buffer: ByteString;
 begin
-  Buffer.Assign(S, CodePage);
-  Self.Append(Buffer, CharCase);
+  if (Pointer(S) <> nil) then
+  begin
+    Buffer.Assign(S, CodePage);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.Append(const AChars: PUnicodeChar;
@@ -31849,8 +32145,11 @@ procedure TTemporaryString.Append(const AChars: PUnicodeChar;
 var
   Buffer: UTF16String;
 begin
-  Buffer.Assign(AChars, ALength);
-  Self.Append(Buffer, CharCase);
+  if (ALength <> 0) then
+  begin
+    Buffer.Assign(AChars, ALength);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.Append(const S: WideString;
@@ -31858,8 +32157,11 @@ procedure TTemporaryString.Append(const S: WideString;
 var
   Buffer: UTF16String;
 begin
-  Buffer.Assign(S);
-  Self.Append(Buffer, CharCase);
+  if (Pointer(S) <> nil) then
+  begin
+    Buffer.Assign(S);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 {$ifdef UNICODE}
@@ -31868,8 +32170,11 @@ procedure TTemporaryString.Append(const S: UnicodeString;
 var
   Buffer: UTF16String;
 begin
-  Buffer.Assign(S);
-  Self.Append(Buffer, CharCase);
+  if (Pointer(S) <> nil) then
+  begin
+    Buffer.Assign(S);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 {$endif}
 
@@ -31878,8 +32183,11 @@ procedure TTemporaryString.Append(const AChars: PUCS4Char;
 var
   Buffer: UTF32String;
 begin
-  Buffer.Assign(AChars, ALength);
-  Self.Append(Buffer, CharCase);
+  if (ALength <> 0) then
+  begin
+    Buffer.Assign(AChars, ALength);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.Append(const S: UCS4String;
@@ -31887,8 +32195,11 @@ procedure TTemporaryString.Append(const S: UCS4String;
 var
   Buffer: UTF32String;
 begin
-  Buffer.Assign(S, NullTerminated);
-  Self.Append(Buffer, CharCase);
+  if (Pointer(S) <> nil) then
+  begin
+    Buffer.Assign(S, NullTerminated);
+    Self.Append(Buffer, CharCase);
+  end;
 end;
 
 procedure TTemporaryString.AppendBoolean(const Value: Boolean);
@@ -31910,7 +32221,7 @@ procedure TTemporaryString.AppendInteger(const Value: Integer;
   const Digits: NativeUInt);
 var
   Store: record
-    Prev: NativeUInt;
+    Prev: array[1..SizeOf(NativeUInt)] of Byte;
     DigitsRec: TDigitsRec;
   end;
   P: PByte;
@@ -31952,7 +32263,7 @@ procedure TTemporaryString.AppendInt64(const Value: Int64;
   const Digits: NativeUInt);
 var
   Store: record
-    Prev: NativeUInt;
+    Prev: array[1..SizeOf(NativeUInt)] of Byte;
     DigitsRec: TDigitsRec;
   end;
   P: PByte;
@@ -32017,8 +32328,26 @@ end;
 
 procedure TTemporaryString.AppendFloat(const Value: Extended;
  const Settings: TFloatSettings);
+var
+  Store: record
+    Prev: array[1..SizeOf(NativeUInt)] of Byte;
+    DigitsRec: TDigitsRec;
+  end;
+  P: PByte;
+  Count: NativeUInt;
 begin
-  // todo
+  {$ifdef CPUX86}
+    Count := CachedTexts.WriteFloatAscii(Store.DigitsRec, Pointer(@Value), Settings);
+  {$else}
+    PExtended(@Store.DigitsRec.Ascii)^ := Value;
+    Count := CachedTexts.WriteFloatAscii(Store.DigitsRec, @Store.DigitsRec.Ascii, Settings);
+  {$endif}
+
+  Store.Prev[High(Store.Prev)] := Ord('-');
+  P := @Store.DigitsRec.Ascii[0];
+  Dec(P, Count and 1);
+  Count := Count shr 1;
+  Self.AppendAscii(Pointer(P), Count);
 end;
 
 procedure TTemporaryString.AppendDate(const Value: TDateTime);

@@ -340,7 +340,7 @@ var
     end;
 
     O := Str.SubString(P).ToUnicodeString;
-    Str.Offset(P + 1);
+    Str.Skip(P + 1);
   end;
 begin
   Result := False;
@@ -358,7 +358,7 @@ begin
     if (P = 0) then Exit;
     Params.Name := Str.SubString(0, P).ToUnicodeString;
 
-    Str.Offset(P + 1);
+    Str.Skip(P + 1);
     P := Str.CharPos('"');
     if (P < 0) or (NativeUInt(P) <> Str.Length - 1) then Exit;
     Str.Length := Str.Length - 1;
@@ -537,7 +537,7 @@ begin
     if (not ParseOption(Buf)) then
       raise Exception.CreateFmt('Unknown file parameter: %s', [Buf]);
 
-    Str.Offset(L);
+    Str.Skip(L);
   end;
 end;
 
@@ -1069,7 +1069,7 @@ CODEPAGE_USERDEFINED: Buf := 'user';
     try
       for i := 1 to FLinesCount do
       begin
-        if (i <> 1) then Text.CRLF;
+        if (i <> 1) then Text.WriteCRLF;
         Text.WriteData(Pointer(Result[i - 1])^, Length(Result[i - 1]) * SizeOf(UnicodeChar));
       end;
     finally
@@ -1553,12 +1553,12 @@ begin
       Item := @Items[0];
 
       // length/data condition
-      if (KnownLength) or ((Offset + SameDataSize) div FCharSize >= UnknownLenghtRangeMin) then
+      if (KnownLength) or ((Offset + SameDataSize) div FCharSize <= UnknownLenghtRangeMin) then
       begin
         TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize, True);
       end else
       begin
-        TextBufferIncludeLengthCondition(Level, Offset, SameDataSize, SameDataSize, False);
+        TextBufferIncludeLengthCondition(Level, Offset, SameDataSize, MaxDataSize, False);
         TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize, False);
 
         UnknownLenghtRangeMin := (Offset + SameDataSize) div FCharSize;

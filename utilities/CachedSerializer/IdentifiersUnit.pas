@@ -213,10 +213,10 @@ begin
 
       if (Str.Chars[i] = #13) and (i <> Str.Length - 1) and (Str.Chars[i + 1] = #10) then
       begin
-        Str.Offset(i + 2);
+        Str.Skip(i + 2);
       end else
       begin
-        Str.Offset(i + 1);
+        Str.Skip(i + 1);
       end;
 
       Break;
@@ -257,7 +257,7 @@ begin
     Self.Comment := '"' + Sub.ToUnicodeString + '"';
     Self.Value := UnpackReferences(Sub);
 
-    Str.Offset(P + 1);
+    Str.Skip(P + 1);
     if (not Str.TrimLeft) then raise IncorrectDoublePoints(S);
 
     P := DoublePointPos(Str);
@@ -271,7 +271,7 @@ begin
       Sub := Str.SubString(P);
       Sub.TrimRight;
       Self.Marker := UnpackReferences(Sub);
-      Str.Offset(P + 1);
+      Str.Skip(P + 1);
 
       Str.TrimLeft;
       if (DoublePointPos(Str) >= 0) then raise IncorrectDoublePoints(S);

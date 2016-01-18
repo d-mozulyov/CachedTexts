@@ -1407,13 +1407,14 @@ type
     procedure WriteUInt64(const Value: UInt64; const Digits: NativeUInt = 0);
     procedure WriteFloat(const Value: Extended; const Settings: TFloatSettings); overload;
     procedure WriteFloat(const Value: Extended); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure WriteVariant(const Value: Variant);
     procedure WriteDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
     procedure WriteDate(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure WriteTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
     procedure WriteTime(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure WriteDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
     procedure WriteDateTime(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings); overload;
+    procedure WriteVariant(const Value: Variant); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
   end;
 
 
@@ -1615,6 +1616,8 @@ type
     procedure AppendTime(const Value: TDateTime); overload;
     procedure AppendDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
     procedure AppendDateTime(const Value: TDateTime); overload;
+    procedure AppendVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings); overload;
+    procedure AppendVariant(const Value: Variant); overload;
   end;
   PTemporaryString = ^TTemporaryString;
 
@@ -4064,10 +4067,7 @@ begin
     ffGeneral:
     begin
       if (Exp > Precision) or (Exp < -3) then
-      begin
         Store.Settings.Format := {ENotation}ffCurrency;
-        Store.ENotationCompact := Store.Settings.GeneralCompact;
-      end;
 
     precision_decimals:
       Decimals := Precision;
@@ -4228,14 +4228,11 @@ store_int64_digits:
     end else
     begin
       // ENotation
-      if (not Store.ENotationCompact) or (Store.Settings.Exp > 0) then
-      begin
-      write_enotation:
-        Dec(Decimals);
-        P^ := Src^;
-        Inc(Src);
-        Inc(P);
-      end;
+    write_enotation:
+      Dec(Decimals);
+      P^ := Src^;
+      Inc(Src);
+      Inc(P);
       Store.ENotation := True;
       if (Decimals <> 0) then goto write_separated_decimals;
     write_exponent:
@@ -29716,11 +29713,6 @@ begin
   FVirtuals.WriteBufferedAscii(Self, P, Count);
 end;
 
-procedure TCachedTextWriter.WriteVariant(const Value: Variant);
-begin
-  // todo
-end;
-
 procedure TCachedTextWriter.WriteDate(const Value: TDateTime);
 {$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
 begin
@@ -29796,6 +29788,148 @@ begin
   end;
   P := WriteTimeAscii(FBuffer.Digits, P, Settings);
   FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
+end;
+
+procedure TCachedTextWriter.WriteVariant(const Value: Variant);
+{$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
+begin
+  WriteVariant(Value, Self.FloatSettings, Self.DateTimeSettings);
+end;
+{$else .CPUX86}
+asm
+  push [esp]
+  lea ecx, [EAX].TCachedTextWriter.DateTimeSettings
+  mov [esp - 4], ecx
+  lea ecx, [EAX].TCachedTextWriter.FloatSettings
+  jmp WriteVariant
+end;
+{$ifend}
+
+procedure TCachedTextWriter.WriteVariant(const Value: Variant;
+  const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings);
+label
+  check_byref, signed_value, unsigned_value, uint64_value, float_value;
+var
+  VType: Integer;
+  PValue: Pointer;
+  Store: record
+    FloatValue: Extended;
+    Date: Int64;
+  end;
+begin
+  VType := TVarData(Value).VType;
+  PValue := @TVarData(Value).VWords[3];
+check_byref:
+  if (VType and varByRef <> 0) then
+  begin
+    VType := VType and (not varByRef);
+    PValue := PPointer(PValue)^;
+  end;
+
+  case (VType) of
+    varVariant: begin
+                  VType := TVarData(PValue^).VType;
+                  PValue := @TVarData(PValue^).VWords[3];
+                  goto check_byref;
+                end;
+    varBoolean: begin
+                  Self.WriteBoolean(PBoolean(PValue)^);
+                end;
+   varSmallint: begin
+                  VType := PSmallInt(PValue)^;
+                  if (VType >= 0) then goto unsigned_value;
+                  goto signed_value;
+                end;
+   varShortInt: begin
+                  VType := PShortInt(PValue)^;
+                  if (VType >= 0) then goto unsigned_value;
+                  goto signed_value;
+                end;
+    varInteger: begin
+                  VType := PInteger(PValue)^;
+                  if (VType >= 0) then goto unsigned_value;
+                signed_value:
+                  Self.WriteInteger(VType);
+                end;
+       varByte: begin
+                  VType := PByte(PValue)^;
+                  goto unsigned_value;
+                end;
+       varWord: begin
+                  VType := PWord(PValue)^;
+                  goto unsigned_value;
+                end;
+   varLongWord: begin
+                  VType := PInteger(PValue)^;
+                unsigned_value:
+                  Self.WriteCardinal(Cardinal(VType));
+                end;
+      varInt64: begin
+                  {$ifdef SMALLINT}
+                  if (TPoint(PValue^).Y >= 0) then goto uint64_value;
+                  {$else}
+                  if (Int64(PValue^) >= 0) then goto uint64_value;
+                  {$endif}
+                  Self.WriteInt64(PInt64(PValue)^);
+                end;
+$15{varUInt64}: begin
+                uint64_value:
+                  Self.WriteUInt64(PUInt64(PValue)^);
+                end;
+   varCurrency: begin
+                  Store.FloatValue := PInt64(PValue)^ * (1 / 10000);
+                  goto float_value;
+                end;
+     varSingle: begin
+                  Store.FloatValue := PSingle(PValue)^;
+                  goto float_value;
+                end;
+     varDouble: begin
+                  Store.FloatValue := PDouble(PValue)^;
+                float_value:
+                  Self.WriteFloat(Store.FloatValue, FloatSettings);
+                end;
+       varDate: begin
+                  Store.Date := Trunc(PDouble(PValue)^);
+                  if (PDouble(PValue)^ - Store.Date < 1 / (24 * 60 * 60 * 1000)) then
+                  begin
+                    Self.WriteDate(PDateTime(PValue)^, DateTimeSettings);
+                  end else
+                  if (Store.Date <> 0) then
+                  begin
+                    Self.WriteDateTime(PDateTime(PValue)^, DateTimeSettings);
+                  end else
+                  begin
+                    Self.WriteTime(PDateTime(PValue)^, DateTimeSettings);
+                  end;
+                end;
+     {$ifNdef NEXTGEN}
+     varString: begin
+                  Self.WriteAnsiString(PAnsiString(PValue)^);
+                end;
+     {$endif}
+    {$ifdef UNICODE}
+    varUString: begin
+                  PValue := PPointer(PValue)^;
+                  if (PValue <> nil) then
+                  begin
+                    VType := {Length}PInteger(NativeUInt(PValue) - SizeOf(Integer))^;
+                    Self.FVirtuals.WriteUnicodeChars(Self, Pointer(PValue), VType);
+                  end;
+                end;
+    {$endif}
+     varOleStr: begin
+                  PValue := PPointer(PValue)^;
+                  if (PValue <> nil) then
+                  begin
+                    VType := {Length}PInteger(NativeUInt(PValue) - SizeOf(Integer))^;
+                    {$ifdef MSWINDOWS}
+                    if (VType <> 0) then
+                    {$endif}
+                    Self.FVirtuals.WriteUnicodeChars(Self, Pointer(PValue), VType {$ifdef WIDE_STR_SHIFT} shr 1{$endif});
+                  end;
+                end;
+   end;
 end;
 
 
@@ -32440,6 +32574,140 @@ begin
   end;
   P := WriteTimeAscii(DigitsRec, P, Settings);
   Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+end;
+
+procedure TTemporaryString.AppendVariant(const Value: Variant);
+{$ifNdef CPUINTEL}
+begin
+  AppendVariant(Value, DefaultFloatSettings, DefaultDateTimeSettings);
+end;
+{$else}
+asm
+  {$ifdef CPUX86}
+    push [esp]
+    lea ecx, DefaultDateTimeSettings
+    mov [esp - 4], ecx
+    lea ecx, DefaultFloatSettings
+  {$else .CPUX64}
+    lea r8, DefaultDateTimeSettings
+    lea r9, DefaultFloatSettings
+  {$endif}
+  jmp TTemporaryString.AppendVariant
+end;
+{$endif}
+
+procedure TTemporaryString.AppendVariant(const Value: Variant;
+  const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings);
+label
+  check_byref, signed_value, unsigned_value, uint64_value, float_value;
+var
+  VType: Integer;
+  PValue: Pointer;
+  Store: record
+    FloatValue: Extended;
+    Date: Int64;
+  end;
+begin
+  VType := TVarData(Value).VType;
+  PValue := @TVarData(Value).VWords[3];
+check_byref:
+  if (VType and varByRef <> 0) then
+  begin
+    VType := VType and (not varByRef);
+    PValue := PPointer(PValue)^;
+  end;
+
+  case (VType) of
+    varVariant: begin
+                  VType := TVarData(PValue^).VType;
+                  PValue := @TVarData(PValue^).VWords[3];
+                  goto check_byref;
+                end;
+    varBoolean: begin
+                  Self.AppendBoolean(PBoolean(PValue)^);
+                end;
+   varSmallint: begin
+                  VType := PSmallInt(PValue)^;
+                  if (VType >= 0) then goto unsigned_value;
+                  goto signed_value;
+                end;
+   varShortInt: begin
+                  VType := PShortInt(PValue)^;
+                  if (VType >= 0) then goto unsigned_value;
+                  goto signed_value;
+                end;
+    varInteger: begin
+                  VType := PInteger(PValue)^;
+                  if (VType >= 0) then goto unsigned_value;
+                signed_value:
+                  Self.AppendInteger(VType);
+                end;
+       varByte: begin
+                  VType := PByte(PValue)^;
+                  goto unsigned_value;
+                end;
+       varWord: begin
+                  VType := PWord(PValue)^;
+                  goto unsigned_value;
+                end;
+   varLongWord: begin
+                  VType := PInteger(PValue)^;
+                unsigned_value:
+                  Self.AppendCardinal(Cardinal(VType));
+                end;
+      varInt64: begin
+                  {$ifdef SMALLINT}
+                  if (TPoint(PValue^).Y >= 0) then goto uint64_value;
+                  {$else}
+                  if (Int64(PValue^) >= 0) then goto uint64_value;
+                  {$endif}
+                  Self.AppendInt64(PInt64(PValue)^);
+                end;
+$15{varUInt64}: begin
+                uint64_value:
+                  Self.AppendUInt64(PUInt64(PValue)^);
+                end;
+   varCurrency: begin
+                  Store.FloatValue := PInt64(PValue)^ * (1 / 10000);
+                  goto float_value;
+                end;
+     varSingle: begin
+                  Store.FloatValue := PSingle(PValue)^;
+                  goto float_value;
+                end;
+     varDouble: begin
+                  Store.FloatValue := PDouble(PValue)^;
+                float_value:
+                  Self.AppendFloat(Store.FloatValue, FloatSettings);
+                end;
+       varDate: begin
+                  Store.Date := Trunc(PDouble(PValue)^);
+                  if (PDouble(PValue)^ - Store.Date < 1 / (24 * 60 * 60 * 1000)) then
+                  begin
+                    Self.AppendDate(PDateTime(PValue)^, DateTimeSettings);
+                  end else
+                  if (Store.Date <> 0) then
+                  begin
+                    Self.AppendDateTime(PDateTime(PValue)^, DateTimeSettings);
+                  end else
+                  begin
+                    Self.AppendTime(PDateTime(PValue)^, DateTimeSettings);
+                  end;
+                end;
+     {$ifNdef NEXTGEN}
+     varString: begin
+                  Self.Append(PAnsiString(PValue)^);
+                end;
+     {$endif}
+    {$ifdef UNICODE}
+    varUString: begin
+                  Self.Append(PUnicodeString(PValue)^);
+                end;
+    {$endif}
+     varOleStr: begin
+                  Self.Append(PWideString(PValue)^);
+                end;
+   end;
 end;
 
 

@@ -105,7 +105,7 @@ type
   {$ifdef FPC}
     PUInt64 = ^UInt64;
   {$else}
-    {$if CompilerVersion < 15}
+    {$if CompilerVersion < 16}
       UInt64 = Int64;
       PUInt64 = ^UInt64;
     {$ifend}
@@ -390,7 +390,7 @@ type
     function ToFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryToFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Extended): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -641,7 +641,7 @@ type
     function ToFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryToFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Extended): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -891,7 +891,7 @@ type
     function ToFloatDef(const Default: Extended): Extended; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToFloat(out Value: Single): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToFloat(out Value: Double): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
-    function TryToFloat(out Value: TExtended80Rec): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
+    function TryToFloat(out Value: Extended): Boolean; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToDate: TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
     function ToDateDef(const Default: TDateTime): TDateTime; {$ifdef INLINESUPPORT}inline;{$endif}
     function TryToDate(out Value: TDateTime): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
@@ -1377,7 +1377,7 @@ type
     function EmulateUCS4String: PUCS4String;
     function EmulateString: PString; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    property StringKind: TCachedStringKind read FEncoding.StringKind;
+    property Kind: TCachedStringKind read FEncoding.StringKind;
     property Encoding: Word read FEncoding.CodePage;
     property SBCSIndex: ShortInt read FEncoding.SBCSIndex;
     property CastByteString: ByteString read FBuffer.CastByteString;
@@ -1443,6 +1443,7 @@ type
       WriteBufferedAscii: procedure(Self: Pointer; From: PByte; Count: NativeUInt);
       WriteAscii: procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
       WriteUnicodeAscii: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
+      WriteUCS4Ascii: procedure(Self: Pointer; const AChars: PUCS4Char; const ALength: NativeUInt);
       WriteSBCSCharsInternal: procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
       WriteUTF8Chars: procedure(Self: Pointer; const AChars: PUTF8Char; const ALength: NativeUInt);
       WriteUnicodeChars: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
@@ -3119,13 +3120,14 @@ begin
     begin
       Dec(P, SizeOf(Word));
       PWord(P)^ := DIGITS_LOOKUP_ASCII[X];
-      Inc(P, Byte(X >= DIGITS_1));
+      Inc(P, Byte(X < DIGITS_1));
       goto write_nulls;
     end else
     begin
       U := X;
       Pointer(TopQuad) := P;
       Pointer(Quads) := P;
+      TopQuad^ := U;
       goto write_quads;
     end;
   end else
@@ -3226,13 +3228,14 @@ begin
       begin
         Dec(P, SizeOf(Word));
         PWord(P)^ := DIGITS_LOOKUP_ASCII[X];
-        Inc(P, Byte(X >= DIGITS_1));
+        Inc(P, Byte(X < DIGITS_1));
         goto write_nulls;
       end else
       begin
         U := X;
         Pointer(TopQuad) := P;
         Pointer(Quads) := P;
+        TopQuad^ := U;
         goto write_quads;
       end;
     end else
@@ -6976,14 +6979,10 @@ begin
   Value := PByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function ByteString.TryToFloat(out Value: TExtended80Rec): Boolean;
+function ByteString.TryToFloat(out Value: Extended): Boolean;
 begin
   Result := True;
-  {$if SizeOf(Extended) = 10}
-    PExtended(@Value)^ := PByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
-  {$else}
-    Value := TExtended80Rec(PByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
-  {$ifend}
+  Value := PByteString(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
 function ByteString.ToFloatDef(const Default: Extended): Extended;
@@ -14895,14 +14894,10 @@ begin
   Value := PUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function UTF16String.TryToFloat(out Value: TExtended80Rec): Boolean;
+function UTF16String.TryToFloat(out Value: Extended): Boolean;
 begin
   Result := True;
-  {$if SizeOf(Extended) = 10}
-    PExtended(@Value)^ := PUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
-  {$else}
-    Value := TExtended80Rec(PUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
-  {$ifend}
+  Value := PUTF16String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
 function UTF16String.ToFloatDef(const Default: Extended): Extended;
@@ -21667,14 +21662,10 @@ begin
   Value := PUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
-function UTF32String.TryToFloat(out Value: TExtended80Rec): Boolean;
+function UTF32String.TryToFloat(out Value: Extended): Boolean;
 begin
   Result := True;
-  {$if SizeOf(Extended) = 10}
-    PExtended(@Value)^ := PUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
-  {$else}
-    Value := TExtended80Rec(PUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length));
-  {$ifend}
+  Value := PUTF32String(-NativeInt(@Result))._GetFloat(Pointer(Chars), Length);
 end;
 
 function UTF32String.ToFloatDef(const Default: Extended): Extended;
@@ -28551,39 +28542,7 @@ end;
 
 { TTemporaryString }
 
-
-{$if Defined(FPC) or (CompilerVersion >= 21)}
-procedure TTemporaryString.Clear;
-var
-  V: NativeUInt;
-begin
-  V := 0;
-  FEncoding.NativeFlags := V;
-  FBuffer.Chars := Pointer(V);
-  FBuffer.Length := V;
-  FBuffer.NativeFlags := V;
-
-  // inherited Clear;
-  FSize := V;
-  if (Pointer(FData) <> nil) then
-    FData := nil;
-end;
-{$else}
-procedure TTemporaryString.Clear;
-var
-  V: NativeUInt;
-begin
-  V := 0;
-  F.NativeFlags := V;
-  FBuffer.Chars := Pointer(V);
-  FBuffer.Length := V;
-  FBuffer.NativeFlags := V;
-
-  FSize := V;
-  if (Pointer(FData) <> nil) then
-    FData := nil;
-end;
-
+{$if not Defined(FPC) and (CompilerVersion < 21)}
 function TTemporaryString.Resize(const ASize,
   AMemoryDelta: NativeUInt): Pointer;
 begin
@@ -28600,6 +28559,22 @@ begin
     Result := Self.Resize(ASize);
 end;
 {$ifend}
+
+procedure TTemporaryString.Clear;
+var
+  V: NativeUInt;
+begin
+  V := 0;
+  FEncoding.NativeFlags := V;
+  FBuffer.Chars := Pointer(V);
+  FBuffer.Length := V;
+  FBuffer.NativeFlags := V;
+
+  // inherited Clear;
+  FSize := V;
+  if (Pointer(FData) <> nil) then
+    FData := nil;
+end;
 
 function TTemporaryString.InitByteString(const CodePage: Word;
   const ALength: NativeUInt): PByteString;
@@ -29193,7 +29168,7 @@ const
   );
 var
   MaxAppendSize: NativeUInt;
-  AFlags, SourceFlags, Kind: NativeUInt;
+  AFlags, SourceFlags, AKind: NativeUInt;
 begin
   MaxAppendSize := S.Length;
   SourceFlags := S.Flags;
@@ -29205,8 +29180,8 @@ begin
   AFlags := AFlags and NativeUInt($ff000000);
   Inc(AFlags, Byte(CharCase));
 
-  Kind := Byte(Self.StringKind);
-  if (Kind = NativeUInt(csByte)) then
+  AKind := Byte(Self.Kind);
+  if (AKind = NativeUInt(csByte)) then
   begin
     // csByte
     if (Integer(AFlags) < 0) then
@@ -29230,19 +29205,19 @@ begin
     end;
   end else
   begin
-    if (Kind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
+    if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
       // csUTF16, csUTF32
       AFlags := AFlags and $7f;
       MaxAppendSize := MaxAppendSize shl 1;
-      Inc(MaxAppendSize, NativeUInt(-(NativeInt(Kind) and 1)) and MaxAppendSize);
+      Inc(MaxAppendSize, NativeUInt(-(NativeInt(AKind) and 1)) and MaxAppendSize);
     end else
     begin
       raise ECachedString.Create(Pointer(@SStringNotInitialized));
     end;
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
+  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[AKind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF16String;
@@ -29257,7 +29232,7 @@ const
   );
 var
   MaxAppendSize: NativeUInt;
-  AFlags, Kind: NativeUInt;
+  AFlags, AKind: NativeUInt;
 begin
   MaxAppendSize := S.Length;
   AFlags := Self.FBuffer.NativeFlags;
@@ -29267,22 +29242,22 @@ begin
   AFlags := AFlags and NativeUInt($ff000000);
   Inc(AFlags, Byte(CharCase));
 
-  Kind := Byte(Self.StringKind);
-  if (Kind <> NativeUInt(csByte)) then
+  AKind := Byte(Self.Kind);
+  if (AKind <> NativeUInt(csByte)) then
   begin
-    if (Kind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
+    if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
       // csUTF16, csUTF32
       AFlags := AFlags and $7f;
       MaxAppendSize := MaxAppendSize shl 1;
-      Inc(MaxAppendSize, NativeUInt(-(NativeInt(Kind) and 1)) and MaxAppendSize);
+      Inc(MaxAppendSize, NativeUInt(-(NativeInt(AKind) and 1)) and MaxAppendSize);
     end else
     begin
       raise ECachedString.Create(Pointer(@SStringNotInitialized));
     end;
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
+  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[AKind]);
 end;
 
 procedure TTemporaryString.Append(const S: UTF32String;
@@ -29299,7 +29274,7 @@ const
   );
 var
   MaxAppendSize: NativeUInt;
-  AFlags, SourceFlags, Kind: NativeUInt;
+  AFlags, SourceFlags, AKind: NativeUInt;
 begin
   MaxAppendSize := S.Length;
   SourceFlags := S.F.NativeFlags or NativeUInt(-2);
@@ -29311,19 +29286,19 @@ begin
   AFlags := AFlags and NativeUInt($ff000000);
   Inc(AFlags, Byte(CharCase));
 
-  Kind := Byte(StringKind);
+  AKind := Byte(Self.Kind);
   SourceFlags := {not Ascii}not SourceFlags;
-  if (Kind = NativeUInt(csByte)) then
+  if (AKind = NativeUInt(csByte)) then
   begin
     SourceFlags := SourceFlags and (AFlags shr 31);
     if (SourceFlags = 0) then goto done;
   end else
   begin
-    if (Kind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
+    if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
       // csUTF16, csUTF32
       AFlags := AFlags and $7f;
-      SourceFlags := {not Ascii}SourceFlags or {Kind = csUTF32}(Kind and 1);
+      SourceFlags := {not Ascii}SourceFlags or {AKind = csUTF32}(AKind and 1);
     end else
     begin
       raise ECachedString.Create(Pointer(@SStringNotInitialized));
@@ -29333,7 +29308,7 @@ begin
   MaxAppendSize := MaxAppendSize shl 1;
   Inc(MaxAppendSize, NativeUInt(-NativeInt(SourceFlags)) and MaxAppendSize);
 done:
-  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[Kind]);
+  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[AKind]);
 end;
 
 function TTemporaryString.EmulateShortString: PShortString;
@@ -29344,7 +29319,7 @@ begin
   P := Pointer(Self.FData);
   if (P <> nil) then
   begin
-    if (StringKind = csByte) then
+    if (Kind = csByte) then
     begin
       L := Self.FBuffer.Length;
       P.ShortLength := L;
@@ -29373,7 +29348,7 @@ begin
   L := Self.FBuffer.Length;
   if (P <> nil) then
   begin
-    if (StringKind = csByte) then
+    if (Kind = csByte) then
     begin
       if (L <> 0) then
       begin
@@ -29451,7 +29426,7 @@ begin
   L := Self.FBuffer.Length;
   if (P <> nil) then
   begin
-    if (StringKind = csUTF16) then
+    if (Kind = csUTF16) then
     begin
       if (L <> 0) then
       begin
@@ -29500,7 +29475,7 @@ begin
   L := Self.FBuffer.Length;
   if (P <> nil) then
   begin
-    if (StringKind = csUTF16) then
+    if (Kind = csUTF16) then
     begin
       if (L <> 0) then
       begin
@@ -29541,7 +29516,7 @@ begin
   L := Self.FBuffer.Length;
   if (P <> nil) then
   begin
-    if (StringKind = csUTF32) then
+    if (Kind = csUTF32) then
     begin
       if (L <> 0) then
       begin
@@ -30091,6 +30066,7 @@ var
   VWBufferedAscii: procedure(From: PByte; Count: NativeUInt) of object;
   VWAscii: procedure(const AChars: PAnsiChar; const ALength: NativeUInt) of object;
   VWUnicodeAscii: procedure(const AChars: PUnicodeChar; const ALength: NativeUInt) of object;
+  VWUCS4Ascii: procedure(const AChars: PUCS4Char; const ALength: NativeUInt) of object;
   VWUTF8Chars: procedure(const AChars: PUTF8Char; const ALength: NativeUInt) of object;
   VWUnicodeChars: procedure(const AChars: PUnicodeChar; const ALength: NativeUInt) of object;
 begin
@@ -30109,11 +30085,13 @@ begin
   VWBufferedAscii := Self.WriteBufferedAscii;
   VWAscii := Self.WriteAscii;
   VWUnicodeAscii := Self.WriteUnicodeAscii;
+  VWUCS4Ascii := Self.WriteUCS4Ascii;
   VWUTF8Chars := Self.WriteUTF8Chars;
   VWUnicodeChars := Self.WriteUnicodeChars;
   Self.FVirtuals.WriteBufferedAscii := TMethod(VWBufferedAscii).Code;
   Self.FVirtuals.WriteAscii := TMethod(VWAscii).Code;
   Self.FVirtuals.WriteUnicodeAscii := TMethod(VWUnicodeAscii).Code;
+  Self.FVirtuals.WriteUCS4Ascii := TMethod(VWUCS4Ascii).Code;
   { heir contructor assign Self.FVirtuals.WriteSBCSCharsInternal }
   Self.FVirtuals.WriteUTF8Chars := TMethod(VWUTF8Chars).Code;
   Self.FVirtuals.WriteUnicodeChars := TMethod(VWUnicodeChars).Code;
@@ -30325,9 +30303,15 @@ begin
   Length := S.Length;
   if (Length <> 0) then
   begin
-    FUTF32Context.Source := S.Chars;
-    FUTF32Context.SourceSize := Length shl 2;
-    Self.WriteContextData(FUTF32Context);
+    if (not S.Ascii) then
+    begin
+      FUTF32Context.Source := S.Chars;
+      FUTF32Context.SourceSize := Length shl 2;
+      Self.WriteContextData(FUTF32Context);
+    end else
+    begin
+      Self.FVirtuals.WriteUCS4Ascii(Self, S.Chars, Length);
+    end;
   end;
 end;
 
@@ -30911,7 +30895,7 @@ begin
         case X of
           CHX{'x'}:
           begin
-            P := WriteHex64Ascii(FBuffer.Digits, VInt64, Precision);
+            P := WriteHex64Ascii(FBuffer.Digits, VInt64{$ifdef LARGEINT}^{$endif}, Precision);
           end;
           CHU{'u'}: goto uint64_value;
         else
@@ -30919,11 +30903,11 @@ begin
           if ({$ifdef SMALLINT}TPoint(Pointer(VInt64)^).Y{$else}VInt64^{$endif} >= 0) then
           begin
           uint64_value:
-            P := WriteUInt64Ascii(FBuffer.Digits, VInt64, Precision);
+            P := WriteUInt64Ascii(FBuffer.Digits, VInt64{$ifdef LARGEINT}^{$endif}, Precision);
           end else
           begin
             PInt64(@FBuffer.Digits.Ascii)^ := -VInt64^;
-            P := WriteUInt64Ascii(FBuffer.Digits, PInt64(@FBuffer.Digits.Ascii), Precision);
+            P := WriteUInt64Ascii(FBuffer.Digits, PInt64(@FBuffer.Digits.Ascii){$ifdef LARGEINT}^{$endif}, Precision);
             Dec(P);
             P^ := Ord('-');
           end;
@@ -30938,7 +30922,7 @@ begin
       {$ifdef SMALLINT}
          P := WriteHexAscii(FBuffer.Digits, Cardinal(Arg.VPointer), Precision);
       {$else .LARGEINT}
-         P := WriteHex64Ascii(FBuffer.Digits, PInt64(@Arg.VPointer), Precision);
+         P := WriteHex64Ascii(FBuffer.Digits, Int64(Arg.VPointer), Precision);
       {$endif}
     end;
     vtCurrency:
@@ -31445,6 +31429,7 @@ begin
 end;
 
 procedure TCachedTextWriter.WriteBoolean(const Value: Boolean);
+{$ifNdef CPUINTEL}
 var
   Count: NativeUInt;
   P: PByte;
@@ -31453,19 +31438,52 @@ begin
   with Self.FBuffer do P := Pointer(@Booleans[Count]);
   FVirtuals.WriteBufferedAscii(Self, P, Count xor 5);
 end;
+{$else}
+asm
+  movzx edx, dl
+  {$ifdef CPUX86}
+    lea ecx, [EAX].TCachedTextWriter.FBuffer.Booleans
+    lea ecx, [ecx + 8 * edx]
+    xor edx, 5
+    xchg ecx, edx
+    jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$else .CPUX64}
+    lea r8, [RCX].TCachedTextWriter.FBuffer.Booleans
+    lea r8, [r8 + 8 * rdx]
+    xor rdx, 5
+    xchg r8, rdx
+    jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$endif}
+end;
+{$endif}
 
 procedure TCachedTextWriter.WriteBooleanOrdinal(const Value: Boolean);
+{$ifNdef CPUINTEL}
 var
-  Count: NativeUInt;
   P: PByte;
 begin
-  Count := Byte(Value);
-  with Self.FBuffer do P := Pointer(@Constants[Count]);
+  with Self.FBuffer do P := Pointer(@Constants[Byte(Value)]);
   FVirtuals.WriteBufferedAscii(Self, P, 1);
 end;
+{$else}
+asm
+  movzx edx, dl
+  add edx, offset TCachedTextWriter.FBuffer.Constants
+  {$ifdef CPUX86}
+    mov ecx, 1
+    add edx, eax
+    jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$else .CPUX64}
+    mov r8d, 1
+    add rdx, rcx
+    jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$endif}
+end;
+{$endif}
 
 procedure TCachedTextWriter.WriteInteger(const Value: Integer;
   const Digits: NativeUInt);
+{$ifNdef CPUINTEL}
 var
   P: PByte;
   X: NativeUInt;
@@ -31490,18 +31508,123 @@ begin
 
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
+{$else}
+asm
+  test edx, edx
+  jl @negative
+  {$ifdef CPUX86}
+     cmp ecx, 1
+     ja @positive
+     cmp edx, DIGITS_2
+     jae @positive
+
+     mov ecx, [offset DIGITS_LOOKUP_ASCII + edx * 2 - 2]
+     mov dword ptr [EAX].TCachedTextWriter.FBuffer.Digits.Ascii + 28, ecx
+     cmp edx, DIGITS_1
+     setae dl
+     movzx edx, dl
+
+     lea ecx, [EAX].TCachedTextWriter.FBuffer.Digits.Ascii + 31
+     sub ecx, edx
+     inc edx
+     xchg ecx, edx
+     jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  @positive:
+     push eax
+     push offset @write
+     add eax, offset TCachedTextWriter.FBuffer.Digits
+     jmp WriteCardinalAscii
+  @negative:
+     push eax
+     neg edx
+     add eax, offset TCachedTextWriter.FBuffer.Digits
+     call WriteCardinalAscii
+     mov byte ptr [eax - 1], '-'
+     dec eax
+  @write:
+     pop edx
+     lea ecx, [EDX].FBuffer.Digits.Quads
+     sub ecx, eax
+     xchg edx, eax
+     jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$else .CPUX64}
+     cmp r8, 1
+     ja @positive
+     cmp edx, DIGITS_2
+     jae @positive
+
+     mov edx, edx
+     lea r8, [DIGITS_LOOKUP_ASCII - 2]
+     mov r8d, [r8 + rdx * 2]
+     mov dword ptr [RCX].TCachedTextWriter.FBuffer.Digits.Ascii + 28, r8d
+     cmp rdx, DIGITS_1
+     setae dl
+     movzx rdx, dl
+
+     lea r8, [RCX].TCachedTextWriter.FBuffer.Digits.Ascii + 31
+     sub r8, rdx
+     inc rdx
+     xchg r8, rdx
+     jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  @positive:
+     push rcx
+     lea r9, [@write]
+     push r9
+     add rcx, offset TCachedTextWriter.FBuffer.Digits
+     jmp WriteCardinalAscii
+  @negative:
+     push rcx
+     neg edx
+     add rcx, offset TCachedTextWriter.FBuffer.Digits
+     call WriteCardinalAscii
+     mov byte ptr [rax - 1], '-'
+     dec rax
+  @write:
+     pop rcx
+     lea r8, [RCX].FBuffer.Digits.Quads
+     sub r8, rax
+     xchg rdx, rax
+     jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$endif}
+end;
+{$endif}
 
 procedure TCachedTextWriter.WriteHex(const Value: Integer;
   const Digits: NativeUInt);
+{$ifNdef CPUINTEL}
 var
   P: PByte;
 begin
   P := WriteHexAscii(FBuffer.Digits, Cardinal(Value), Digits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
+{$else}
+asm
+  {$ifdef CPUX86}
+    push eax
+    add eax, offset TCachedTextWriter.FBuffer.Digits
+    call WriteHexAscii
+    pop edx
+    lea ecx, [EDX].FBuffer.Digits.Quads
+    sub ecx, eax
+    xchg edx, eax
+    jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$else .CPUX64}
+    push rcx
+    add rcx, offset TCachedTextWriter.FBuffer.Digits
+    call WriteHexAscii
+    pop rcx
+    lea r8, [RCX].FBuffer.Digits.Quads
+    sub r8, rax
+    xchg rdx, rax
+    jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$endif}
+end;
+{$endif}
 
 procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal;
   const Digits: NativeUInt);
+{$ifNdef CPUINTEL}
 var
   P: PByte;
   X: NativeUInt;
@@ -31517,6 +31640,65 @@ begin
   P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
 end;
+{$else}
+asm
+  {$ifdef CPUX86}
+     cmp ecx, 1
+     ja @standard
+     cmp edx, DIGITS_2
+     jae @standard
+
+     mov ecx, [offset DIGITS_LOOKUP_ASCII + edx * 2 - 2]
+     mov dword ptr [EAX].TCachedTextWriter.FBuffer.Digits.Ascii + 28, ecx
+     cmp edx, DIGITS_1
+     setae dl
+     movzx edx, dl
+
+     lea ecx, [EAX].TCachedTextWriter.FBuffer.Digits.Ascii + 31
+     sub ecx, edx
+     inc edx
+     xchg ecx, edx
+     jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  @standard:
+     push eax
+     add eax, offset TCachedTextWriter.FBuffer.Digits
+     call WriteCardinalAscii
+     pop edx
+     lea ecx, [EDX].FBuffer.Digits.Quads
+     sub ecx, eax
+     xchg edx, eax
+     jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$else .CPUX64}
+     cmp r8, 1
+     ja @standard
+     cmp edx, DIGITS_2
+     jae @standard
+
+     mov edx, edx
+     lea r8, [DIGITS_LOOKUP_ASCII - 2]
+     mov r8d, [r8 + rdx * 2]
+     mov dword ptr [RCX].TCachedTextWriter.FBuffer.Digits.Ascii + 28, r8d
+     cmp rdx, DIGITS_1
+     setae dl
+     movzx rdx, dl
+
+     lea r8, [RCX].TCachedTextWriter.FBuffer.Digits.Ascii + 31
+     sub r8, rdx
+     inc rdx
+     xchg r8, rdx
+     jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  @standard:
+     push rcx
+     add rcx, offset TCachedTextWriter.FBuffer.Digits
+     call WriteCardinalAscii
+     pop rcx
+     lea r8, [RCX].FBuffer.Digits.Quads
+     sub r8, rax
+     xchg rdx, rax
+     jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
+  {$endif}
+end;
+{$endif}
 
 procedure TCachedTextWriter.WriteInt64(const Value: Int64;
   const Digits: NativeUInt);
@@ -31841,7 +32023,7 @@ constructor TByteTextWriter.Create(const Encoding: Word;
   const Owner: Boolean);
 var
   Context: PUniConvContext;
-  DefaultSBCS: PUniConvSBCS;
+  DestSBCS: PUniConvSBCS;
   SrcBOM, DestBOM: TBOM;
 begin
   Self.SetEncoding(Encoding);
@@ -31850,18 +32032,24 @@ begin
 
   SrcBOM := bomNone;
   if (FSBCS = nil) then SrcBOM := bomUTF8;
-  DefaultSBCS := DetectSBCS(DefaultByteEncoding);
+  DestSBCS := DetectSBCS(DefaultByteEncoding);
   DestBOM := BOM;
-  if (DestBOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then DestBOM := bomUTF8;
+  if (DestBOM = bomNone) then
+  begin
+    if (DefaultByteEncoding = CODEPAGE_UTF8) then DestBOM := bomUTF8;
+  end else
+  begin
+    DestSBCS := nil;
+  end;
 
   if (SrcBOM = DestBOM) then
   begin
-    if (FSBCS = DefaultSBCS) then
+    if (FSBCS = DestSBCS) then
     begin
       Context := nil;
     end else
     begin
-      Context.InitSBCSFromSBCS(FSBCS.CodePage, DefaultSBCS.CodePage);
+      Context.InitSBCSFromSBCS(FSBCS.CodePage, DestSBCS.CodePage);
     end;
   end else
   if (SrcBOM = bomNone) then
@@ -31969,6 +32157,7 @@ begin
 end;
 
 procedure TByteTextWriter.WriteBufferedAscii(From: PByte; Count: NativeUInt);
+{$ifNdef CPUINTEL}
 type
   TDefaultCaller = procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
 var
@@ -31983,7 +32172,7 @@ begin
     Self.FCurrent := Pointer(P);
     Dec(P, Count);
 
-    for i := 0 to Count shr {$ifdef LARGEINT}3{$else}2{$endif} do
+    for i := 1 to (Count + (SizeOf(NativeUInt) - 1)) shr {$ifdef LARGEINT}3{$else}2{$endif} do
     begin
       PNativeUInt(P)^ := PNativeUInt(From)^;
       Inc(From, SizeOf(NativeUInt));
@@ -31996,9 +32185,107 @@ begin
     TDefaultCaller(P)(Self, Pointer(From), Count);
   end;
 end;
+{$else}
+asm
+  {$ifdef CPUX86}
+     push ebx
+     mov ebx, [EAX].TCachedTextWriter.FCurrent
+     add ebx, ecx
+     cmp ebx, [EAX].TCachedTextWriter.FOverflow
+     ja @overflow
+
+     mov [EAX].TCachedTextWriter.FCurrent, ebx
+     sub ebx, ecx
+     cmp ecx, 32
+     ja @nc_move
+
+     add ecx, 7
+     pop eax
+     shr ecx, 3
+     xchg eax, ebx
+     jmp [offset @QWORDS + ecx * 4]
+  @QWORDS: DD @q0, @q1, @q2, @q3, @q4
+  @q4:
+     fild qword ptr [edx]
+     fistp qword ptr [eax]
+     add edx, 8
+     add eax, 8
+  @q3:
+     fild qword ptr [edx]
+     fistp qword ptr [eax]
+     add edx, 8
+     add eax, 8
+  @q2:
+     fild qword ptr [edx]
+     fistp qword ptr [eax]
+     add edx, 8
+     add eax, 8
+  @q1:
+     fild qword ptr [edx]
+     fistp qword ptr [eax]
+  @q0:
+     ret
+  @nc_move:
+     add ecx, 15
+     mov eax, edx
+     mov edx, ebx
+     pop ebx
+     and ecx, -16
+     jmp NcMove
+  @overflow:
+     pop ebx
+     jmp OverflowWriteData
+  {$else .CPUX64}
+     mov rax, [RCX].TCachedTextWriter.FCurrent
+     add rax, r8
+     cmp rax, [RCX].TCachedTextWriter.FOverflow
+     ja OverflowWriteData
+
+     mov [RCX].TCachedTextWriter.FCurrent, rax
+     sub rax, r8
+     cmp r8, 32
+     ja @nc_move
+
+     add r8, 7
+     lea r10, [offset @QWORDS]
+     shr r8, 3
+     jmp [r10 + r8 * 8]
+  @QWORDS: DQ @q0, @q1, @q2, @q3, @q4
+  @q4:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q3:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q2:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q1:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q0:
+     ret
+  @nc_move:
+     add r8, 15
+     mov rcx, rdx
+     mov rdx, rax
+     and r8, -16
+     jmp NcMove
+  {$endif}
+end;
+{$endif}
 
 procedure TByteTextWriter.WriteAscii(const AChars: PAnsiChar;
   const ALength: NativeUInt);
+{$ifNdef CPUINTEL}
 var
   P: PByte;
 begin
@@ -32015,6 +32302,149 @@ begin
     NcMove(AChars^, P^, ALength);
   end;
 end;
+{$else}
+asm
+  {$ifdef CPUX86}
+     push ebx
+     mov ebx, [EAX].TCachedTextWriter.FCurrent
+     add ebx, ecx
+     cmp ebx, [EAX].TCachedTextWriter.FOverflow
+     ja @overflow
+
+     mov [EAX].TCachedTextWriter.FCurrent, ebx
+     sub ebx, ecx
+     cmp ecx, 32
+     ja @nc_move
+
+     mov eax, ecx
+     shr ecx, 3
+     jmp [offset @QWORDS + ecx * 4]
+  @QWORDS: DD @q0, @q1, @q2, @q3, @q4
+  @q4:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q3:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q2:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q1:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q0:
+
+     and eax, 7
+     jmp [offset @BYTES + eax * 4]
+  @BYTES: DD @b0, @b1, @b2, @b3, @b4_7, @b4_7, @b4_7, @b4_7
+  @b4_7:
+     mov ecx, [edx]
+     mov [ebx], ecx
+     add edx, 4
+     add ebx, 4
+     jmp [offset @BYTES + eax * 4 - 4 * 4]
+  @b2:
+     mov cx, [edx]
+     mov [ebx], cx
+     pop ebx
+     ret
+  @b3:
+     mov cx, [edx]
+     mov [ebx], cx
+     add edx, 2
+     add ebx, 2
+  @b1:
+     mov cl, [edx]
+     mov [ebx], cl
+  @b0:
+     pop ebx
+     ret
+  @nc_move:
+     mov eax, edx
+     mov edx, ebx
+     pop ebx
+     jmp NcMove
+  @overflow:
+     pop ebx
+     jmp OverflowWriteData
+  {$else .CPUX64}
+     mov rax, [RCX].TCachedTextWriter.FCurrent
+     add rax, r8
+     cmp rax, [RCX].TCachedTextWriter.FOverflow
+     ja OverflowWriteData
+
+     mov [RCX].TCachedTextWriter.FCurrent, rax
+     sub rax, r8
+     cmp r8, 32
+     ja @nc_move
+
+     mov r9, r8
+     lea r10, [offset @QWORDS]
+     shr r8, 3
+     jmp [r10 + r8 * 8]
+  @QWORDS: DQ @q0, @q1, @q2, @q3, @q4
+  @q4:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q3:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q2:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q1:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q0:
+
+     lea r10, [offset @BYTES]
+     and r9, 7
+     jmp [r10 + r9 * 8]
+  @BYTES: DQ @b0, @b1, @b2, @b3, @b4_7, @b4_7, @b4_7, @b4_7
+  @b4_7:
+     mov ecx, [rdx]
+     mov [rax], ecx
+     add rdx, 4
+     add rax, 4
+     sub r10, 4 * 8
+     jmp [r10 + r9 * 8]
+  @b2:
+     mov cx, [rdx]
+     mov [rax], cx
+     ret
+  @b3:
+     mov cx, [rdx]
+     mov [rax], cx
+     add rdx, 2
+     add rax, 2
+  @b1:
+     mov cl, [rdx]
+     mov [rax], cl
+  @b0:
+     ret
+  @nc_move:
+     mov rcx, rdx
+     mov rdx, rax
+     jmp NcMove
+  {$endif}
+end;
+{$endif}
 
 procedure TByteTextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
@@ -32539,6 +32969,7 @@ end;
 
 procedure TUTF16TextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
+{$ifNdef CPUINTEL}
 var
   P: PByte;
   Size: NativeUInt;
@@ -32557,6 +32988,153 @@ begin
     NcMove(AChars^, P^, Size);
   end;
 end;
+{$else}
+asm
+  {$ifdef CPUX86}
+     lea ecx, [ecx + ecx]
+
+     push ebx
+     mov ebx, [EAX].TCachedTextWriter.FCurrent
+     add ebx, ecx
+     cmp ebx, [EAX].TCachedTextWriter.FOverflow
+     ja @overflow
+
+     mov [EAX].TCachedTextWriter.FCurrent, ebx
+     sub ebx, ecx
+     cmp ecx, 32
+     ja @nc_move
+
+     mov eax, ecx
+     shr ecx, 3
+     jmp [offset @QWORDS + ecx * 4]
+  @QWORDS: DD @q0, @q1, @q2, @q3, @q4
+  @q4:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q3:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q2:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q1:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q0:
+
+     and eax, 7
+     jmp [offset @BYTES + eax * 4]
+  @BYTES: DD @b0, @b1, @b2, @b3, @b4_7, @b4_7, @b4_7, @b4_7
+  @b4_7:
+     mov ecx, [edx]
+     mov [ebx], ecx
+     add edx, 4
+     add ebx, 4
+     jmp [offset @BYTES + eax * 4 - 4 * 4]
+  @b2:
+     mov cx, [edx]
+     mov [ebx], cx
+     pop ebx
+     ret
+  @b3:
+     mov cx, [edx]
+     mov [ebx], cx
+     add edx, 2
+     add ebx, 2
+  @b1:
+     mov cl, [edx]
+     mov [ebx], cl
+  @b0:
+     pop ebx
+     ret
+  @nc_move:
+     mov eax, edx
+     mov edx, ebx
+     pop ebx
+     jmp NcMove
+  @overflow:
+     pop ebx
+     jmp OverflowWriteData
+  {$else .CPUX64}
+     lea r8, [r8 + r8]
+
+     mov rax, [RCX].TCachedTextWriter.FCurrent
+     add rax, r8
+     cmp rax, [RCX].TCachedTextWriter.FOverflow
+     ja OverflowWriteData
+
+     mov [RCX].TCachedTextWriter.FCurrent, rax
+     sub rax, r8
+     cmp r8, 32
+     ja @nc_move
+
+     mov r9, r8
+     lea r10, [offset @QWORDS]
+     shr r8, 3
+     jmp [r10 + r8 * 8]
+  @QWORDS: DQ @q0, @q1, @q2, @q3, @q4
+  @q4:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q3:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q2:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q1:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q0:
+
+     lea r10, [offset @BYTES]
+     and r9, 7
+     jmp [r10 + r9 * 8]
+  @BYTES: DQ @b0, @b1, @b2, @b3, @b4_7, @b4_7, @b4_7, @b4_7
+  @b4_7:
+     mov ecx, [rdx]
+     mov [rax], ecx
+     add rdx, 4
+     add rax, 4
+     sub r10, 4 * 8
+     jmp [r10 + r9 * 8]
+  @b2:
+     mov cx, [rdx]
+     mov [rax], cx
+     ret
+  @b3:
+     mov cx, [rdx]
+     mov [rax], cx
+     add rdx, 2
+     add rax, 2
+  @b1:
+     mov cl, [rdx]
+     mov [rax], cl
+  @b0:
+     ret
+  @nc_move:
+     mov rcx, rdx
+     mov rdx, rax
+     jmp NcMove
+  {$endif}
+end;
+{$endif}
 
 procedure TUTF16TextWriter.WriteUCS4Ascii(const AChars: PUCS4Char;
   const ALength: NativeUInt);
@@ -32656,6 +33234,7 @@ end;
 
 procedure TUTF16TextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
+{$ifNdef CPUINTEL}
 var
   P: PByte;
   Size: NativeUInt;
@@ -32674,6 +33253,153 @@ begin
     NcMove(AChars^, P^, Size);
   end;
 end;
+{$else}
+asm
+  {$ifdef CPUX86}
+     lea ecx, [ecx + ecx]
+
+     push ebx
+     mov ebx, [EAX].TCachedTextWriter.FCurrent
+     add ebx, ecx
+     cmp ebx, [EAX].TCachedTextWriter.FOverflow
+     ja @overflow
+
+     mov [EAX].TCachedTextWriter.FCurrent, ebx
+     sub ebx, ecx
+     cmp ecx, 32
+     ja @nc_move
+
+     mov eax, ecx
+     shr ecx, 3
+     jmp [offset @QWORDS + ecx * 4]
+  @QWORDS: DD @q0, @q1, @q2, @q3, @q4
+  @q4:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q3:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q2:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q1:
+     fild qword ptr [edx]
+     fistp qword ptr [ebx]
+     add edx, 8
+     add ebx, 8
+  @q0:
+
+     and eax, 7
+     jmp [offset @BYTES + eax * 4]
+  @BYTES: DD @b0, @b1, @b2, @b3, @b4_7, @b4_7, @b4_7, @b4_7
+  @b4_7:
+     mov ecx, [edx]
+     mov [ebx], ecx
+     add edx, 4
+     add ebx, 4
+     jmp [offset @BYTES + eax * 4 - 4 * 4]
+  @b2:
+     mov cx, [edx]
+     mov [ebx], cx
+     pop ebx
+     ret
+  @b3:
+     mov cx, [edx]
+     mov [ebx], cx
+     add edx, 2
+     add ebx, 2
+  @b1:
+     mov cl, [edx]
+     mov [ebx], cl
+  @b0:
+     pop ebx
+     ret
+  @nc_move:
+     mov eax, edx
+     mov edx, ebx
+     pop ebx
+     jmp NcMove
+  @overflow:
+     pop ebx
+     jmp OverflowWriteData
+  {$else .CPUX64}
+     lea r8, [r8 + r8]
+
+     mov rax, [RCX].TCachedTextWriter.FCurrent
+     add rax, r8
+     cmp rax, [RCX].TCachedTextWriter.FOverflow
+     ja OverflowWriteData
+
+     mov [RCX].TCachedTextWriter.FCurrent, rax
+     sub rax, r8
+     cmp r8, 32
+     ja @nc_move
+
+     mov r9, r8
+     lea r10, [offset @QWORDS]
+     shr r8, 3
+     jmp [r10 + r8 * 8]
+  @QWORDS: DQ @q0, @q1, @q2, @q3, @q4
+  @q4:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q3:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q2:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q1:
+     mov rcx, [rdx]
+     mov [rax], rcx
+     add rdx, 8
+     add rax, 8
+  @q0:
+
+     lea r10, [offset @BYTES]
+     and r9, 7
+     jmp [r10 + r9 * 8]
+  @BYTES: DQ @b0, @b1, @b2, @b3, @b4_7, @b4_7, @b4_7, @b4_7
+  @b4_7:
+     mov ecx, [rdx]
+     mov [rax], ecx
+     add rdx, 4
+     add rax, 4
+     sub r10, 4 * 8
+     jmp [r10 + r9 * 8]
+  @b2:
+     mov cx, [rdx]
+     mov [rax], cx
+     ret
+  @b3:
+     mov cx, [rdx]
+     mov [rax], cx
+     add rdx, 2
+     add rax, 2
+  @b1:
+     mov cl, [rdx]
+     mov [rax], cl
+  @b0:
+     ret
+  @nc_move:
+     mov rcx, rdx
+     mov rdx, rax
+     jmp NcMove
+  {$endif}
+end;
+{$endif}
 
 
 { TUTF32TextWriter }
@@ -32790,7 +33516,7 @@ const
   CHARS_IN_ITERATION = 4;
 var
   i, j: NativeUInt;
-  P: PWord;
+  P: PCardinal;
   Src: PByte;
   X: NativeUInt;
 begin

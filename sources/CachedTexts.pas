@@ -278,6 +278,7 @@ type
 
   TDigitsRec = packed record
     Ascii: array[0..31] of Byte;
+    Buffer: array[0..15] of Byte;
     Quads: array[0..4] of Cardinal;
   end;
   PDigitsRec = ^TDigitsRec;
@@ -320,6 +321,7 @@ type
     function _GetInt64(S: PByte; L: NativeInt): Int64;
     function _GetFloat(S: PByte; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+    function _GetDateTimeException(DT: NativeUInt): ECachedString;
     function _CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
     function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
   public
@@ -580,6 +582,7 @@ type
     function _GetInt64(S: PWord; L: NativeInt): Int64;
     function _GetFloat(S: PWord; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+    function _GetDateTimeException(DT: NativeUInt): ECachedString;
     function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
   public
     property Chars: PUnicodeChar read FChars write FChars;
@@ -831,6 +834,7 @@ type
     function _GetInt64(S: PCardinal; L: NativeInt): Int64;
     function _GetFloat(S: PCardinal; L: NativeUInt): Extended;
     function _GetDateTime(out Value: TDateTime; DT: NativeUInt): Boolean;
+    function _GetDateTimeException(DT: NativeUInt): ECachedString;
     function _CompareByteString(const S: PByteString; const IgnoreCase: Boolean): NativeInt;
     function _CompareUTF16String(const S: PUTF16String; const IgnoreCase: Boolean): NativeInt;
     function _CompareUTF32String(const S: PUTF32String; const IgnoreCase: Boolean): NativeInt;
@@ -3110,9 +3114,9 @@ begin
     LowP := Pointer(@DigitsRec.Ascii[31 - NativeUInt(Digits - 1)]);
   end else
   begin
-    LowP := Pointer(@DigitsRec.Quads[0]);
+    LowP := Pointer(@DigitsRec.Buffer[0]);
   end;
-  P := Pointer(@DigitsRec.Quads[0]);
+  P := Pointer(@DigitsRec.Buffer[0]);
 
   if (X < DIGITS_4) then
   begin
@@ -3211,9 +3215,9 @@ begin
     LowP := Pointer(@DigitsRec.Ascii[31 - NativeUInt(Digits - 1)]);
   end else
   begin
-    LowP := Pointer(@DigitsRec.Quads[0]);
+    LowP := Pointer(@DigitsRec.Buffer[0]);
   end;
-  P := Pointer(@DigitsRec.Quads[0]);
+  P := Pointer(@DigitsRec.Buffer[0]);
 
   {$ifdef LARGEINT}
   if (NativeUInt(X64) <= High(Cardinal)) then
@@ -3315,7 +3319,7 @@ var
   P: PByte;
   LowP, Count, i: NativeUInt;
 begin
-  P := Pointer(@DigitsRec.Quads[0]);
+  P := Pointer(@DigitsRec.Buffer[0]);
   LowP := NativeUInt(P);
   if (Digits <= 32) then Dec(LowP, Digits);
 
@@ -3377,7 +3381,7 @@ var
   P: PByte;
   LowP, Count, i, X: NativeUInt;
 begin
-  P := Pointer(@DigitsRec.Quads[0]);
+  P := Pointer(@DigitsRec.Buffer[0]);
   LowP := NativeUInt(P);
   if (Digits <= 32) then Dec(LowP, Digits);
 
@@ -3542,7 +3546,7 @@ const
   D100 = D4 * 25 - 1;
   D400 = D100 * 4 + 1;
 
-  MONTH_TABLES: array[Boolean] of PMonthTable = (@STD_MONTH_TABLE, @LEAP_MONTH_TABLE);
+  MONTH_TABLES: array[0..1] of PMonthTable = (@STD_MONTH_TABLE, @LEAP_MONTH_TABLE);
 
   // L:28, DD:24, MM:20, SEP2:16, SEP1:12, YYYY:8, SEPCHAR: 0
   FORMAT_SETTINGS: array[0..2*Ord(High(TDateFormat)) + 1] of Cardinal = (
@@ -3573,8 +3577,7 @@ var
 begin
   // format settings
   Fmt := Settings.F.DateOptions;
-  Y := Fmt and $ff00;
-  Store.Fmt := FORMAT_SETTINGS[Byte(Fmt) + (Y - 1) and 5] + DATETIME_SEPARATORS[Y shr 8];
+  Store.Fmt := FORMAT_SETTINGS[Byte(Fmt) + Byte(Fmt and $ff00 = 0) * 5] + DATETIME_SEPARATORS[Byte(Fmt shr 8)];
 
   // four hundred years
   D := DigitsRec.Quads[0];
@@ -3633,9 +3636,16 @@ begin
     D := D - M * D1;
   end;
 
+  // YYYY
+  X := (Y * $147B) shr 19; // X := Y div 100
+  Y := Y - (X * 100);      // Y := Y mod 100
+  Fmt := Store.Fmt;
+  PWord(@PByteCharArray(P)[(Fmt shr 8) and $f])^ := DIGITS_LOOKUP_ASCII[X];
+  PWord(@PByteCharArray(P)[(Fmt shr 8) and $f + 2])^ := DIGITS_LOOKUP_ASCII[Y];
+
   // detect month/day
+  MonthTable := Pointer(MONTH_TABLES[Byte(Y and 3 = 0) and (Byte(Y <> 0) or Byte(X and 3 = 0))]);
   T := (D shl 16) + 32;
-  MonthTable := Pointer(MONTH_TABLES[Y and 3 = 0]);
   M := NativeInt(MonthTable);
   Inc(NativeInt(MonthTable), (6 * SizeOf(Cardinal)) and -Ord(MonthTable[6] < T));
   Inc(NativeInt(MonthTable), (3 * SizeOf(Cardinal)) and -Ord(MonthTable[3] < T));
@@ -3644,19 +3654,10 @@ begin
   D := (T shr 16 + 1) - PMonthInfo(MonthTable).Before;
   M := (NativeInt(MonthTable) - M) shr 2 + 1;
 
-  // YYYY
-  X := (Y * $147B) shr 19; // X := Y div 100
-  Y := Y - (X * 100);      // Y := Y mod 100
-  {$ifNdef CPUX86}
-    Fmt := Store.Fmt;
-    PWord(@PByteCharArray(P)[(Fmt shr 8) and $f])^ := DIGITS_LOOKUP_ASCII[X];
-  {$else}
-    PWord(@PByteCharArray(P)[(Store.Fmt shr 8) and $f])^ := DIGITS_LOOKUP_ASCII[X];
-    Fmt := Store.Fmt;
-  {$endif}
-  PWord(@PByteCharArray(P)[(Fmt shr 8) and $f + 2])^ := DIGITS_LOOKUP_ASCII[Y];
-
   // separators
+  {$ifdef CPUX86}
+  Fmt := Store.Fmt;
+  {$endif}
   Y := Fmt and $7f;
   PByteCharArray(P)[(Fmt shr 12) and $f] := Y;
   PByteCharArray(P)[(Fmt shr 16) and $f] := Y;
@@ -3785,27 +3786,28 @@ const
 var
   Separator: Cardinal;
   P: PByte;
-  Count, N: NativeInt;
+  Aligned, N: NativeInt;
 begin
   // first 1..3 digits
   N := Settings.Exp;
-  Count := (((N - Byte(N = 3)) * 11) shr 5) * 3;
+  Aligned := ((N * 11) shr 5) * 3;
   P := @DigitsRec.Ascii[0];
-  Dec(N, Count);
+  Dec(Aligned, Byte(N = Aligned) * 3);
   PCardinal(P)^ := PCardinal(Src)^;
+  Dec(N, Aligned);
   Inc(Src, N);
   Inc(P, N);
 
   // triples
-  if (Count > 0) then
+  if (Aligned > 0) then
   begin
     Separator := THOUSAND_SEPARATORS[Settings.ThousandSpace];
     repeat
-      Dec(Count, 3);
+      Dec(Aligned, 3);
       PCardinal(P)^ := (PCardinal(Src)^ shl 8) + Separator;
       Inc(Src, 3);
       Inc(P, 3 + 1);
-    until (Count = 0);
+    until (Aligned = 0);
   end;
 
   // result
@@ -3851,7 +3853,7 @@ begin
 end;
 
 function WriteFloatAscii(var DigitsRec: TDigitsRec;
-  const Float: Pointer;
+  const Float: {$ifdef CPUX86}PExtended{$else}Extended{$endif};
   const Settings: TFloatSettings): NativeUInt;
 type
   TFloatValue = packed record
@@ -3877,7 +3879,7 @@ const
   e10 = e5 * e5;
   e15 = e10 * e5;
   DECIMAL_OVERFLOWS: array[0..18] of Int64 = (
-    0, 10, 100, e3, e3 * 10, e5, e5 * 10, e5 * 100, e5 * e3, e5 * e3 * 10,
+    0{1}, 10, 100, e3, e3 * 10, e5, e5 * 10, e5 * 100, e5 * e3, e5 * e3 * 10,
     e10, e10 * 10, e10 * 100, e10 * e3, e10 * e3 * 10, e15, e15 * 10,
     e15 * 100, e15 * e3
   );
@@ -3914,8 +3916,13 @@ begin
   Precision := SmallInt(Precision);
 
   // float, exp
-  Store.Float.Int64Value := TFloatValue(Float^).Int64Value;
-  Exp := TFloatValue(Float^).HighWord;
+  {$ifdef CPUX86}
+    Store.Float.Int64Value := TFloatValue(Float^).Int64Value;
+    Exp := TFloatValue(Float^).HighWord;
+  {$else}
+    Store.Float.Value := Float;
+    Exp := Store.Float.HighWord;
+  {$endif}
 
   // min/max precision bounds
   if (NativeUInt(Precision + (-CMinExtPrecision)) >
@@ -3945,7 +3952,7 @@ begin
         PCardinal(P)^ := Ord('I') + (Ord('N') shl 8) + (Ord('F') shl 16);
       end else
       begin
-        PCardinal(P)^ := Ord('N') + (Ord('a') shl 8) + (Ord('N') shl 16);
+        PCardinal(P)^ := Ord('N') + (Ord('A') shl 8) + (Ord('N') shl 16);
         Store.Sign := False;
       end;
       Inc(P, 3);
@@ -3954,6 +3961,12 @@ begin
     if (Store.Float.Cardinals[0] = 0) and
       (Store.Float.Cardinals[1] {$ifNdef CPUX86}and $000fffff{$endif} = 0) then
     begin
+      if (Byte(Store.Settings.Format) >= Byte(ffCurrency)) then
+      begin
+      float_unsupported:
+        raise ECachedText.Create('Unsupported float format');
+      end;
+
     float_zero:
       P := @DigitsRec.Ascii[0];
       P^ := Ord('0');
@@ -3961,11 +3974,21 @@ begin
       Store.Sign := False;
 
       case Store.Settings.Format of
-        ffGeneral: ;
+        // ffGeneral: ;
+        ffCurrency{ENotation}:
+        begin
+          PWord(P)^ := Ord('E') + (Ord('0') shl 8);
+          Inc(P, SizeOf(Word));
+        end;
         ffNumber, ffFixed:
         begin
           Decimals := Store.Settings.Digits;
-          if (Decimals > 0) then goto float_zero_decimals;
+          if (Decimals > 0) then
+          begin
+            if (Decimals > CMaxExtPrecision) then
+              Decimals := CMaxExtPrecision;
+            goto float_zero_decimals;
+          end;
         end;
         ffExponent:
         begin
@@ -3985,9 +4008,6 @@ begin
           Store.Settings.Exp := 1;
           if (Store.Settings.Format = ffExponent) then goto write_exponent;
         end;
-      else
-      float_unsupported:
-        raise ECachedText.Create('Unsupported float format');
       end;
 
       goto done;
@@ -4048,7 +4068,13 @@ begin
     ffFixed, ffNumber:
     begin
       if (Exp > Precision) then
+      begin
         Store.Settings.Format := {ENotation}ffCurrency;
+      end else
+      begin
+        if (Decimals > CMaxExtPrecision) then
+          Decimals := CMaxExtPrecision;
+      end;
 
       Decimals := Decimals + Exp;
       if (NativeUInt(Decimals) <= NativeUInt(Precision)) then
@@ -4111,11 +4137,30 @@ begin
       Store.DoubleValue := TenPowers[9] * TenPowers[Exp - 9];
       goto stored_tenpower;
     round_large_decimal:
-      Store.Int64Value := Round(Store.Float.Value * TenPowerPtr^);
+      if (Decimals < 17) then
+      begin
+        Store.Int64Value := Trunc{Round}(Store.Float.Value * TenPowerPtr^ + 0.5);
+     end else
+      begin
+        Store.Int64Value := Trunc(Store.Float.Value * TenPowerPtr^);
+      end;
       goto check_int64_overflow;
     fixup_int64_overflow:
-      Store.Int64Value := Round(Store.Int64Value * (1 / 10));
-      Inc(Store.Settings.Exp);
+      if (Store.Int64Value <> 0) then
+      begin
+        Inc(Store.Settings.Exp);
+        if (Store.Settings.Exp > Store.Settings.Precision) and
+          (Store.Settings.Format <> ffExponent) then
+        begin
+          Store.Settings.Format := {ENotation}ffCurrency;
+          Store.NullChars := 0;
+        end;
+        if (Store.Settings.Format = ffExponent) and (Store.Int64Value > 1) then
+          Store.Int64Value := Round(Store.Int64Value * (1 / 10));
+      end else
+      begin
+        Store.Sign := False;
+      end;
       goto store_int64_digits;
     end else
     begin
@@ -4128,7 +4173,7 @@ begin
     TenPowerPtr := @Store.DoubleValue;
   end;
   if (Decimals > 15) then goto round_large_decimal;
-  Store.DoubleValue := Store.Float.Value * TenPowerPtr^ + DBLROUND_CONST;
+  Store.DoubleValue := Store.Float.Value * TenPowerPtr^ + 0.01 + DBLROUND_CONST;
   Store.Cardinals[1] := Store.Cardinals[1] and ((1 shl (51 - 32)) - 1);
 check_int64_overflow:
   if (Store.Int64Value >= DECIMAL_OVERFLOWS[Decimals]) then goto fixup_int64_overflow;
@@ -4140,6 +4185,7 @@ store_int64_digits:
   Dec(Quad);
   if {ffGeneral, ENotation}(NativeUInt(Store.Settings.Format) - 1 > 2) and (Quad^ = 0) then
   begin
+    if (Quad = TopQuad) then goto float_zero;
     Dec(Quad);
     if (Quad^ = 0) then
     begin
@@ -4175,6 +4221,7 @@ store_int64_digits:
 
   U := Quad^;
   Inc(Src, SizeOf(Cardinal) - 1);
+  Inc(Src, Byte(U = 0));
   Dec(Src, Byte(Byte(U > 9) + Byte(U > 99) + Byte(U > 999)));
   Decimals := NativeUInt(TopQuad) - NativeUInt(Src);
 
@@ -4198,7 +4245,7 @@ store_int64_digits:
     end;
   else
     // ffGeneral, ENotation
-    U := PCardinal(@DigitsRec.Ascii[28])^ xor $30303030;
+    U := PCardinal(@DigitsRec.Buffer[12])^ xor $30303030;
     Dec(Decimals, Byte(Byte(U and $ff000000 = 0) +
       Byte(U and $ffff0000 = 0) + Byte(U and $ffffff00 = 0)));
 
@@ -4223,6 +4270,7 @@ store_int64_digits:
           Inc(P, SizeOf(Cardinal));
         until (Exp <= 0);
         Inc(P, Exp);
+        goto done;
       end else
       begin
         if (not Store.Settings.GeneralCompact) then
@@ -7250,7 +7298,7 @@ end;
 function ByteString.ToDate: TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
+    raise _GetDateTimeException(1{Date});
 end;
 
 function ByteString.TryToDate(out Value: TDateTime): Boolean;
@@ -7276,7 +7324,7 @@ end;
 function ByteString.ToTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 2{Time})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
+    raise _GetDateTimeException(2{Time});
 end;
 
 function ByteString.TryToTime(out Value: TDateTime): Boolean;
@@ -7302,7 +7350,7 @@ end;
 function ByteString.ToDateTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
+    raise _GetDateTimeException(3{DateTime});
 end;
 
 function ByteString.TryToDateTime(out Value: TDateTime): Boolean;
@@ -7351,6 +7399,21 @@ begin
   until (L = 0);
 
   Result := CachedTexts._GetDateTime(Buffer);
+end;
+
+function ByteString._GetDateTimeException(DT: NativeUInt): ECachedString;
+var
+  ResStringRec: PResStringRec;
+begin
+  case DT of
+    1{Date}: ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate);
+    2{Time}: ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime);
+  else
+    {3: DateTime}
+    ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime);
+  end;
+
+  Result := ECachedString.Create(ResStringRec, @Self);
 end;
 
 procedure ByteString.ToAnsiString(var S: AnsiString; const CodePage: Word);
@@ -15165,7 +15228,7 @@ end;
 function UTF16String.ToDate: TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
+    raise _GetDateTimeException(1{Date});
 end;
 
 function UTF16String.TryToDate(out Value: TDateTime): Boolean;
@@ -15191,7 +15254,7 @@ end;
 function UTF16String.ToTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 2{Time})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
+    raise _GetDateTimeException(2{Time});
 end;
 
 function UTF16String.TryToTime(out Value: TDateTime): Boolean;
@@ -15217,7 +15280,7 @@ end;
 function UTF16String.ToDateTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
+    raise _GetDateTimeException(3{DateTime});
 end;
 
 function UTF16String.TryToDateTime(out Value: TDateTime): Boolean;
@@ -15266,6 +15329,21 @@ begin
   until (L = 0);
 
   Result := CachedTexts._GetDateTime(Buffer);
+end;
+
+function UTF16String._GetDateTimeException(DT: NativeUInt): ECachedString;
+var
+  ResStringRec: PResStringRec;
+begin
+  case DT of
+    1{Date}: ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate);
+    2{Time}: ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime);
+  else
+    {3: DateTime}
+    ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime);
+  end;
+
+  Result := ECachedString.Create(ResStringRec, @Self);
 end;
 
 procedure UTF16String.ToAnsiString(var S: AnsiString; const CodePage: Word);
@@ -21933,7 +22011,7 @@ end;
 function UTF32String.ToDate: TDateTime;
 begin
   if (not _GetDateTime(Result, 1{Date})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate), @Self);
+    raise _GetDateTimeException(1{Date});
 end;
 
 function UTF32String.TryToDate(out Value: TDateTime): Boolean;
@@ -21958,8 +22036,8 @@ end;
 
 function UTF32String.ToTime: TDateTime;
 begin
-  if (not _GetDateTime(Result, 1{Time})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime), @Self);
+  if (not _GetDateTime(Result, 2{Time})) then
+    raise _GetDateTimeException(2{Time});
 end;
 
 function UTF32String.TryToTime(out Value: TDateTime): Boolean;
@@ -21985,7 +22063,7 @@ end;
 function UTF32String.ToDateTime: TDateTime;
 begin
   if (not _GetDateTime(Result, 3{DateTime})) then
-    raise ECachedString.Create(Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime), @Self);
+    raise _GetDateTimeException(3{DateTime});
 end;
 
 function UTF32String.TryToDateTime(out Value: TDateTime): Boolean;
@@ -22034,6 +22112,21 @@ begin
   until (L = 0);
 
   Result := CachedTexts._GetDateTime(Buffer);
+end;
+
+function UTF32String._GetDateTimeException(DT: NativeUInt): ECachedString;
+var
+  ResStringRec: PResStringRec;
+begin
+  case DT of
+    1{Date}: ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDate);
+    2{Time}: ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidTime);
+  else
+    {3: DateTime}
+    ResStringRec := Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidDateTime);
+  end;
+
+  Result := ECachedString.Create(ResStringRec, @Self);
 end;
 
 procedure ascii_from_utf32(Dest: Pointer; Src: PCardinal; Count: NativeInt);
@@ -29709,7 +29802,7 @@ begin
     P := WriteCardinalAscii(Store.DigitsRec, Cardinal(Value), Digits);
   end;
 
-  Self.AppendAscii(Pointer(P), NativeUInt(@Store.DigitsRec.Quads[0]) - NativeUInt(P));
+  Self.AppendAscii(Pointer(P), NativeUInt(@Store.DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TTemporaryString.AppendCardinal(const Value: Cardinal;
@@ -29719,7 +29812,7 @@ var
   P: PByte;
 begin
   P := WriteCardinalAscii(DigitsRec, Cardinal(Value), Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Quads[0]) - NativeUInt(P));
+  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TTemporaryString.AppendHex(const Value: Integer;
@@ -29729,7 +29822,7 @@ var
   P: PByte;
 begin
   P := WriteHexAscii(DigitsRec, Cardinal(Value), Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Quads[0]) - NativeUInt(P));
+  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TTemporaryString.AppendInt64(const Value: Int64;
@@ -29759,7 +29852,7 @@ begin
     P := WriteUInt64Ascii(Store.DigitsRec, {$ifdef SMALLINT}@{$endif}Value, Digits);
   end;
 
-  Self.AppendAscii(Pointer(P), NativeUInt(@Store.DigitsRec.Quads[0]) - NativeUInt(P));
+  Self.AppendAscii(Pointer(P), NativeUInt(@Store.DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TTemporaryString.AppendUInt64(const Value: UInt64;
@@ -29769,7 +29862,7 @@ var
   P: PByte;
 begin
   P := WriteUInt64Ascii(DigitsRec, {$ifdef SMALLINT}@{$endif}Int64(Value), Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Quads[0]) - NativeUInt(P));
+  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TTemporaryString.AppendHex64(const Value: Int64;
@@ -29779,7 +29872,7 @@ var
   P: PByte;
 begin
   P := WriteHex64Ascii(DigitsRec, {$ifdef SMALLINT}@{$endif}Value, Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Quads[0]) - NativeUInt(P));
+  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TTemporaryString.AppendFloat(const Value: Extended);
@@ -29809,13 +29902,7 @@ var
   P: PByte;
   Count: NativeUInt;
 begin
-  {$ifdef CPUX86}
-    Count := CachedTexts.WriteFloatAscii(Store.DigitsRec, Pointer(@Value), Settings);
-  {$else}
-    PExtended(@Store.DigitsRec.Ascii)^ := Value;
-    Count := CachedTexts.WriteFloatAscii(Store.DigitsRec, @Store.DigitsRec.Ascii, Settings);
-  {$endif}
-
+  Count := CachedTexts.WriteFloatAscii(Store.DigitsRec, {$ifdef CPUX86}@{$endif}Value, Settings);
   Store.Prev[High(Store.Prev)] := Ord('-');
   P := @Store.DigitsRec.Ascii[0];
   Dec(P, Count and 1);
@@ -29834,7 +29921,7 @@ asm
   pop ebp
   lea edx, DefaultDateTimeSettings
   {$else .CPUX64}
-  lea rdx, DefaultDateTimeSettings
+  mov r8, DefaultDateTimeSettings
   {$endif}
   jmp TTemporaryString.AppendDate
 end;
@@ -29862,7 +29949,7 @@ asm
   pop ebp
   lea edx, DefaultDateTimeSettings
   {$else .CPUX64}
-  lea rdx, DefaultDateTimeSettings
+  mov r8, DefaultDateTimeSettings
   {$endif}
   jmp TTemporaryString.AppendTime
 end;
@@ -29890,7 +29977,7 @@ asm
   pop ebp
   lea edx, DefaultDateTimeSettings
   {$else .CPUX64}
-  lea rdx, DefaultDateTimeSettings
+  mov r8, DefaultDateTimeSettings
   {$endif}
   jmp TTemporaryString.AppendDateTime
 end;
@@ -29925,11 +30012,11 @@ asm
   {$ifdef CPUX86}
     push [esp]
     lea ecx, DefaultDateTimeSettings
-    mov [esp - 4], ecx
+    mov [esp + 4], ecx
     lea ecx, DefaultFloatSettings
   {$else .CPUX64}
-    lea r8, DefaultDateTimeSettings
-    lea r9, DefaultFloatSettings
+    mov r8, DefaultFloatSettings
+    mov r9, DefaultDateTimeSettings
   {$endif}
   jmp TTemporaryString.AppendVariant
 end;
@@ -30975,7 +31062,7 @@ begin
         goto fail;
       end;
 
-      Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, VExtended, Self.FFormat.Settings);
+      Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, VExtended{$ifNdef CPUX86}^{$endif}, Self.FFormat.Settings);
       P := @FBuffer.Digits.Ascii[0];
       Dec(P, Count and 1);
       Count := Count shr 1;
@@ -31037,7 +31124,7 @@ begin
   end;
 
   // default (integer/hex) count case
-  Count := NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P);
+  Count := NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P);
 
 count_calculated:
   // ascii spaces align
@@ -31506,7 +31593,7 @@ begin
     P^ := Ord('-');
   end;
 
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 {$else}
 asm
@@ -31543,7 +31630,7 @@ asm
      dec eax
   @write:
      pop edx
-     lea ecx, [EDX].FBuffer.Digits.Quads
+     lea ecx, [EDX].FBuffer.Digits.Buffer
      sub ecx, eax
      xchg edx, eax
      jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
@@ -31581,7 +31668,7 @@ asm
      dec rax
   @write:
      pop rcx
-     lea r8, [RCX].FBuffer.Digits.Quads
+     lea r8, [RCX].FBuffer.Digits.Buffer
      sub r8, rax
      xchg rdx, rax
      jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
@@ -31596,7 +31683,7 @@ var
   P: PByte;
 begin
   P := WriteHexAscii(FBuffer.Digits, Cardinal(Value), Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 {$else}
 asm
@@ -31605,7 +31692,7 @@ asm
     add eax, offset TCachedTextWriter.FBuffer.Digits
     call WriteHexAscii
     pop edx
-    lea ecx, [EDX].FBuffer.Digits.Quads
+    lea ecx, [EDX].FBuffer.Digits.Buffer
     sub ecx, eax
     xchg edx, eax
     jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
@@ -31614,7 +31701,7 @@ asm
     add rcx, offset TCachedTextWriter.FBuffer.Digits
     call WriteHexAscii
     pop rcx
-    lea r8, [RCX].FBuffer.Digits.Quads
+    lea r8, [RCX].FBuffer.Digits.Buffer
     sub r8, rax
     xchg rdx, rax
     jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
@@ -31638,7 +31725,7 @@ begin
   end;
 
   P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 {$else}
 asm
@@ -31664,7 +31751,7 @@ asm
      add eax, offset TCachedTextWriter.FBuffer.Digits
      call WriteCardinalAscii
      pop edx
-     lea ecx, [EDX].FBuffer.Digits.Quads
+     lea ecx, [EDX].FBuffer.Digits.Buffer
      sub ecx, eax
      xchg edx, eax
      jmp [EAX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
@@ -31692,7 +31779,7 @@ asm
      add rcx, offset TCachedTextWriter.FBuffer.Digits
      call WriteCardinalAscii
      pop rcx
-     lea r8, [RCX].FBuffer.Digits.Quads
+     lea r8, [RCX].FBuffer.Digits.Buffer
      sub r8, rax
      xchg rdx, rax
      jmp [RCX].TCachedTextWriter.FVirtuals.WriteBufferedAscii
@@ -31723,7 +31810,7 @@ begin
     P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
   end;
 
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteHex64(const Value: Int64;
@@ -31732,7 +31819,7 @@ var
   P: PByte;
 begin
   P := WriteHex64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteUInt64(const Value: UInt64;
@@ -31741,7 +31828,7 @@ var
   P: PByte;
 begin
   P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Int64(Value), Digits);
-  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Quads[0]) - NativeUInt(P));
+  FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 
 procedure TCachedTextWriter.WriteFloat(const Value: Extended);
@@ -31763,13 +31850,7 @@ var
   P: PByte;
   Count: NativeUInt;
 begin
-  {$ifdef CPUX86}
-    Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, Pointer(@Value), Settings);
-  {$else}
-    PExtended(@FBuffer.Digits.Ascii)^ := Value;
-    Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, @FBuffer.Digits.Ascii, Settings);
-  {$endif}
-
+  Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, {$ifdef CPUX86}@{$endif}Value, Settings);
   P := @FBuffer.Digits.Ascii[0];
   Dec(P, Count and 1);
   Count := Count shr 1;
@@ -31862,7 +31943,7 @@ end;
 asm
   push [esp]
   lea ecx, [EAX].TCachedTextWriter.DateTimeSettings
-  mov [esp - 4], ecx
+  mov [esp + 4], ecx
   lea ecx, [EAX].TCachedTextWriter.FloatSettings
   jmp WriteVariant
 end;

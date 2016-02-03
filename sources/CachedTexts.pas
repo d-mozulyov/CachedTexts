@@ -29325,18 +29325,25 @@ const
   );
 var
   MaxAppendSize: NativeUInt;
-  AFlags, AKind: NativeUInt;
+  AFlags, SourceFlags, AKind: NativeUInt;
 begin
   MaxAppendSize := S.Length;
+  SourceFlags := S.F.NativeFlags or NativeUInt(-2);
   AFlags := Self.FBuffer.NativeFlags;
   if (MaxAppendSize = 0) then Exit;
 
-  Self.FBuffer.NativeFlags := AFlags and (S.F.NativeFlags or NativeUInt(-2));
+  AFlags := AFlags and SourceFlags;
+  Self.FBuffer.NativeFlags := AFlags;
   AFlags := AFlags and NativeUInt($ff000000);
   Inc(AFlags, Byte(CharCase));
 
   AKind := Byte(Self.Kind);
-  if (AKind <> NativeUInt(csByte)) then
+  SourceFlags := {not Ascii}not SourceFlags;
+  if (AKind = NativeUInt(csByte)) then
+  begin
+    if ((AFlags shr 31) and SourceFlags <> 0) then
+      MaxAppendSize := MaxAppendSize * 3;
+  end else
   begin
     if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
@@ -29383,8 +29390,7 @@ begin
   SourceFlags := {not Ascii}not SourceFlags;
   if (AKind = NativeUInt(csByte)) then
   begin
-    SourceFlags := SourceFlags and (AFlags shr 31);
-    if (SourceFlags = 0) then goto done;
+    if ((AFlags shr 31) and SourceFlags = 0) then goto done;
   end else
   begin
     if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
@@ -30147,8 +30153,6 @@ constructor TCachedTextWriter.Create(const Context: PUniConvContext;
 const
   CHARS_FALSE: array[0..4] of Byte = (Ord('F'), Ord('a'), Ord('l'), Ord('s'), Ord('e'));
   CHARS_TRUE: array[0..3] of Byte = (Ord('T'), Ord('r'), Ord('u'), Ord('e'));
-  ASCII_SPACES = $20202020;
-  ASCII_NULLS = $30303030;
 var
   VWBufferedAscii: procedure(From: PByte; Count: NativeUInt) of object;
   VWAscii: procedure(const AChars: PAnsiChar; const ALength: NativeUInt) of object;
@@ -30240,7 +30244,7 @@ begin
   P := FCurrent;
 
   // write data
-  if (@PUniConvContextEx(@Context).FConvertProc <> @TUniConvContextEx.convert_copy) then
+  if (@PUniConvContextEx(@Context).FConvertProc = @TUniConvContextEx.convert_copy) then
   begin
     Count := Context.SourceSize;
     Inc(P, Count);
@@ -30272,6 +30276,7 @@ begin
     if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
     begin
     flush:
+      Self.FCurrent := P;
       Self.Flush;
       P := Self.FCurrent;
     end;
@@ -32216,11 +32221,12 @@ begin
   end else
   begin
     TUniConvContextEx(FHugeContext).FCallbacks.Writer := FSBCSValues;
+    TUniConvContextEx(FUTF32Context).FCallbacks.Writer := FSBCSValues;
   end;
 
   TUniConvContextEx(FHugeContext).F.Flags := Flags;
   TUniConvContextEx(FUTF32Context).F.Flags := Flags + Cardinal(bomUTF32);
-  TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_universal;
+  @TUniConvContextEx(FUTF32Context).FConvertProc := @TUniConvContextEx.convert_universal;
 end;
 
 procedure TByteTextWriter.WriteCRLF;
@@ -32759,10 +32765,10 @@ var
 begin
   P := Self.FCurrent;
   Converter := Self.FSBCSValues;
-  Inc(P, ALength);
   if (Converter = nil) then
   begin
     // write data
+    Inc(P, ALength);
     if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
     begin
       Self.OverflowWriteData(AChars^, ALength);
@@ -32896,7 +32902,7 @@ begin
   Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF16) shl ENCODING_DESTINATION_OFFSET);
   TUniConvContextEx(FHugeContext).F.Flags := Flags;
   TUniConvContextEx(FUTF32Context).F.Flags := Flags + Cardinal(bomUTF32);
-  TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_universal;
+  @TUniConvContextEx(FUTF32Context).FConvertProc := @TUniConvContextEx.convert_universal;
 end;
 
 procedure TUTF16TextWriter.WriteCRLF;
@@ -33526,8 +33532,8 @@ var
 begin
   Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
   TUniConvContextEx(FHugeContext).F.Flags := Flags;
-  TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_universal;
-  TUniConvContextEx(FUTF32Context).FCallbacks.ReaderWriter := @TUniConvContextEx.convert_copy;
+  @TUniConvContextEx(FHugeContext).FConvertProc := @TUniConvContextEx.convert_universal;
+  @TUniConvContextEx(FUTF32Context).FConvertProc := @TUniConvContextEx.convert_copy;
 end;
 
 procedure TUTF32TextWriter.WriteCRLF;
@@ -33814,7 +33820,7 @@ begin
     Source := AChars;
     SourceSize := ALength;
     F.Flags := (F.Flags and -32);
-    FCallbacks.Converter := Self.FSBCSLookup.CurrentConverter;
+    FCallbacks.Reader := Self.FSBCSLookup.CurrentConverter;
   end;
 
   Self.WriteContextData(FHugeContext);

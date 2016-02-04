@@ -30773,7 +30773,7 @@ begin
         PWord(@FBuffer.Digits.Ascii)^ := Lookup[Byte(S)];
       end;
       S := Pointer(@FBuffer.Digits.Ascii);
-      Count := 1;
+      Count := Byte(PWord(@FBuffer.Digits.Ascii)^ <> 0);
     end;
     vtPChar:
     begin
@@ -30848,7 +30848,7 @@ begin
   else
     // vtWideChar
     S := Pointer(@Arg.VWideChar);
-    Count := 1;
+    Count := Byte(Arg.VWideChar <> #0);
   end;
 
   Width := Self.FFormat.Settings.Precision;
@@ -30856,14 +30856,14 @@ begin
     Count := NativeUInt(Width);
 
   Width := Self.FFormat.Settings.Width;
-  if (Width > 0) then
+  if (Width < 0) then
   begin
+    Width := -Width;
     FVirtuals.WriteUnicodeChars(Self, S, Count);
     FBuffer.Cached.Chars{S} := nil;
     if (NativeUInt(Width) > Count) then goto ascii_align;
   end else
   begin
-    Width := -Width;
     FBuffer.Cached.Chars := S;
 
     if (NativeUInt(Width) > Count) then
@@ -30909,7 +30909,7 @@ const
 
   CHAR_LOOKUP: array[0..31] of Byte = (
      $ff, $ff, $ff, $ff, CHD, CHE, CHF, CHG, $ff, $ff, $ff, $ff, $ff, CHM, CHN, $ff,
-     CHP, $ff, $ff, CHS, $ff, CHU, $ff, CHX, $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff
+     CHP, $ff, $ff, CHS, $ff, CHU, $ff, $ff, CHX, $ff, $ff, $ff, $ff, $ff, $ff, $ff
   );
 
 const
@@ -31008,8 +31008,10 @@ begin
     end;
     vtPointer:
     begin
-      Precision := Precision and -NativeInt(NativeUInt(Precision) <= SizeOf(Pointer) * 2);
+      Dec(Precision, SizeOf(Pointer) * 2);
+      Precision := Precision and -NativeInt(NativeUInt(Precision) <= (32 - SizeOf(Pointer) * 2));
       if (X <> CHP) then goto fail;
+      Inc(Precision, SizeOf(Pointer) * 2);
 
       {$ifdef SMALLINT}
          P := WriteHexAscii(FBuffer.Digits, Cardinal(Arg.VPointer), Precision);
@@ -31133,14 +31135,14 @@ begin
 
 count_calculated:
   // ascii spaces align
-  if (Width > 0) then
+  if (Width < 0) then
   begin
+    Width := -Width;
     FVirtuals.WriteBufferedAscii(Self, P, Count);
     PPointer(@FBuffer.Digits.Quads[2])^{P} := nil;
     if (NativeUInt(Width) > Count) then goto ascii_align;
   end else
   begin
-    Width := -Width;
     PPointer(@FBuffer.Digits.Quads[2])^ := P;
 
     if (NativeUInt(Width) > Count) then
@@ -31177,6 +31179,7 @@ const
   PERSENT_XOR_MASK = $25252525;
   SUB_MASK  = Integer(-$01010101);
   OVERFLOW_MASK = Integer($80808080);
+  ASCII_MASK = Integer($80808080);
 var
   S, TopS: PByte;
   Arg: PVarRec;
@@ -31235,7 +31238,7 @@ begin
       goto write_substring;
     until (False);
 
-    case (NativeUInt(TopSCardinal) + CHARS_IN_CARDINAL - NativeUInt(S)) of
+    case (NativeUInt(TopSCardinal) + SizeOf(Cardinal) - NativeUInt(S)) of
       3:
       begin
       _3:
@@ -31266,14 +31269,15 @@ begin
 
   write_substring:
     X := NativeUInt(S) - NativeUInt(Self.FBuffer.Cached.Chars);
-    if ((not Flags) and OVERFLOW_MASK = 0) then
+    if ((not Flags) and ASCII_MASK = 0) and (X <> 0) then
     begin
       Self.FVirtuals.WriteAscii(Self, Self.FBuffer.Cached.Chars, X);
     end else
     begin
       Self.FBuffer.Cached.Length := X;
       Self.FBuffer.Cached.Flags := Self.FFormat.FmtStr.Flags;
-      Self.WriteByteString(ByteString(Self.FBuffer.Cached));
+      if (Self.FBuffer.Cached.Length <> 0) then
+        Self.WriteByteString(ByteString(Self.FBuffer.Cached));
     end;
     Inc(S);
     TopS := Store.TopS;
@@ -31396,6 +31400,7 @@ begin
         if (V > FMT_MAX_WIDTH) then goto einvalid_format;
         if (S = TopS) then goto einvalid_format;
         X := S^;
+        Inc(S);
         Dec(X, Ord('0'));
         goto fill_width;
       end;
@@ -31515,9 +31520,341 @@ begin
   until (S = Store.TopS);
 end;
 
+// WriteFormatByte copy + modified
 procedure TCachedTextWriter.WriteFormatWord;
-begin
+label
+  einvalid_format, eargument_missing, next_iteration,
+  write_substring,
+  unspecified_ordinal_found, leftjustification_found, prec_found, type_found,
+  fill_width, fill_precision;
+const
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
+  PERSENT_XOR_MASK = $00250025;
+  SUB_MASK  = Integer(-$00010001);
+  OVERFLOW_MASK = Integer($80008000);
+  ASCII_MASK = Integer($ff80ff80);
+var
+  S, TopS: PWord;
+  Arg: PVarRec;
+  Flags, X, V: NativeInt;
+  TopSCardinal: PWord;
 
+  Store: packed record
+    TopS: PWord;
+    TopSCardinal: PWord;
+    Arg: PVarRec;
+  end;
+begin
+  // store parameters
+  S := Self.FFormat.FmtStr.Chars;
+  X := Self.FFormat.FmtStr.Length;
+  Store.TopS := Pointer(@PUTF16CharArray(S)[X]);
+  Store.TopSCardinal := Pointer(@PUTF16CharArray(S)[X - CHARS_IN_CARDINAL]);
+  if (X = 0) then
+  begin
+    Exit;
+
+  einvalid_format:
+    raise ECachedString.Create(
+      Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SInvalidFormat),
+      PUTF16String(@Self.FFormat.FmtStr));
+
+  eargument_missing:
+    raise ECachedString.Create(
+      Pointer(@{$ifdef UNITSCOPENAMES}System.{$endif}SysConst.SArgumentMissing),
+      PUTF16String(@Self.FFormat.FmtStr));
+  end;
+  Store.Arg := Self.FFormat.Args;
+
+  repeat
+    // unformatted substring
+    Self.FBuffer.Cached.Chars := S;
+    TopSCardinal := Store.TopSCardinal;
+    Flags := -1;
+    X := -1;
+    repeat
+      Flags := Flags and X;
+      if (NativeUInt(S) > NativeUInt(TopSCardinal)) then Break;
+      X := PCardinal(S)^;
+      Inc(S, CHARS_IN_CARDINAL);
+
+      X := X xor PERSENT_XOR_MASK;
+      V := X + SUB_MASK;
+      X := not X;
+
+      if (V and OVERFLOW_MASK and X = 0) then Continue;
+      Dec(S, CHARS_IN_CARDINAL);
+      X := ((not X) + SUB_MASK) and X;
+      X := {0/2}Byte(X and $8000 = 0) * 2;
+      Flags := Flags and (not NativeInt(PCardinal(S)^ and BYTE_MASKS[X]));
+      Inc(NativeUInt(S), X);
+      goto write_substring;
+    until (False);
+
+    if (NativeUInt(TopSCardinal) + SizeOf(Cardinal) <> NativeUInt(S)) then
+    begin
+      X := S^;
+      if (X = Ord('%')) then goto write_substring;
+      Flags := Flags and (not X);
+      Inc(S);
+    end;
+
+  write_substring:
+    X := NativeUInt(S) - NativeUInt(Self.FBuffer.Cached.Chars);
+    if ((not Flags) and ASCII_MASK = 0) and (X <> 0) then
+    begin
+      Self.FVirtuals.WriteUnicodeAscii(Self, Self.FBuffer.Cached.Chars, X shr 1);
+    end else
+    begin
+      Self.FBuffer.Cached.Length := X;
+      Self.FBuffer.Cached.Flags := Self.FFormat.FmtStr.Flags;
+      {<--compiler optimizer fix}
+      if (X <> 0) then
+        Self.FVirtuals.WriteUnicodeChars(Self, Self.FBuffer.Cached.Chars, X shr 1);
+    end;
+    Inc(S);
+    TopS := Store.TopS;
+    if (NativeUInt(S) >= NativeUInt(TopS)) then Exit;
+
+    // "%"  [index ":"] ["-"] [width] ["." prec] type
+    // "%%"
+    Arg := Store.Arg;
+    Self.FFormat.Settings.F.PrecisionWidth := UNDEFINED_PRECISIONWIDTH;
+    X := S^;
+    Inc(S);
+    if (X > High(FMT_CHARS)) then goto einvalid_format;
+    X := FMT_CHARS[X];
+    case NativeUInt(X) of
+      FMT_CHAR_TYPE: goto type_found;
+      FMT_CHAR_POINT: goto prec_found;
+      FMT_CHAR_ASTERISK:
+      begin
+        if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+        if (Arg.VType <> vtInteger) then goto einvalid_format;
+        V := Arg.VInteger;
+        Inc(Arg);
+
+        goto unspecified_ordinal_found;
+      end;
+      FMT_CHAR_MINUS: goto leftjustification_found;
+      FMT_CHAR_DIGIT:
+      begin
+        // unspecified digits (0..999) --> ordinal
+        Dec(S);
+        V := S^;
+        Inc(S);
+        Dec(V, Ord('0'));
+
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := V * 10;
+          V := V + X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+          if (NativeUInt(X) < 10) then
+          begin
+            V := V * 10;
+            V := V + X;
+          unspecified_ordinal_found:
+            if (S = TopS) then goto einvalid_format;
+            X := S^;
+            Inc(S);
+            Dec(X, Ord('0'));
+          end;
+        end;
+
+        if (X > High(FMT_CHARS) - Ord('0')) then goto einvalid_format;
+        X := FMT_CHARS[X + Ord('0')];
+        case NativeUInt(X) of
+          FMT_CHAR_TYPE:
+          begin
+            Self.FFormat.Settings.Width := V;
+            if (V < FMT_MIN_WIDTH) then goto einvalid_format;
+            if (V > FMT_MAX_WIDTH) then goto einvalid_format;
+            goto type_found;
+          end;
+          FMT_CHAR_POINT:
+          begin
+            Self.FFormat.Settings.Width := V;
+            if (V < FMT_MIN_WIDTH) then goto einvalid_format;
+            if (V > FMT_MAX_WIDTH) then goto einvalid_format;
+            goto prec_found;
+          end;
+          FMT_CHAR_COLON:
+          begin
+            if (NativeUInt(V) >= Self.FFormat.ArgsCount) then goto eargument_missing;
+            Arg := Self.FFormat.Args;
+            Inc(Arg, V);
+          end;
+        else
+          goto einvalid_format;
+        end;
+      end;
+      FMT_CHAR_PERSENT:
+      begin
+        Self.FVirtuals.WriteBufferedAscii(Self, @FBuffer.Constants[{'%'}2], 1);
+        goto next_iteration;
+      end;
+    else
+      goto einvalid_format;
+    end;
+
+    (*
+        FMT_CHAR_TYPE     = 0; // 'd', 'u', 'e', 'f', 'g', 'n', 'm', 'p', 's', 'x'
+        FMT_CHAR_POINT    = 1; // '.'
+        FMT_CHAR_ASTERISK = 2; // '*'
+        FMT_CHAR_MINUS    = 3; // '-'
+        FMT_CHAR_DIGIT    = 4; // '0'..'9'
+        FMT_CHAR_PERSENT  = 5; // '%'
+        FMT_CHAR_COLON    = 6; // ':'
+    *)
+
+    // width (precision/type)
+    if (S = TopS) then goto einvalid_format;
+    X := S^;
+    Inc(S);
+    if (X > High(FMT_CHARS)) then goto einvalid_format;
+    X := FMT_CHARS[X];
+    case NativeUInt(X) of
+      FMT_CHAR_TYPE: goto type_found;
+      FMT_CHAR_POINT: goto prec_found;
+      FMT_CHAR_ASTERISK:
+      begin
+        // width argument
+        if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+        if (Arg.VType <> vtInteger) then goto einvalid_format;
+        V := Arg.VInteger;
+        Inc(Arg);
+
+        if (V < FMT_MIN_WIDTH) then goto einvalid_format;
+        if (V > FMT_MAX_WIDTH) then goto einvalid_format;
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        goto fill_width;
+      end;
+      FMT_CHAR_MINUS:
+      begin
+      leftjustification_found:
+        // negative width digits
+        V := 0;
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := V - X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+          if (NativeUInt(X) < 10) then
+          begin
+            V := V * 10;
+            V := V - X;
+            if (S = TopS) then goto einvalid_format;
+            X := S^;
+            Inc(S);
+            Dec(X, Ord('0'));
+          end;
+        end;
+        goto fill_width;
+      end;
+      FMT_CHAR_DIGIT:
+      begin
+        // width digits
+        Dec(S);
+        V := S^;
+        Inc(S);
+        Dec(V, Ord('0'));
+
+        if (S = TopS) then goto einvalid_format;
+        X := S^;
+        Inc(S);
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := V * 10;
+          V := V + X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+        end;
+
+      fill_width:
+        Self.FFormat.Settings.Width := V;
+        if (X > High(FMT_CHARS) - Ord('0')) then goto einvalid_format;
+        X := FMT_CHARS[X + Ord('0')];
+      end;
+    else
+      goto einvalid_format;
+    end;
+
+    // precision
+    if (X = FMT_CHAR_POINT) then
+    begin
+    prec_found:
+      TopS := Store.TopS;
+      if (S = TopS) then goto einvalid_format;
+      X := S^;
+      Inc(S);
+      if (X = Ord('*')) then
+      begin
+        // precision argument
+        if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+        if (Arg.VType <> vtInteger) then goto einvalid_format;
+        V := Arg.VInteger;
+        Inc(Arg);
+
+        if (NativeUInt(V) > FMT_MAX_PRECISION) then goto einvalid_format;
+        if (S = TopS) then goto einvalid_format;
+        Inc(S);
+        goto fill_precision;
+      end else
+      begin
+        // precision digits
+        Dec(X, Ord('0'));
+        if (NativeUInt(X) < 10) then
+        begin
+          V := X;
+          if (S = TopS) then goto einvalid_format;
+          X := S^;
+          Inc(S);
+          Dec(X, Ord('0'));
+          if (NativeUInt(X) < 10) then
+          begin
+            V := V * 10;
+            V := V + X;
+            if (S = TopS) then goto einvalid_format;
+            Inc(S);
+          end;
+
+        fill_precision:
+          Self.FFormat.Settings.F.Precision := V;
+        end;
+      end;
+    end;
+
+  type_found:
+    if (Arg = Self.FFormat.TopArg) then goto eargument_missing;
+    Inc(Arg);
+    Store.Arg := Arg;
+    Dec(Arg);
+    Dec(S);
+    if (not Self.WriteFormatArg(S^, Arg^)) then goto einvalid_format;
+    Inc(S);
+
+  next_iteration:
+  until (S = Store.TopS);
 end;
 
 procedure TCachedTextWriter.WriteBoolean(const Value: Boolean);
@@ -32822,6 +33159,7 @@ begin
     Limit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
     if (Limit > NativeUInt(Self.FOverflow)) then
     begin
+      TUniConvContextEx(FHugeContext).SourceSize := TUniConvContextEx(FHugeContext).SourceSize * 2;
       TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_utf8_from_utf16);
       TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.utf8_from_utf16;
       Self.WriteContextData(FHugeContext);
@@ -32841,6 +33179,7 @@ begin
     Limit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
     if (Limit > NativeUInt(Self.FOverflow)) then
     begin
+      TUniConvContextEx(FHugeContext).SourceSize := TUniConvContextEx(FHugeContext).SourceSize * 2;
       TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
       TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_utf16);
       TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf16;

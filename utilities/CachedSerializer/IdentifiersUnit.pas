@@ -309,7 +309,7 @@ begin
   Converter.Length := 0;
   Converter.Append(Value);
 
-  Self.DataSize := Converter.Length shl SHIFT_VALUES[Converter.StringKind];
+  Self.DataSize := Converter.Length shl SHIFT_VALUES[Converter.Kind];
   SetLength(Bytes, Self.DataSize + SizeOf(Cardinal){Gap});
   Move(Converter.Chars^, Pointer(Bytes)^, Self.DataSize);
   PCardinal(@Bytes[Self.DataSize])^ := 0{Gap};
@@ -365,7 +365,7 @@ begin
     DOrTop := DOr;
     Inc(DOrTop, DataSize);
 
-    Kind := Converter.StringKind;
+    Kind := Converter.Kind;
     if (Converter.Encoding = CODEPAGE_UTF8) then Kind := csNone{UTF8 Alias};
 
     while (DOr <> DOrTop) do

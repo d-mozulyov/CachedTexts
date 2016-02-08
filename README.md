@@ -6,15 +6,48 @@ Cached Texts is a powerful and compact cross-platform library aimed at parsing a
 * There are 3 possible basic encodings for parsing and generation of the text: 
 Byte-encoding, UTF-16 and UTF-32. Each of them has its advantages and disadvantages. UTF-16 is the most common encoding. In Delphi it matches such types as `string`/`UnicodeString` and `WideString`. However, it is not the fastest and it requires additional logic to handle surrogate characters. UTF-32 is the most universal, but at the same time the slowest encoding. Byte-encodings is understood as the UTF-8 or any of the supported SBCS (Ansi). This kind of interface is the fastest and it is universal for ASCII-characters, but it can be difficult at the identification of used encoding.
 * **There are 3 types of its own strings used when parsing**: `ByteString`, `UTF16String` and `UTF32String`. The peculiarity of these strings lies in the fact that for keeping data they do not take memory in the heap, but they refer to data in `CachedBuffer`, which significantly increases the performance. All [CachedString](https://github.com/d-mozulyov/CachedTexts#cachedstrings-bytestringutf16stringutf32string)-types have the same interface, which consists of properties, functions and overloaded operators, allowing to carry out a wide range of tasks along with the system string types. Furthermore they are faster than system counterparts. To convert from one [CachedString](https://github.com/d-mozulyov/CachedTexts#cachedstrings-bytestringutf16stringutf32string)-type to another there is a [TTemporaryString](https://github.com/d-mozulyov/CachedTexts#ttemporarystring) type.
-* For parsing and generation of texts there are standard classes: `TByteTextReader`/`TUTF16TextReader`/`TUTF32TextReader` and 
-`TByteTextWriter`/`TUTF16TextWriter`/`TUTF32TextWriter` (*not yet implemented*).
+* For parsing and generation of texts there are standard classes: [CachedTextReaders](https://github.com/d-mozulyov/CachedTexts#cachedtextreaders-bytetextreaderutf16textreaderutf32textreader) (`TByteTextReader`/`TUTF16TextReader`/`TUTF32TextReader`) and [CachedTextWriters](https://github.com/d-mozulyov/CachedTexts#cachedtextwriters-bytetextwriterutf16textwriterutf32textwriter) (`TByteTextWriter`/`TUTF16TextWriter`/`TUTF32TextWriter`).
 * (*Not yet implemented*) There are standard classes for popular markup languages: XML, HTML and JSON. For low level Simple-API interfaces (like "MSXMLSAX2") it is used Byte-encodings. For the Document Object Model (DOM) it is used `UnicodeString`.
 * Despite the fact that [CachedString](https://github.com/d-mozulyov/CachedTexts#cachedstrings-bytestringutf16stringutf32string)-types quite quickly compare with 
 string constants, the problem of identification of strings (such as serialization) is quite demanding to resources. Many people use solutions based on binary-trees or hash-tables, however, CachedTexts library contains the [CachedSerializer](https://github.com/d-mozulyov/CachedTexts#cachedserializer)-utility, allowing to achieve maximum performance at the expense of code generation.
 
 **Currently, the library is in the unofficial release.**
 
-##### Text parsing example
+##### CachedTextReaders: TByteTextReader/TUTF16TextReader/TUTF32TextReader
+There are several classes for sequential reading of text data: `TByteTextReader`, `TUTF16TextReader` and `TUTF32TextReader`. You can choose any class for parsing in dependence which encoding is more comfortable to use. In case the encoding of the source text data is different, the conversion will be executed automatically, but it might significantly slow down the application execution. The most of text files are in the byte-encoding, so it is recommended to use the `TByteTextReader`-class for parts of a code which are demanding for performance, because the automatic conversion of text will not be made and ByteString is the fastest string type.
+
+Every `TCachedTextReader`-class has two main constructors: `Create` and `CreateFromFile`. In both cases the source encoding is determined by the BOM. If the BOM is absent, it will be considered the parameter `DefaultByteEncoding`. This parameter may be equal to CODEPAGE_UTF8 or one of SBCS-encoding. The constructor `CreateDirect` can be used when the source encoding and the conversion context are directly defined and BOM is not considered.
+
+The functionality of the `TCachedTextReader`-class has much in common with the functionality of the `TCachedReader`-class. In both classes an access can be carried out with properties `Current`, `Overflow`, `Margin` and the function `Flush`. There are also high-level functions: `ReadData`, `Skip`, `ReadChar` and two kinds of `Readln`. It is recommended to use `Readln` function for text data consisting of many lines.
+```pascal
+type
+  TByteTextReader/TUTF16TextReader/TUTF32TextReader = class(TCachedTextReader)
+  public
+    constructor Create({Encoding for TByteTextReader,} const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile({Encoding for TByteTextReader,} const FileName: string; const DefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    {for TByteTextReader:} constructor CreateDefault(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    {for TByteTextReader:} constructor CreateDefaultFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
+  
+    procedure ReadData(var Buffer; const Count: NativeUInt); 
+    procedure Skip(const Count: NativeUInt);
+    function Flush: NativeUInt;
+    function Readln(var S: ByteString/UTF16String/UTF32String): Boolean; overload;
+    function Readln(var S: UnicodeString): Boolean; overload;
+    function ReadChar: UCS4Char; 
+
+    property Current: PByte read/write
+    property Overflow: PByte read
+    property Margin: NativeInt read
+    property Finishing: Boolean read
+    property EOF: Boolean read/write
+    property Converter: TUniConvReReader read
+    property Source: TCachedReader read
+    property Owner: Boolean read/write
+    property FileName: string read
+  end;
+```
+Text parsing example:
 ```pascal
 const
   URL_ID = '<a href=';
@@ -85,7 +118,7 @@ begin
 end;
 ```
 
-##### "CachedStrings": ByteString/UTF16String/UTF32String
+##### CachedStrings: ByteString/UTF16String/UTF32String
 ```pascal
 type
   ByteString/UTF16String/UTF32String = record
@@ -185,6 +218,76 @@ type
 
 *Supported time formats*: `hh:mm:ss.zzzzzz`, `hh-mm-ss.zzzzzz`, `hh:mm:ss.zzz`, `hh-mm-ss.zzz`, `hh:mm:ss`, `hh-mm-ss`, `hhmmss`, `hh:mm`, `hh-mm`, `hhmm`.
 
+##### CachedTextWriters: TByteTextWriter/TUTF16TextWriter/TUTF32TextWriter
+There are several classes for sequential writeing of text data: `TByteTextWriter`, `TUTF16TextWriter` and `TUTF32TextWriter`. The functionality of the `TCachedTextWriter`-class has much in common with the functionality of the `TCachedWriter`-class. In both classes an access can be carried out with properties `Current`, `Overflow`, `Margin` and the function `Flush`. The function `WriteData` can be used to direct text data writing. Regardless of `TCachedTextWriter`-class encoding, the text data can be automatically convert to any other encoding - to do this you should specify the `BOM`-parameter in `Create`/`CreateFromFile` constructors, or `Context`-parameter in `CreateDirect` constructor.
+
+`TCachedTextWriter`-classes allow you to write not only string lypes, also other common types: Booleans, Ordinals, Floats, DateTimes and Variants; functions `WriteFormat`, `WriteFormatUTF8` and `WriteFormatUnicode` are used for the text formatting. It is important to know that all these functions work faster than their SysUtils-analogues. Float and DateTime write parameters set in fields `FloatSettings` and `DateTimeSettings`.
+```pascal
+type
+  TByteTextWriter/TUTF16TextWriter/TUTF32TextWriter = class(TCachedTextWriter)
+  public
+    constructor Create({Encoding for TByteTextWriter,} const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
+    constructor CreateFromFile({Encoding for TByteTextWriter,} const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    procedure WriteData(const Buffer; const Count: NativeUInt);
+    function Flush: NativeUInt;
+
+    property Current: PByte read/write
+    property Overflow: PByte read
+    property Margin: NativeInt read
+    property EOF: Boolean read/write
+    property Converter: TUniConvReWriter read
+    property Target: TCachedWriter read
+    property Owner: Boolean read/write
+    property FileName: string read
+  public
+    FloatSettings: TFloatSettings;
+    DateTimeSettings: TDateTimeSettings;
+
+    procedure WriteCRLF;
+    procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
+    procedure WriteUnicodeAscii(const AChars: PUnicodeChar; const ALength: NativeUInt);
+    procedure WriteUCS4Ascii(const AChars: PUCS4Char; const ALength: NativeUInt);
+    procedure WriteAnsiChars(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word);
+    procedure WriteUTF8Chars(const AChars: PUTF8Char; const ALength: NativeUInt);
+    procedure WriteUnicodeChars(const AChars: PUnicodeChar; const ALength: NativeUInt);
+    procedure WriteUCS4Chars(const AChars: PUCS4Char; const ALength: NativeUInt);
+    
+    procedure WriteByteString(const S: ByteString);
+    procedure WriteUTF16String(const S: UTF16String);
+    procedure WriteUTF32String(const S: UTF32String);
+    
+    procedure WriteAnsiString(const S: AnsiString);
+    procedure WriteShortString(const S: ShortString; const CodePage: Word = 0);
+    procedure WriteUTF8String(const S: UTF8String);
+    procedure WriteWideString(const S: WideString);
+    procedure WriteUnicodeString(const S: UnicodeString);
+    procedure WriteUCS4String(const S: UCS4String; const NullTerminated: Boolean = True);
+    
+    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const);
+    procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const);
+    procedure WriteFormatUnicode(const FmtStr: UnicodeString; const Args: array of const);
+  public
+    procedure WriteBoolean(const Value: Boolean);
+    procedure WriteBooleanOrdinal(const Value: Boolean);
+    procedure WriteInteger(const Value: Integer; const Digits: NativeUInt = 0);
+    procedure WriteHex(const Value: Integer; const Digits: NativeUInt = 0);
+    procedure WriteCardinal(const Value: Cardinal; const Digits: NativeUInt = 0);
+    procedure WriteInt64(const Value: Int64; const Digits: NativeUInt = 0);
+    procedure WriteHex64(const Value: Int64; const Digits: NativeUInt = 0);
+    procedure WriteUInt64(const Value: UInt64; const Digits: NativeUInt = 0);
+    procedure WriteFloat(const Value: Extended; const Settings: TFloatSettings); overload;
+    procedure WriteFloat(const Value: Extended); overload;
+    procedure WriteDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure WriteDate(const Value: TDateTime); overload;
+    procedure WriteTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure WriteTime(const Value: TDateTime); overload;
+    procedure WriteDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
+    procedure WriteDateTime(const Value: TDateTime); overload;
+    procedure WriteVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings); overload;
+    procedure WriteVariant(const Value: Variant); overload;
+  end;
+```  
 ##### TTemporaryString
 Memory manager operations and reference counting can take almost all the time during the parsing. All the system string types are served by intenal System.pas module functions and they produce several difficult operations for redistribution of allocated memory, which has a bad influence on performance during such prevalent operations as initialization, concatenation and finalization. Because of this the major emphasis in CachedTexts library is based on static-memory strings: ByteString, UTF16String and UTF32String. There are some goals though difficult to be solved without dynamic memory allocation, e.g. unpacking XML-string, which contains character references, or converting ByteString to UTF16String. Special for such tasks there is `TTemporaryString` type based on dynamic array of byte and memory reserve principle, which means that memory is meant to be never or rarely reallocated. `TTemporaryString` can keep only one of three data types at the same time: ByteString, UTF16String or UTF32String. `InitByteString`, `InitUTF16String` or `InitUTF32String` methods can be caused anytime. Data filling, converting and concatenation are executed due to `Append` methods. Data is added to the end of string or converted to necessary encoding previously.
 One of the most important feature of `TTemporaryString` is an opportunity of system string types “emulation”. In this case special system header (which allows compiler Delphi using `TTemporaryString` as “constant system strings”) is added to character data. It might be useful if your algorithms or functions use system strings, e.g. `Writeln`, `ExtractFileName` or `StrToDate(FormatSettings)`. However be careful, because emulated string lifetime is restricted by `TTemporaryString` data lifetime. Emulated string use as a temporary string constant is highly recommended. For using real system strings choose `CachedString.ToString`-methods or `UniqueString` after string variable assignment.

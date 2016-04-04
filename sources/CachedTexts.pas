@@ -3546,8 +3546,6 @@ const
   D100 = D4 * 25 - 1;
   D400 = D100 * 4 + 1;
 
-  MONTH_TABLES: array[0..1] of PMonthTable = (@STD_MONTH_TABLE, @LEAP_MONTH_TABLE);
-
   // L:28, DD:24, MM:20, SEP2:16, SEP1:12, YYYY:8, SEPCHAR: 0
   FORMAT_SETTINGS: array[0..2*Ord(High(TDateFormat)) + 1] of Cardinal = (
     {Sep + dateYYYYMMDD} $a8574000,
@@ -3561,18 +3559,29 @@ const
           {dateMMDDYYYY} $820ff400,
             {dateMMDDYY} $620ff200
   );
-
+  DAY_TABLE: array [0..11] of Integer = (31, 30, 31, 30, 31, 31, 30, 31, 30,
+    31, 31, MaxInt);
+  OFFSET_TABLE: array [0..11] of Integer =
+  (
+    0-1,
+    0+31-1,
+    0+31+30-1,
+    0+31+30+31-1,
+    0+31+30+31+30-1,
+    0+31+30+31+30+31-1,
+    0+31+30+31+30+31+31-1,
+    0+31+30+31+30+31+31+30-1,
+    0+31+30+31+30+31+31+30+31-1,
+    0+31+30+31+30+31+31+30+31+30-1,
+    0+31+30+31+30+31+31+30+31+30+31-1,
+    0+31+30+31+30+31+31+30+31+30+31+31-1
+  );
 var
   Y, M, D: NativeInt;
   Fmt, X: NativeInt;
 
-  T: Cardinal;
-  MonthTable: PHugeCardinalArray;
-
   Store: record
-  case Integer of
-    0: (IntegerValue: Integer);
-    1: (DoubleValue: Double; Fmt: NativeInt);
+    Fmt: NativeInt;
   end;
 begin
   // format settings
@@ -3581,7 +3590,7 @@ begin
 
   // four hundred years
   D := DigitsRec.Quads[0];
-  Dec(D);
+  Inc(D, D1 - 31 - 28 - 1);
   Y := 1;
   if (D >= 4*D400) then
   repeat
@@ -3594,77 +3603,79 @@ begin
     Inc(Y, 400);
   until (D < D400);
 
-  // Y := Y + 100 * (D div D100)
+  // bounded Y := Y + 100 * (D div D100)
   // D := D mod D100
-  if (D >= 4*D100) then
+  if (D >= D100) then
   begin
-    Inc(Y, 3*100);
-    D := D - 3*D100;
-  end else
-  begin
+    Dec(D, D100);
+    Inc(Y, 100);
+    if (D >= D100) then
     begin
-      // M := D div D100
-      PHugeCardinalArray(@Store)[0] := D;
-      Store.DoubleValue := Store.IntegerValue * (1 / D100) + DBLROUND_CONST;
-      M := Store.IntegerValue;
-    end;
-    Inc(Y, M * 100);
-    D := D - M * D100;
-    if (D < 0) then // round fix
-    begin
-      Inc(D, D100);
-      Dec(Y, 100);
+      Dec(D, D100);
+      Inc(Y, 100);
+      if (D >= D100) then
+      begin
+        Dec(D, D100);
+        Inc(Y, 100);
+      end;
     end;
   end;
 
   // Y := Y + 4 * (D div D4)
   // D := D mod D4
-  M := (D * $59C7) shr 25; // M := D div D4
+  M := (D * $59B7) shr 25; // M := D div D4
   Inc(Y, M * 4);
   D := D - M * D4;
 
-  // Y := Y + (D div D1)
+  // bounded Y := Y + (D div D1)
   // D := D mod D1
-  if (D >= 4*D1) then
+  if (D >= D1) then
   begin
-    Inc(Y, 3);
-    D := D - 3*D1;
-  end else
-  begin
-    M := (D * $59D) shr 19; // M := D div D1
-    Inc(Y, M);
-    D := D - M * D1;
+    Dec(D, D1);
+    Inc(Y, 1);
+    if (D >= D1) then
+    begin
+      Dec(D, D1);
+      Inc(Y, 1);
+      if (D >= D1) then
+      begin
+        Dec(D, D1);
+        Inc(Y, 1);
+      end;
+    end;
   end;
+
+  // detect month/day, year correction
+  M := D shr 5;
+  D := D - OFFSET_TABLE[M];
+  Fmt := DAY_TABLE[M];
+  if (D > Fmt) then
+  begin
+    Inc(M);
+    Dec(D, Fmt);
+  end;
+  Fmt := Byte(M <= (12-3));
+  Dec(Y, Fmt);
+  Inc(M, 3);
+  Dec(M, (Fmt - 1) and 12);
+
+  // MM, DD
+  Fmt := Store.Fmt;
+  PWord(@PByteCharArray(P)[(Fmt shr 20) and $f])^ := DIGITS_LOOKUP_ASCII[M];
+  PWord(@PByteCharArray(P)[(Fmt shr 24) and $f])^ := DIGITS_LOOKUP_ASCII[D];
 
   // YYYY
   X := (Y * $147B) shr 19; // X := Y div 100
   Y := Y - (X * 100);      // Y := Y mod 100
-  Fmt := Store.Fmt;
-  PWord(@PByteCharArray(P)[(Fmt shr 8) and $f])^ := DIGITS_LOOKUP_ASCII[X];
-  PWord(@PByteCharArray(P)[(Fmt shr 8) and $f + 2])^ := DIGITS_LOOKUP_ASCII[Y];
-
-  // detect month/day
-  MonthTable := Pointer(MONTH_TABLES[Byte(Y and 3 = 0) and (Byte(Y <> 0) or Byte(X and 3 = 0))]);
-  T := (D shl 16) + 32;
-  M := NativeInt(MonthTable);
-  Inc(NativeInt(MonthTable), (6 * SizeOf(Cardinal)) and -Ord(MonthTable[6] < T));
-  Inc(NativeInt(MonthTable), (3 * SizeOf(Cardinal)) and -Ord(MonthTable[3] < T));
-  Inc(NativeInt(MonthTable), (1 * SizeOf(Cardinal)) and -Ord(MonthTable[1] < T));
-  Inc(NativeInt(MonthTable), (1 * SizeOf(Cardinal)) and -Ord(MonthTable[1] < T));
-  D := (T shr 16 + 1) - PMonthInfo(MonthTable).Before;
-  M := (NativeInt(MonthTable) - M) shr 2 + 1;
+  M := (Fmt shr 8) and $f;
+  PWord(@PByteCharArray(P)[M])^ := DIGITS_LOOKUP_ASCII[X];
+  Inc(M, 2);
+  PWord(@PByteCharArray(P)[M])^ := DIGITS_LOOKUP_ASCII[Y];
 
   // separators
-  {$ifdef CPUX86}
-  Fmt := Store.Fmt;
-  {$endif}
-  Y := Fmt and $7f;
-  PByteCharArray(P)[(Fmt shr 12) and $f] := Y;
-  PByteCharArray(P)[(Fmt shr 16) and $f] := Y;
-
-  // MM, DD
-  PWord(@PByteCharArray(P)[(Fmt shr 20) and $f])^ := DIGITS_LOOKUP_ASCII[M];
-  PWord(@PByteCharArray(P)[(Fmt shr 24) and $f])^ := DIGITS_LOOKUP_ASCII[D];
+  M := Fmt and $7f;
+  PByteCharArray(P)[(Fmt shr 12) and $f] := M;
+  PByteCharArray(P)[(Fmt shr 16) and $f] := M;
 
   // Result
   Inc(P, Fmt shr 28);

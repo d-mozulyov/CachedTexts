@@ -181,10 +181,27 @@ begin
 end;
 
 function TIdentifierInfo.DoublePointPos(const S: UTF16String): NativeInt;
+var
+  Overflow: NativeInt;
+  Chars: PUnicodeChar;
 begin
-  for Result := 0 to NativeInt(S.Length) - 1 do
-  if (S.Chars[Result] = ':') and
-    ((Result = 0) or (S.Chars[Result - 1] <> '\')) then Exit;
+  Overflow := NativeInt(S.Length) - 1;
+  if (Overflow >= 0) then
+  begin
+    Result := -1;
+    Chars := S.Chars;
+
+    repeat
+      Inc(Result);
+      if (Result >= Overflow) then Break;
+
+      case Chars[Result] of
+        '\': Inc(Result);
+        ':': Exit;
+      end;
+    until (False);
+  end;
+
 
   Result := -1;
 end;

@@ -1,7 +1,7 @@
 unit CachedTexts;
 
 {******************************************************************************}
-{ Copyright (c) 2014 Dmitry Mozulyov                                           }
+{ Copyright (c) 2018 Dmitry Mozulyov                                           }
 {                                                                              }
 { Permission is hereby granted, free of charge, to any person obtaining a copy }
 { of this software and associated documentation files (the "Software"), to deal}
@@ -1527,9 +1527,9 @@ type
     procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const);
     {$else .NEXTGEN}
     procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
-    procedure WriteFormat(const FmtStr: UnicodeString; const Args: array of const); inline; overload;
+    procedure WriteFormat(const FmtStr: UnicodeString; const Args: array of const); overload;
     procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const); overload;
-    procedure WriteFormatUTF8(const FmtStr: UnicodeString; const Args: array of const); inline overload;
+    procedure WriteFormatUTF8(const FmtStr: UnicodeString; const Args: array of const); overload;
     {$endif}
     procedure WriteFormatUnicode(const FmtStr: UnicodeString; const Args: array of const);
   public
@@ -29548,7 +29548,7 @@ begin
           P.Wide.Length := L;
         {$ifdef WIDE_STR_SHIFT}L := L shr 1;{$endif}
 
-        {$if Defined(INTERNALSTRFLAGS) and not Defined(MSWINDOWS)}
+        {$if Defined(INTERNALSTRFLAGS) and (not Defined(MSWINDOWS)) and (not Defined(NEXTGEN))}
           {$if CompilerVersion >= 22}
              // Delphi >= XE (WideString = UnicodeString)
              P.Wide.CodePageElemSize := CODEPAGE_UTF16 or $00020000;
@@ -30767,7 +30767,9 @@ label
 var
   S: Pointer;
   Count: NativeUInt;
+  {$ifNdef NEXTGEN}
   Lookup: PUniConvWB;
+  {$endif}
   Width: NativeInt;
 begin
   S := Arg.VPointer;
@@ -31128,7 +31130,7 @@ begin
     end;
   else
     case Arg.VType of
-      vtChar, vtPChar, vtString, vtWideChar, vtPWideChar, vtVariant:
+      vtChar, vtPChar, {$ifNdef NEXTGEN}vtString,{$endif} vtWideChar, vtPWideChar, vtVariant:
       begin
         if (X <> CHS) then goto fail;
       write_difficult_string:

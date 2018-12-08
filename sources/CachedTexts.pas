@@ -43,6 +43,9 @@ unit CachedTexts;
   {$ifdef CPUX86_64}
     {$define CPUX64}
   {$endif}
+  {$if Defined(CPUARM) or Defined(UNIX)}
+    {$define POSIX}
+  {$ifend}
 {$else}
   {$if CompilerVersion >= 24}
     {$LEGACYIFEND ON}
@@ -73,9 +76,20 @@ unit CachedTexts;
 {$endif}
 {$U-}{$V+}{$B-}{$X+}{$T+}{$P+}{$H+}{$J-}{$Z1}{$A4}
 {$O+}{$R-}{$I-}{$Q-}{$W-}
-{$if Defined(CPUX86) or Defined(CPUX64)}
+{$ifdef CPUX86}
+  {$ifNdef NEXTGEN}
+    {$define CPUX86ASM}
+    {$define CPUINTELASM}
+  {$endif}
   {$define CPUINTEL}
-{$ifend}
+{$endif}
+{$ifdef CPUX64}
+  {$ifNdef NEXTGEN}
+    {$define CPUX64ASM}
+    {$define CPUINTELASM}
+  {$endif}
+  {$define CPUINTEL}
+{$endif}
 {$if Defined(CPUX64) or Defined(CPUARM64)}
   {$define LARGEINT}
 {$else}
@@ -88,6 +102,11 @@ unit CachedTexts;
   {$define OPERATORSUPPORT}
 {$ifend}
 
+// FPC Linux case
+{$ifdef POSIX}
+  {$undef CPUX64ASM}
+  {$undef CPUINTELASM}
+{$endif}
 
 interface
   uses {$ifdef UNITSCOPENAMES}System.Types, System.SysConst{$else}Types, SysConst{$endif},
@@ -356,7 +375,7 @@ type
     function SubString(const Count: NativeUInt): ByteString; overload; {$ifdef INLINESUPPORT}inline;{$endif}
     function Skip(const Count: NativeUInt): Boolean; {$ifdef INLINESUPPORT}inline;{$endif}
     function Hash: Cardinal;
-    function HashIgnoreCase: Cardinal; {$ifNdef CPUINTEL}inline;{$endif}
+    function HashIgnoreCase: Cardinal; {$ifNdef CPUINTELASM}inline;{$endif}
 
     function CharPos(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
     function CharPosIgnoreCase(const C: AnsiChar; const From: NativeUInt = 0): NativeInt;
@@ -425,28 +444,28 @@ type
     procedure ToLowerString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure ToUpperString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
 
     {$ifdef OPERATORSUPPORT}
-    class operator Implicit(const a: ByteString): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: ByteString): WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: ByteString): AnsiString; {$ifNdef CPUINTELASM}inline;{$endif}
+    class operator Implicit(const a: ByteString): WideString; {$ifNdef CPUINTELASM}inline;{$endif}
     {$ifdef UNICODE}
-    class operator Implicit(const a: ByteString): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: ByteString): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: ByteString): UTF8String; {$ifNdef CPUINTELASM}inline;{$endif}
+    class operator Implicit(const a: ByteString): UnicodeString; {$ifNdef CPUINTELASM}inline;{$endif}
     {$endif}
     {$endif}
   public
@@ -677,28 +696,28 @@ type
     procedure ToLowerString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure ToUpperString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
 
     {$ifdef OPERATORSUPPORT}
-    class operator Implicit(const a: UTF16String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: UTF16String): WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: UTF16String): AnsiString; {$ifNdef CPUINTELASM}inline;{$endif}
+    class operator Implicit(const a: UTF16String): WideString; {$ifNdef CPUINTELASM}inline;{$endif}
     {$ifdef UNICODE}
-    class operator Implicit(const a: UTF16String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: UTF16String): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: UTF16String): UTF8String; {$ifNdef CPUINTELASM}inline;{$endif}
+    class operator Implicit(const a: UTF16String): UnicodeString; {$ifNdef CPUINTELASM}inline;{$endif}
     {$endif}
     {$endif}
   public
@@ -928,28 +947,28 @@ type
     procedure ToLowerString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
     procedure ToUpperString(var S: string); overload; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToLowerString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
-    function ToUpperString: string; overload; {$ifNdef CPUINTEL}inline;{$endif}
+    function ToAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperAnsiString: AnsiString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperUTF8String: UTF8String; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperWideString: WideString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperUnicodeString: UnicodeString; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToLowerString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    function ToUpperString: string; overload; {$ifNdef CPUINTELASM}inline;{$endif}
 
     {$ifdef OPERATORSUPPORT}
-    class operator Implicit(const a: UTF32String): AnsiString; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: UTF32String): WideString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: UTF32String): AnsiString; {$ifNdef CPUINTELASM}inline;{$endif}
+    class operator Implicit(const a: UTF32String): WideString; {$ifNdef CPUINTELASM}inline;{$endif}
     {$ifdef UNICODE}
-    class operator Implicit(const a: UTF32String): UTF8String; {$ifNdef CPUINTEL}inline;{$endif}
-    class operator Implicit(const a: UTF32String): UnicodeString; {$ifNdef CPUINTEL}inline;{$endif}
+    class operator Implicit(const a: UTF32String): UTF8String; {$ifNdef CPUINTELASM}inline;{$endif}
+    class operator Implicit(const a: UTF32String): UnicodeString; {$ifNdef CPUINTELASM}inline;{$endif}
     {$endif}
     {$endif}
   public
@@ -1426,15 +1445,15 @@ type
     procedure AppendUInt64(const Value: UInt64; const Digits: NativeUInt = 0);
     procedure AppendHex64(const Value: Int64; const Digits: NativeUInt = 0);
     procedure AppendFloat(const Value: Extended; const Settings: TFloatSettings); overload;
-    procedure AppendFloat(const Value: Extended); overload;
+    procedure AppendFloat(const Value: Extended); overload; {$ifNdef CPUINTELASM}inline;{$endif}
     procedure AppendDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure AppendDate(const Value: TDateTime); overload;
+    procedure AppendDate(const Value: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
     procedure AppendTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure AppendTime(const Value: TDateTime); overload;
+    procedure AppendTime(const Value: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
     procedure AppendDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure AppendDateTime(const Value: TDateTime); overload;
+    procedure AppendDateTime(const Value: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
     procedure AppendVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings); overload;
-    procedure AppendVariant(const Value: Variant); overload;
+    procedure AppendVariant(const Value: Variant); overload; {$ifNdef CPUINTELASM}inline;{$endif}
   end;
   PTemporaryString = ^TTemporaryString;
 
@@ -2807,7 +2826,7 @@ end;
 procedure DivideUInt64_8({$ifdef SMALLINT}var{$endif} X64: Int64; var DivMod: TCardinalDivMod);
 const
   UN_DIGITS_8: Double = (1 / DIGITS_8);
-{$if Defined(CPUX86)}
+{$if Defined(CPUX86ASM)}
 asm
   { [X64]: eax, [DivMod]: edx }
 
@@ -2829,7 +2848,7 @@ asm
 @done:
   mov [edx + 4], ecx
 end;
-{$elseif Defined(CPUX64)}
+{$elseif Defined(CPUX64ASM)}
 asm
   { X64: rcx, [DivMod]: rdx }
 
@@ -2854,7 +2873,7 @@ asm
   add rax, rcx
   mov [rdx], rax
 end;
-{$else .CPUARM}
+{$else .NEXTGEN}
 var
   D, M: NativeInt;
 begin
@@ -2929,7 +2948,7 @@ begin
       end;
 
       P^ := Y;
-      X64 := X64 - (Y * DIGITS_16);
+      X64 := X64 - (Int64(Y) * DIGITS_16);
       Inc(P);
       goto _1316;
     end;
@@ -4688,8 +4707,8 @@ function ByteString.DetermineAscii: Boolean;
 label
   fail;
 const
-  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Byte);  
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);  
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Byte);
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Byte);
 var
   P: PByte;
   L: NativeUInt;
@@ -4698,43 +4717,43 @@ var
   {$else}
 const
   MASK = not NativeUInt($7f7f7f7f);
-  {$endif}  
+  {$endif}
 begin
   P := Pointer(FChars);
   L := FLength;
-  
+
   {$ifdef CPUMANYREGS}
   MASK := not NativeUInt({$ifdef LARGEINT}$7f7f7f7f7f7f7f7f{$else}$7f7f7f7f{$endif});
-  {$endif}    
-  
-  while (L >= CHARS_IN_NATIVE) do  
-  begin  
-    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;   
+  {$endif}
+
+  while (L >= CHARS_IN_NATIVE) do
+  begin
+    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;
     Dec(L, CHARS_IN_NATIVE);
     Inc(P, CHARS_IN_NATIVE);
-  end;  
+  end;
   {$ifdef LARGEINT}
   if (L >= CHARS_IN_CARDINAL) then
   begin
-    if (PCardinal(P)^ and MASK <> 0) then goto fail; 
+    if (PCardinal(P)^ and MASK <> 0) then goto fail;
     Dec(L, CHARS_IN_CARDINAL);
-    Inc(P, CHARS_IN_CARDINAL);    
+    Inc(P, CHARS_IN_CARDINAL);
   end;
   {$endif}
   if (L >= 2) then
   begin
-    if (PWord(P)^ and Word(not $7f7f) <> 0) then goto fail; 
+    if (PWord(P)^ and Word(not $7f7f) <> 0) then goto fail;
     // Dec(L, 2);
-    Inc(P, 2);      
+    Inc(P, 2);
   end;
   if (L and 1 <> 0) and (P^ > $7f) then goto fail;
-  
+
   Ascii := True;
-  Result := True;  
+  Result := True;
   Exit;
 fail:
   Ascii := False;
-  Result := False;  
+  Result := False;
 end;
 
 function ByteString.TrimLeft: Boolean;
@@ -4783,19 +4802,19 @@ begin
   TopS := @PByteCharArray(S)[L];
 
   repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
+    Inc(S);
+    if (S = TopS) then goto fail;
   until (S^ > 32);
-  
+
   FChars := Pointer(S);
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS); 
+  Dec(NativeUInt(TopS), NativeUInt(S));
+  FLength := NativeUInt(TopS);
   Result := True;
   Exit;
 fail:
   L := 0;
-  FLength := L{0};  
-  Result := False; 
+  FLength := L{0};
+  Result := False;
 end;
 
 function ByteString.TrimRight: Boolean;
@@ -4831,7 +4850,7 @@ asm
   jge @1
   xor eax, eax
   ret
-@1:    
+@1:
   cmp byte ptr [edx + ecx], 32
   jbe _TrimRight
   mov al, 1
@@ -4845,21 +4864,21 @@ var
   TopS: PByte;
 begin
   TopS := @PByteCharArray(S)[H];
-  
+
   Dec(S);
   repeat
-    Dec(TopS);  
-    if (S = TopS) then goto fail;    
+    Dec(TopS);
+    if (S = TopS) then goto fail;
   until (TopS^ > 32);
 
-  Dec(NativeUInt(TopS), NativeUInt(S));   
+  Dec(NativeUInt(TopS), NativeUInt(S));
   FLength := NativeUInt(TopS);
   Result := True;
   Exit;
 fail:
   H := 0;
-  FLength := H{0};  
-  Result := False; 
+  FLength := H{0};
+  Result := False;
 end;
 
 function ByteString.Trim: Boolean;
@@ -4939,26 +4958,26 @@ begin
 
   // TrimLeft
   repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
-  until (S^ > 32);  
+    Inc(S);
+    if (S = TopS) then goto fail;
+  until (S^ > 32);
   FChars := Pointer(S);
 
   // TrimRight
   Dec(S);
   repeat
-    Dec(TopS);  
-  until (TopS^ > 32);    
-  
+    Dec(TopS);
+  until (TopS^ > 32);
+
   // Result
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS); 
+  Dec(NativeUInt(TopS), NativeUInt(S));
+  FLength := NativeUInt(TopS);
   Result := True;
   Exit;
 fail:
   H := 0;
-  FLength := H{0};  
-  Result := False; 
+  FLength := H{0};
+  Result := False;
 end;
 
 function ByteString.SubString(const From, Count: NativeUInt): ByteString;
@@ -4974,7 +4993,7 @@ begin
   begin
     Result.FLength := 0;
     Exit;
-  end; 
+  end;
 
   if (L < Count) then
   begin
@@ -5066,7 +5085,7 @@ begin
 end;
 
 function ByteString.HashIgnoreCase: Cardinal;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   NF: NativeUInt;
 begin
@@ -5078,7 +5097,7 @@ begin
   else
   Result := _HashIgnoreCase(NF);
 end;
-{$else}
+{$else .NEXTGEN}
 asm
   {$ifdef CPUX86}
   mov edx, [EAX].F.Flags
@@ -5564,7 +5583,7 @@ begin
   Store.StrLength := L;
   P := Pointer(Self.FChars);
   Store.SelfChars := P;
-  TopCardinal := Pointer(@PCharArray(P)[Self.FLength -L - (CHARS_IN_CARDINAL - 1)]);  
+  TopCardinal := Pointer(@PCharArray(P)[Self.FLength -L - (CHARS_IN_CARDINAL - 1)]);
   Inc(P, From);
 
   CharMask := PChar(Store.StrChars)^;
@@ -5574,7 +5593,7 @@ begin
   Store.CharMask := CharMask;
   next_iteration:
     CharMask := Store.CharMask;
-  repeat   
+  repeat
     if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     Inc(P, CHARS_IN_CARDINAL);
@@ -5589,7 +5608,7 @@ begin
     Inc(P, Byte(Byte(X and $80 = 0) + Byte(X and $8080 = 0) + Byte(X and $808080 = 0)));
   char_found:
     Inc(P);
-    L := Store.StrLength - 1;    
+    L := Store.StrLength - 1;
     P2 := Store.StrChars;
     P1 := P;
     Inc(P2);
@@ -5600,23 +5619,23 @@ begin
       Inc(P1, CHARS_IN_NATIVE);
       Inc(P2, CHARS_IN_NATIVE);
     until (L < CHARS_IN_NATIVE);
-    {$ifdef LARGEINT}    
+    {$ifdef LARGEINT}
     if (L >= CHARS_IN_CARDINAL{4}) then
     begin
       if (PCardinal(P1)^ <> PCardinal(P2)^) then goto next_iteration;
       Dec(L, CHARS_IN_CARDINAL);
       Inc(P1, CHARS_IN_CARDINAL);
-      Inc(P2, CHARS_IN_CARDINAL);      
+      Inc(P2, CHARS_IN_CARDINAL);
     end;
     {$endif}
     if (L <> 0) then
-    repeat    
-      if (P1^ <> P2^) then goto next_iteration;     
+    repeat
+      if (P1^ <> P2^) then goto next_iteration;
       Dec(L);
       Inc(P1);
-      Inc(P2);            
+      Inc(P2);
     until (L = 0);
-    
+
     Dec(P);
     Pointer(Result) := P;
     Dec(Result, NativeInt(Store.SelfChars));
@@ -5630,7 +5649,7 @@ begin
     X := P^;
     if (X = CharMask) then goto char_found;
     Inc(P);
-  end; 
+  end;
 
 failure:
   Result := -1;
@@ -6308,7 +6327,7 @@ var
   Buffer: ByteString;
   HexRet: record
     Value: Integer;
-  end;    
+  end;
   X: NativeUInt;
   Marker: NativeInt;
 begin
@@ -6715,7 +6734,7 @@ var
   Buffer: ByteString;
   HexRet: record
     Value: Integer;
-  end;  
+  end;
   X: NativeUInt;
   Marker: NativeInt;
   R1, R2: Integer;
@@ -8605,7 +8624,7 @@ end;
 {$ifend}
 
 function ByteString.ToAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToAnsiString(Result);
 end;
@@ -8621,7 +8640,7 @@ end;
 {$endif}
 
 function ByteString.ToLowerAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerAnsiString(Result);
 end;
@@ -8637,7 +8656,7 @@ end;
 {$endif}
 
 function ByteString.ToUpperAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperAnsiString(Result);
 end;
@@ -8653,7 +8672,7 @@ end;
 {$endif}
 
 function ByteString.ToUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUTF8String(Result);
 end;
@@ -8664,7 +8683,7 @@ end;
 {$endif}
 
 function ByteString.ToLowerUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUTF8String(Result);
 end;
@@ -8675,7 +8694,7 @@ end;
 {$endif}
 
 function ByteString.ToUpperUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUTF8String(Result);
 end;
@@ -8686,7 +8705,7 @@ end;
 {$endif}
 
 function ByteString.ToWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToWideString(Result);
 end;
@@ -8697,7 +8716,7 @@ end;
 {$endif}
 
 function ByteString.ToLowerWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerWideString(Result);
 end;
@@ -8708,7 +8727,7 @@ end;
 {$endif}
 
 function ByteString.ToUpperWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperWideString(Result);
 end;
@@ -8719,7 +8738,7 @@ end;
 {$endif}
 
 function ByteString.ToUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUnicodeString(Result);
 end;
@@ -8734,7 +8753,7 @@ end;
 {$endif}
 
 function ByteString.ToLowerUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUnicodeString(Result);
 end;
@@ -8749,7 +8768,7 @@ end;
 {$endif}
 
 function ByteString.ToUpperUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUnicodeString(Result);
 end;
@@ -8764,7 +8783,7 @@ end;
 {$endif}
 
 function ByteString.ToString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUnicodeString(Result);
 end;
@@ -8780,7 +8799,7 @@ end;
 {$endif}
 
 function ByteString.ToLowerString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUnicodeString(Result);
 end;
@@ -8796,7 +8815,7 @@ end;
 {$endif}
 
 function ByteString.ToUpperString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUnicodeString(Result);
 end;
@@ -8813,7 +8832,7 @@ end;
 
 {$ifdef OPERATORSUPPORT}
 class operator ByteString.Implicit(const a: ByteString): AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToAnsiString(Result);
 end;
@@ -8829,7 +8848,7 @@ end;
 {$endif}
 
 class operator ByteString.Implicit(const a: ByteString): WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToWideString(Result);
 end;
@@ -8841,7 +8860,7 @@ end;
 
 {$ifdef UNICODE}
 class operator ByteString.Implicit(const a: ByteString): UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToUTF8String(Result);
 end;
@@ -8852,7 +8871,7 @@ end;
 {$endif}
 
 class operator ByteString.Implicit(const a: ByteString): UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToUnicodeString(Result);
 end;
@@ -13078,8 +13097,8 @@ function UTF16String.DetermineAscii: Boolean;
 label
   fail;
 const
-  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Word);  
-  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);  
+  CHARS_IN_NATIVE = SizeOf(NativeUInt) div SizeOf(Word);
+  CHARS_IN_CARDINAL = SizeOf(Cardinal) div SizeOf(Word);
 var
   P: PWord;
   L: NativeUInt;
@@ -13088,37 +13107,37 @@ var
   {$else}
 const
   MASK = not NativeUInt($007f007f);
-  {$endif}  
+  {$endif}
 begin
   P := Pointer(FChars);
   L := FLength;
-         
+
   {$ifdef CPUMANYREGS}
   MASK := not NativeUInt({$ifdef LARGEINT}$007f007f007f007f{$else}$007f007f{$endif});
-  {$endif}    
-  
-  while (L >= CHARS_IN_NATIVE) do  
-  begin  
-    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;   
+  {$endif}
+
+  while (L >= CHARS_IN_NATIVE) do
+  begin
+    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;
     Dec(L, CHARS_IN_NATIVE);
     Inc(P, CHARS_IN_NATIVE);
-  end;  
+  end;
   {$ifdef LARGEINT}
   if (L >= CHARS_IN_CARDINAL) then
   begin
-    if (PCardinal(P)^ and MASK <> 0) then goto fail; 
+    if (PCardinal(P)^ and MASK <> 0) then goto fail;
     // Dec(L, CHARS_IN_CARDINAL);
-    Inc(P, CHARS_IN_CARDINAL);    
+    Inc(P, CHARS_IN_CARDINAL);
   end;
   {$endif}
   if (L and 1 <> 0) and (P^ > $7f) then goto fail;
-  
+
   Ascii := True;
-  Result := True;  
+  Result := True;
   Exit;
 fail:
   Ascii := False;
-  Result := False;  
+  Result := False;
 end;
 
 function UTF16String.TrimLeft: Boolean;
@@ -13163,23 +13182,23 @@ label
   fail;
 var
   TopS: PWord;
-begin  
+begin
   TopS := @PUTF16CharArray(S)[L];
 
   repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
+    Inc(S);
+    if (S = TopS) then goto fail;
   until (S^ > 32);
-  
+
   FChars := Pointer(S);
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 1; 
+  Dec(NativeUInt(TopS), NativeUInt(S));
+  FLength := NativeUInt(TopS) shr 1;
   Result := True;
   Exit;
 fail:
   L := 0;
-  FLength := L{0};  
-  Result := False; 
+  FLength := L{0};
+  Result := False;
 end;
 
 function UTF16String.TrimRight: Boolean;
@@ -13215,7 +13234,7 @@ asm
   jge @1
   xor eax, eax
   ret
-@1:    
+@1:
   cmp word ptr [edx + ecx*2], 32
   jbe _TrimRight
   mov al, 1
@@ -13229,21 +13248,21 @@ var
   TopS: PWord;
 begin
   TopS := @PUTF16CharArray(S)[H];
-  
+
   Dec(S);
   repeat
-    Dec(TopS);  
-    if (S = TopS) then goto fail;    
+    Dec(TopS);
+    if (S = TopS) then goto fail;
   until (TopS^ > 32);
 
-  Dec(NativeUInt(TopS), NativeUInt(S));   
+  Dec(NativeUInt(TopS), NativeUInt(S));
   FLength := NativeUInt(TopS) shr 1;
   Result := True;
   Exit;
 fail:
   H := 0;
-  FLength := H{0};  
-  Result := False; 
+  FLength := H{0};
+  Result := False;
 end;
 
 function UTF16String.Trim: Boolean;
@@ -13323,26 +13342,26 @@ begin
 
   // TrimLeft
   repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
-  until (S^ > 32);  
+    Inc(S);
+    if (S = TopS) then goto fail;
+  until (S^ > 32);
   FChars := Pointer(S);
 
   // TrimRight
   Dec(S);
   repeat
-    Dec(TopS);  
-  until (TopS^ > 32);    
-  
+    Dec(TopS);
+  until (TopS^ > 32);
+
   // Result
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 1; 
+  Dec(NativeUInt(TopS), NativeUInt(S));
+  FLength := NativeUInt(TopS) shr 1;
   Result := True;
   Exit;
 fail:
   H := 0;
-  FLength := H{0};  
-  Result := False; 
+  FLength := H{0};
+  Result := False;
 end;
 
 function UTF16String.SubString(const From, Count: NativeUInt): UTF16String;
@@ -13713,7 +13732,7 @@ var
     StrChars: Pointer;
     SelfChars: Pointer;
     CValue: Word;
-  end;  
+  end;
 begin
   Store.StrChars := S.Chars;
   L := S.Length;
@@ -13726,7 +13745,7 @@ begin
   Store.StrLength := L;
   P := Pointer(Self.FChars);
   Store.SelfChars := P;
-  TopCardinal := Pointer(@PCharArray(P)[Self.FLength -L - (CHARS_IN_CARDINAL - 1)]);  
+  TopCardinal := Pointer(@PCharArray(P)[Self.FLength -L - (CHARS_IN_CARDINAL - 1)]);
   Inc(P, From);
 
   CValue := PChar(Store.StrChars)^;
@@ -13734,19 +13753,19 @@ begin
   Store.CValue := CValue;
 
   next_iteration:
-    CValue := Store.CValue;   
+    CValue := Store.CValue;
   repeat
     if (NativeUInt(P) > NativeUInt(TopCardinal)) then Break;
     X := PCardinal(P)^;
     if (Word(X) = CValue) then goto char_found;
     Inc(P);
     X := X shr 16;
-    Inc(P);    
+    Inc(P);
     if (Word(X) <> CValue) then Continue;
     Dec(P);
   char_found:
     Inc(P);
-    L := Store.StrLength - 1;    
+    L := Store.StrLength - 1;
     P2 := Store.StrChars;
     P1 := P;
     Inc(P2);
@@ -13757,32 +13776,32 @@ begin
       Inc(P1, CHARS_IN_NATIVE);
       Inc(P2, CHARS_IN_NATIVE);
     until (L < CHARS_IN_NATIVE);
-    {$ifdef LARGEINT}    
+    {$ifdef LARGEINT}
     if (L >= CHARS_IN_CARDINAL{2}) then
     begin
       if (PCardinal(P1)^ <> PCardinal(P2)^) then goto next_iteration;
       Dec(L, CHARS_IN_CARDINAL);
       Inc(P1, CHARS_IN_CARDINAL);
-      Inc(P2, CHARS_IN_CARDINAL);      
+      Inc(P2, CHARS_IN_CARDINAL);
     end;
     {$endif}
     if (L <> 0) then
     begin
-      if (P1^ <> P2^) then goto next_iteration;     
+      if (P1^ <> P2^) then goto next_iteration;
     end;
-    
+
     Dec(P);
     Pointer(Result) := P;
     Dec(Result, NativeInt(Store.SelfChars));
     Result := Result shr 1;
-    Exit;    
+    Exit;
   until (False);
 
   Top := Pointer(@PWordArray(TopCardinal)[CHARS_IN_CARDINAL]);
-  if (NativeUInt(P) < NativeUInt(Top)) and (P^ = CValue) then goto char_found;  
+  if (NativeUInt(P) < NativeUInt(Top)) and (P^ = CValue) then goto char_found;
 
 failure:
-  Result := -1;  
+  Result := -1;
 end;
 
 function UTF16String.Pos(const AChars: PUnicodeChar; const ALength: NativeUInt;
@@ -14644,7 +14663,7 @@ var
   Buffer: UTF16String;
   HexRet: record
     Value: Integer;
-  end;  
+  end;
   X: NativeUInt;
   Marker: NativeInt;
   R1, R2: Integer;
@@ -16114,7 +16133,7 @@ end;
 {$ifend}
 
 function UTF16String.ToAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToAnsiString(Result);
 end;
@@ -16130,7 +16149,7 @@ end;
 {$endif}
 
 function UTF16String.ToLowerAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerAnsiString(Result);
 end;
@@ -16146,7 +16165,7 @@ end;
 {$endif}
 
 function UTF16String.ToUpperAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperAnsiString(Result);
 end;
@@ -16162,7 +16181,7 @@ end;
 {$endif}
 
 function UTF16String.ToUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUTF8String(Result);
 end;
@@ -16173,7 +16192,7 @@ end;
 {$endif}
 
 function UTF16String.ToLowerUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUTF8String(Result);
 end;
@@ -16184,7 +16203,7 @@ end;
 {$endif}
 
 function UTF16String.ToUpperUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUTF8String(Result);
 end;
@@ -16195,7 +16214,7 @@ end;
 {$endif}
 
 function UTF16String.ToWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToWideString(Result);
 end;
@@ -16206,7 +16225,7 @@ end;
 {$endif}
 
 function UTF16String.ToLowerWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerWideString(Result);
 end;
@@ -16217,7 +16236,7 @@ end;
 {$endif}
 
 function UTF16String.ToUpperWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperWideString(Result);
 end;
@@ -16228,7 +16247,7 @@ end;
 {$endif}
 
 function UTF16String.ToUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUnicodeString(Result);
 end;
@@ -16243,7 +16262,7 @@ end;
 {$endif}
 
 function UTF16String.ToLowerUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUnicodeString(Result);
 end;
@@ -16258,7 +16277,7 @@ end;
 {$endif}
 
 function UTF16String.ToUpperUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUnicodeString(Result);
 end;
@@ -16273,7 +16292,7 @@ end;
 {$endif}
 
 function UTF16String.ToString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUnicodeString(Result);
 end;
@@ -16289,7 +16308,7 @@ end;
 {$endif}
 
 function UTF16String.ToLowerString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUnicodeString(Result);
 end;
@@ -16305,7 +16324,7 @@ end;
 {$endif}
 
 function UTF16String.ToUpperString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUnicodeString(Result);
 end;
@@ -16322,7 +16341,7 @@ end;
 
 {$ifdef OPERATORSUPPORT}
 class operator UTF16String.Implicit(const a: UTF16String): AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToAnsiString(Result);
 end;
@@ -16338,7 +16357,7 @@ end;
 {$endif}
 
 class operator UTF16String.Implicit(const a: UTF16String): WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToWideString(Result);
 end;
@@ -16350,7 +16369,7 @@ end;
 
 {$ifdef UNICODE}
 class operator UTF16String.Implicit(const a: UTF16String): UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToUTF8String(Result);
 end;
@@ -16361,7 +16380,7 @@ end;
 {$endif}
 
 class operator UTF16String.Implicit(const a: UTF16String): UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToUnicodeString(Result);
 end;
@@ -19925,34 +19944,34 @@ var
   L: NativeUInt;
   {$ifdef LARGEINT}
   MASK: NativeUInt;
-  {$endif}  
+  {$endif}
 begin
   P := Pointer(FChars);
 
   {$ifdef LARGEINT}
   MASK := not NativeUInt($7f0000007f);
   L := FLength;
-  while (L > 1) do  
-  begin  
-    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;   
+  while (L > 1) do
+  begin
+    if (PNativeUInt(P)^ and MASK <> 0) then goto fail;
     Dec(L, 2);
     Inc(P, 2);
-  end;  
+  end;
   if (L and 1 <> 0) and (P^ > $7f) then goto fail;
   {$else}
   for L := 1 to FLength do
   begin
-    if (P^ > $7f) then goto fail;   
+    if (P^ > $7f) then goto fail;
     Inc(P);
-  end;      
-  {$endif}    
-  
+  end;
+  {$endif}
+
   Ascii := True;
-  Result := True;  
+  Result := True;
   Exit;
 fail:
   Ascii := False;
-  Result := False;  
+  Result := False;
 end;
 
 function UTF32String.TrimLeft: Boolean;
@@ -19997,23 +20016,23 @@ label
   fail;
 var
   TopS: PCardinal;
-begin  
+begin
   TopS := @PUTF32CharArray(S)[L];
 
   repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
+    Inc(S);
+    if (S = TopS) then goto fail;
   until (S^ > 32);
-  
+
   FChars := Pointer(S);
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 2; 
+  Dec(NativeUInt(TopS), NativeUInt(S));
+  FLength := NativeUInt(TopS) shr 2;
   Result := True;
   Exit;
 fail:
   L := 0;
-  FLength := L{0};  
-  Result := False; 
+  FLength := L{0};
+  Result := False;
 end;
 
 function UTF32String.TrimRight: Boolean;
@@ -20049,7 +20068,7 @@ asm
   jge @1
   xor eax, eax
   ret
-@1:    
+@1:
   cmp dword ptr [edx + ecx*4], 32
   jbe _TrimRight
   mov al, 1
@@ -20061,23 +20080,23 @@ label
   fail;
 var
   TopS: PCardinal;
-begin  
+begin
   TopS := @PUTF32CharArray(S)[H];
-  
+
   Dec(S);
   repeat
-    Dec(TopS);  
-    if (S = TopS) then goto fail;    
+    Dec(TopS);
+    if (S = TopS) then goto fail;
   until (TopS^ > 32);
 
-  Dec(NativeUInt(TopS), NativeUInt(S));   
+  Dec(NativeUInt(TopS), NativeUInt(S));
   FLength := NativeUInt(TopS) shr 2;
   Result := True;
   Exit;
 fail:
   H := 0;
-  FLength := H{0};  
-  Result := False; 
+  FLength := H{0};
+  Result := False;
 end;
 
 function UTF32String.Trim: Boolean;
@@ -20151,32 +20170,32 @@ label
   fail;
 var
   TopS: PCardinal;
-begin  
-  if (H = 0) then goto fail;  
+begin
+  if (H = 0) then goto fail;
   TopS := @PUTF32CharArray(S)[H];
 
   // TrimLeft
   repeat
-    Inc(S);  
-    if (S = TopS) then goto fail;    
-  until (S^ > 32);  
+    Inc(S);
+    if (S = TopS) then goto fail;
+  until (S^ > 32);
   FChars := Pointer(S);
 
   // TrimRight
   Dec(S);
   repeat
-    Dec(TopS);  
-  until (TopS^ > 32);    
-  
+    Dec(TopS);
+  until (TopS^ > 32);
+
   // Result
-  Dec(NativeUInt(TopS), NativeUInt(S));   
-  FLength := NativeUInt(TopS) shr 2; 
+  Dec(NativeUInt(TopS), NativeUInt(S));
+  FLength := NativeUInt(TopS) shr 2;
   Result := True;
   Exit;
 fail:
   H := 0;
-  FLength := H{0};  
-  Result := False; 
+  FLength := H{0};
+  Result := False;
 end;
 
 function UTF32String.SubString(const From, Count: NativeUInt): UTF32String;
@@ -20444,8 +20463,8 @@ begin
 
   // warnings off
   X := 0;
-  Y := 0;    
-  
+  Y := 0;
+
 make_result:
   Result := Ord(X > Y)*2 - 1;
 end;
@@ -20470,7 +20489,7 @@ var
     StrChars: Pointer;
     SelfChars: Pointer;
     X: NativeUInt;
-  end;  
+  end;
 begin
   Store.StrChars := S.Chars;
   L := S.Length;
@@ -20485,14 +20504,14 @@ begin
   Store.SelfChars := P;
   Top := Pointer(@PCharArray(P)[Self.FLength -L + 1]);
   Inc(P, From);
-  
+
   X := PChar(Store.StrChars)^;
   if (Self.Ascii > (X <= $7f)) then goto failure;
   Store.X := X;
-  
+
   repeat
   next_iteration:
-    X := Store.X;  
+    X := Store.X;
     if (NativeUInt(P) < NativeUInt(Top)) then
     repeat
       if (P^ = TChar(X)) then goto char_found;
@@ -20502,7 +20521,7 @@ begin
 
   char_found:
     Inc(P);
-    L := Store.StrLength - 1;    
+    L := Store.StrLength - 1;
     P2 := Store.StrChars;
     P1 := P;
     Inc(P2);
@@ -20513,20 +20532,20 @@ begin
       Inc(P1, CHARS_IN_NATIVE);
       Inc(P2, CHARS_IN_NATIVE);
     until (L < CHARS_IN_NATIVE);
-    {$ifdef LARGEINT}    
+    {$ifdef LARGEINT}
     if (L >= CHARS_IN_CARDINAL{1}) then
     begin
       if (PCardinal(P1)^ <> PCardinal(P2)^) then goto next_iteration;
     end;
     {$endif}
-        
+
     Dec(P);
     Pointer(Result) := P;
     Dec(Result, NativeInt(Store.SelfChars));
     Result := Result shr 2;
     Exit;
-  until (False);  
-  
+  until (False);
+
 failure:
   Result := -1;
 end;
@@ -20591,8 +20610,8 @@ begin
 
   // warnings off
   X := 0;
-  Y := 0;    
-  
+  Y := 0;
+
 make_result:
   Result := Ord(X > Y)*2 - 1;
 end;
@@ -20659,7 +20678,7 @@ begin
     Store.UpperChar := UpperChar;
       X := utf32_compare_utf32_ignorecase(Pointer(P), Store.StrChars, Store.StrLength);
     UpperChar := Store.UpperChar;
-    Top := Store.Top;  
+    Top := Store.Top;
     Inc(P);
     if (X <> 0) then Continue;
     Dec(P);
@@ -21020,7 +21039,7 @@ var
   Buffer: UTF32String;
   HexRet: record
     Value: Integer;
-  end;  
+  end;
   X: NativeUInt;
   Marker: NativeInt;
 begin
@@ -21427,7 +21446,7 @@ var
   Buffer: UTF32String;
   HexRet: record
     Value: Integer;
-  end;  
+  end;
   X: NativeUInt;
   Marker: NativeInt;
   R1, R2: Integer;
@@ -23375,7 +23394,7 @@ end;
 {$ifend}
 
 function UTF32String.ToAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToAnsiString(Result);
 end;
@@ -23391,7 +23410,7 @@ end;
 {$endif}
 
 function UTF32String.ToLowerAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerAnsiString(Result);
 end;
@@ -23407,7 +23426,7 @@ end;
 {$endif}
 
 function UTF32String.ToUpperAnsiString: AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperAnsiString(Result);
 end;
@@ -23423,7 +23442,7 @@ end;
 {$endif}
 
 function UTF32String.ToUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUTF8String(Result);
 end;
@@ -23434,7 +23453,7 @@ end;
 {$endif}
 
 function UTF32String.ToLowerUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUTF8String(Result);
 end;
@@ -23445,7 +23464,7 @@ end;
 {$endif}
 
 function UTF32String.ToUpperUTF8String: UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUTF8String(Result);
 end;
@@ -23456,7 +23475,7 @@ end;
 {$endif}
 
 function UTF32String.ToWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToWideString(Result);
 end;
@@ -23467,7 +23486,7 @@ end;
 {$endif}
 
 function UTF32String.ToLowerWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerWideString(Result);
 end;
@@ -23478,7 +23497,7 @@ end;
 {$endif}
 
 function UTF32String.ToUpperWideString: WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperWideString(Result);
 end;
@@ -23489,7 +23508,7 @@ end;
 {$endif}
 
 function UTF32String.ToUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUnicodeString(Result);
 end;
@@ -23504,7 +23523,7 @@ end;
 {$endif}
 
 function UTF32String.ToLowerUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUnicodeString(Result);
 end;
@@ -23519,7 +23538,7 @@ end;
 {$endif}
 
 function UTF32String.ToUpperUnicodeString: UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUnicodeString(Result);
 end;
@@ -23534,7 +23553,7 @@ end;
 {$endif}
 
 function UTF32String.ToString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUnicodeString(Result);
 end;
@@ -23550,7 +23569,7 @@ end;
 {$endif}
 
 function UTF32String.ToLowerString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToLowerUnicodeString(Result);
 end;
@@ -23566,7 +23585,7 @@ end;
 {$endif}
 
 function UTF32String.ToUpperString: string;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   ToUpperUnicodeString(Result);
 end;
@@ -23583,7 +23602,7 @@ end;
 
 {$ifdef OPERATORSUPPORT}
 class operator UTF32String.Implicit(const a: UTF32String): AnsiString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToAnsiString(Result);
 end;
@@ -23599,7 +23618,7 @@ end;
 {$endif}
 
 class operator UTF32String.Implicit(const a: UTF32String): WideString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToWideString(Result);
 end;
@@ -23611,7 +23630,7 @@ end;
 
 {$ifdef UNICODE}
 class operator UTF32String.Implicit(const a: UTF32String): UTF8String;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToUTF8String(Result);
 end;
@@ -23622,7 +23641,7 @@ end;
 {$endif}
 
 class operator UTF32String.Implicit(const a: UTF32String): UnicodeString;
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   a.ToUnicodeString(Result);
 end;
@@ -29893,11 +29912,11 @@ begin
 end;
 
 procedure TTemporaryString.AppendFloat(const Value: Extended);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   AppendFloat(Value, DefaultFloatSettings);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
   pop ebp
@@ -29928,11 +29947,11 @@ begin
 end;
 
 procedure TTemporaryString.AppendDate(const Value: TDateTime);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   AppendDate(Value, DefaultDateTimeSettings);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
   pop ebp
@@ -29956,11 +29975,11 @@ begin
 end;
 
 procedure TTemporaryString.AppendTime(const Value: TDateTime);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   AppendTime(Value, DefaultDateTimeSettings);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
   pop ebp
@@ -29984,11 +30003,11 @@ begin
 end;
 
 procedure TTemporaryString.AppendDateTime(const Value: TDateTime);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   AppendDateTime(Value, DefaultDateTimeSettings);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
   pop ebp
@@ -30020,11 +30039,11 @@ begin
 end;
 
 procedure TTemporaryString.AppendVariant(const Value: Variant);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 begin
   AppendVariant(Value, DefaultFloatSettings, DefaultDateTimeSettings);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
     push [esp]
@@ -30523,7 +30542,7 @@ begin
     Length := P^;
     Inc(P);
     {$ifdef MSWINDOWS}
-    if (Length <> 0) then    
+    if (Length <> 0) then
     {$endif}
     Self.FVirtuals.WriteUnicodeChars(Self, Pointer(P), Length {$ifdef WIDE_STR_SHIFT} shr 1{$endif});
   end;
@@ -31871,7 +31890,7 @@ begin
 end;
 
 procedure TCachedTextWriter.WriteBoolean(const Value: Boolean);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   Count: NativeUInt;
   P: PByte;
@@ -31880,7 +31899,7 @@ begin
   with Self.FBuffer do P := Pointer(@Booleans[Count]);
   FVirtuals.WriteBufferedAscii(Self, P, Count xor 5);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   movzx edx, dl
   {$ifdef CPUX86}
@@ -31900,14 +31919,14 @@ end;
 {$endif}
 
 procedure TCachedTextWriter.WriteBooleanOrdinal(const Value: Boolean);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
 begin
   with Self.FBuffer do P := Pointer(@Constants[Byte(Value)]);
   FVirtuals.WriteBufferedAscii(Self, P, 1);
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   movzx edx, dl
   add edx, offset TCachedTextWriter.FBuffer.Constants
@@ -31925,7 +31944,7 @@ end;
 
 procedure TCachedTextWriter.WriteInteger(const Value: Integer;
   const Digits: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
   X: NativeUInt;
@@ -31950,7 +31969,7 @@ begin
 
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   test edx, edx
   jl @negative
@@ -32033,14 +32052,14 @@ end;
 
 procedure TCachedTextWriter.WriteHex(const Value: Integer;
   const Digits: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
 begin
   P := WriteHexAscii(FBuffer.Digits, Cardinal(Value), Digits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
     push eax
@@ -32066,7 +32085,7 @@ end;
 
 procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal;
   const Digits: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
   X: NativeUInt;
@@ -32082,7 +32101,7 @@ begin
   P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
      cmp ecx, 1
@@ -32594,7 +32613,7 @@ begin
 end;
 
 procedure TByteTextWriter.WriteBufferedAscii(From: PByte; Count: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 type
   TDefaultCaller = procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
 var
@@ -32622,7 +32641,7 @@ begin
     TDefaultCaller(P)(Self, Pointer(From), Count);
   end;
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
      push ebx
@@ -32722,7 +32741,7 @@ end;
 
 procedure TByteTextWriter.WriteAscii(const AChars: PAnsiChar;
   const ALength: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
 begin
@@ -32739,7 +32758,7 @@ begin
     NcMove(AChars^, P^, ALength);
   end;
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
      push ebx
@@ -33408,7 +33427,7 @@ end;
 
 procedure TUTF16TextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
   Size: NativeUInt;
@@ -33427,7 +33446,7 @@ begin
     NcMove(AChars^, P^, Size);
   end;
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
      lea ecx, [ecx + ecx]
@@ -33673,7 +33692,7 @@ end;
 
 procedure TUTF16TextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
   const ALength: NativeUInt);
-{$ifNdef CPUINTEL}
+{$ifNdef CPUINTELASM}
 var
   P: PByte;
   Size: NativeUInt;
@@ -33692,7 +33711,7 @@ begin
     NcMove(AChars^, P^, Size);
   end;
 end;
-{$else}
+{$else .CPUX86/CPUX64}
 asm
   {$ifdef CPUX86}
      lea ecx, [ecx + ecx]

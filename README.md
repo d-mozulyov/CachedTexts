@@ -19,23 +19,25 @@ There are several classes for sequential reading of text data: `TByteTextReader`
 
 Every `TCachedTextReader`-class has two main constructors: `Create` and `CreateFromFile`. In both cases the source encoding is determined by the BOM. If the BOM is absent, it will be considered the parameter `DefaultByteEncoding`. This parameter may be equal to CODEPAGE_UTF8 or one of SBCS-encoding. The constructor `CreateDirect` can be used when the source encoding and the conversion context are directly defined and BOM is not considered.
 
-The functionality of the `TCachedTextReader`-class has much in common with the functionality of the `TCachedReader`-class. In both classes an access can be carried out with properties `Current`, `Overflow`, `Margin` and the function `Flush`. There are also high-level functions: `ReadData`, `Skip`, `ReadChar` and two kinds of `Readln`. It is strongly recommended to use `Readln` function for text data consisting of many lines.
+The functionality of the `TCachedTextReader`-class has much in common with the functionality of the `TCachedReader`-class. In both classes an access can be carried out with properties `Current`, `Overflow`, `Margin` and the function `Flush`. There are also high-level functions: `ReadData`, `Skip`, `ReadChar`, `Export` and two kinds of `Readln`. It is strongly recommended to use `Readln` function for text data consisting of many lines.
 ```pascal
 type
   TByteTextReader/TUTF16TextReader/TUTF32TextReader = class(TCachedTextReader)
   public
-    constructor Create({Encoding for TByteTextReader,} const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile({Encoding for TByteTextReader,} const FileName: string; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
-    {for TByteTextReader:} constructor CreateDefault(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    {for TByteTextReader:} constructor CreateDefaultFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
+    constructor Create({AEncoding for TByteTextReader,} const ASource: TCachedReader; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile({AEncoding for TByteTextReader,} const AFileName: string; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ASource: TCachedReader; const AOwner: Boolean = False);
+    {for TByteTextReader:} constructor CreateDefault(const ASource: TCachedReader; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    {for TByteTextReader:} constructor CreateDefaultFromFile(const AFileName: string; const ADefaultByteEncoding: Word = 0);
   
-    procedure ReadData(var Buffer; const Count: NativeUInt); 
-    procedure Skip(const Count: NativeUInt);
+    procedure ReadData(var ABuffer; const ACount: NativeUInt); 
+    procedure Skip(const ACount: NativeUInt);
     function Flush: NativeUInt;
     function Readln(var S: ByteString/UTF16String/UTF32String): Boolean;
     function Readln(var S: UnicodeString): Boolean;
-    function ReadChar: UCS4Char; 
+    function ReadChar: UCS4Char;
+    procedure Export(const AWriter: TCachedWriter);
+    procedure Export(const AFileName: string);
 
     property Current: PByte read/write
     property Overflow: PByte read
@@ -228,10 +230,10 @@ There are several classes for sequential writeing of text data: `TByteTextWriter
 type
   TByteTextWriter/TUTF16TextWriter/TUTF32TextWriter = class(TCachedTextWriter)
   public
-    constructor Create({Encoding for TByteTextWriter,} const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile({Encoding for TByteTextWriter,} const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
-    procedure WriteData(const Buffer; const Count: NativeUInt);
+    constructor Create({AEncoding for TByteTextWriter,} const ATarget: TCachedWriter; const ABOM: TBOM = bomNone; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile({AEncoding for TByteTextWriter,} const AFileName: string; const ABOM: TBOM = bomNone; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ATarget: TCachedWriter; const AOwner: Boolean = False);
+    procedure WriteData(const ABuffer; const ACount: NativeUInt);
     function Flush: NativeUInt;
 
     property Current: PByte read/write
@@ -250,7 +252,7 @@ type
     procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
     procedure WriteUnicodeAscii(const AChars: PUnicodeChar; const ALength: NativeUInt);
     procedure WriteUCS4Ascii(const AChars: PUCS4Char; const ALength: NativeUInt);
-    procedure WriteAnsiChars(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word);
+    procedure WriteAnsiChars(const AChars: PAnsiChar; const ALength: NativeUInt; const ACodePage: Word);
     procedure WriteUTF8Chars(const AChars: PUTF8Char; const ALength: NativeUInt);
     procedure WriteUnicodeChars(const AChars: PUnicodeChar; const ALength: NativeUInt);
     procedure WriteUCS4Chars(const AChars: PUCS4Char; const ALength: NativeUInt);
@@ -260,34 +262,34 @@ type
     procedure WriteUTF32String(const S: UTF32String);
     
     procedure WriteAnsiString(const S: AnsiString);
-    procedure WriteShortString(const S: ShortString; const CodePage: Word = 0);
+    procedure WriteShortString(const S: ShortString; const ACodePage: Word = 0);
     procedure WriteUTF8String(const S: UTF8String);
     procedure WriteWideString(const S: WideString);
     procedure WriteUnicodeString(const S: UnicodeString);
-    procedure WriteUCS4String(const S: UCS4String; const NullTerminated: Boolean = True);
+    procedure WriteUCS4String(const S: UCS4String; const ANullTerminated: Boolean = True);
     
     procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const);
     procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const);
     procedure WriteFormatUnicode(const FmtStr: UnicodeString; const Args: array of const);
   public
-    procedure WriteBoolean(const Value: Boolean);
-    procedure WriteBooleanOrdinal(const Value: Boolean);
-    procedure WriteInteger(const Value: Integer; const Digits: NativeUInt = 0);
-    procedure WriteHex(const Value: Integer; const Digits: NativeUInt = 0);
-    procedure WriteCardinal(const Value: Cardinal; const Digits: NativeUInt = 0);
-    procedure WriteInt64(const Value: Int64; const Digits: NativeUInt = 0);
-    procedure WriteHex64(const Value: Int64; const Digits: NativeUInt = 0);
-    procedure WriteUInt64(const Value: UInt64; const Digits: NativeUInt = 0);
-    procedure WriteFloat(const Value: Extended; const Settings: TFloatSettings);
-    procedure WriteFloat(const Value: Extended);
-    procedure WriteDate(const Value: TDateTime; const Settings: TDateTimeSettings);
-    procedure WriteDate(const Value: TDateTime);
-    procedure WriteTime(const Value: TDateTime; const Settings: TDateTimeSettings);
-    procedure WriteTime(const Value: TDateTime);
-    procedure WriteDateTime(const Value: TDateTime; const Settings: TDateTimeSettings);
-    procedure WriteDateTime(const Value: TDateTime);
-    procedure WriteVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings);
-    procedure WriteVariant(const Value: Variant);
+    procedure WriteBoolean(const AValue: Boolean);
+    procedure WriteBooleanOrdinal(const AValue: Boolean);
+    procedure WriteInteger(const AValue: Integer; const ADigits: NativeUInt = 0);
+    procedure WriteHex(const AValue: Integer; const ADigits: NativeUInt = 0);
+    procedure WriteCardinal(const AValue: Cardinal; const ADigits: NativeUInt = 0);
+    procedure WriteInt64(const AValue: Int64; const ADigits: NativeUInt = 0);
+    procedure WriteHex64(const AValue: Int64; const ADigits: NativeUInt = 0);
+    procedure WriteUInt64(const AValue: UInt64; const ADigits: NativeUInt = 0);
+    procedure WriteFloat(const AValue: Extended; const ASettings: TFloatSettings);
+    procedure WriteFloat(const AValue: Extended);
+    procedure WriteDate(const AValue: TDateTime; const ASettings: TDateTimeSettings);
+    procedure WriteDate(const AValue: TDateTime);
+    procedure WriteTime(const AValue: TDateTime; const ASettings: TDateTimeSettings);
+    procedure WriteTime(const AValue: TDateTime);
+    procedure WriteDateTime(const AValue: TDateTime; const ASettings: TDateTimeSettings);
+    procedure WriteDateTime(const AValue: TDateTime);
+    procedure WriteVariant(const AValue: Variant; const AFloatSettings: TFloatSettings; const ADateTimeSettings: TDateTimeSettings);
+    procedure WriteVariant(const AValue: Variant);
   end;
 ```  
 ##### TTemporaryString

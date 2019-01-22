@@ -190,13 +190,17 @@ type
   end;
 
   // CachedBuffers types
+  ICachedObject = CachedBuffers.ICachedObject;
+  TCachedObject = CachedBuffers.TCachedObject;
+  TCachedObjectClass = CachedBuffers.TCachedObjectClass;
   ECachedBuffer = CachedBuffers.ECachedBuffer;
+  TCachedBufferMemory = CachedBuffers.TCachedBufferMemory;
+  PCachedBufferMemory = CachedBuffers.PCachedBufferMemory;
   TCachedBufferKind = CachedBuffers.TCachedBufferKind;
   TCachedBufferCallback = CachedBuffers.TCachedBufferCallback;
   TCachedBufferProgress = CachedBuffers.TCachedBufferProgress;
-  TCachedBufferMemory = CachedBuffers.TCachedBufferMemory;
-  PCachedBufferMemory = CachedBuffers.PCachedBufferMemory;
   TCachedBuffer = CachedBuffers.TCachedBuffer;
+  TCachedBufferClass = CachedBuffers.TCachedBuffer;
   TCachedReader = CachedBuffers.TCachedReader;
   TCachedWriter = CachedBuffers.TCachedWriter;
   TCachedReReader = CachedBuffers.TCachedReReader;
@@ -1167,9 +1171,9 @@ type
       Size: NativeUInt;
     end;
     FContext: PUniConvContext;
-    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
+    function InternalCallback(const ASender: TCachedBuffer; AData: PByte; ASize: NativeUInt): NativeUInt;
   public
-    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
+    constructor Create(const AContext: PUniConvContext; const ASource: TCachedReader; const AOwner: Boolean = False; const ABufferSize: NativeUInt = 0);
     property Context: PUniConvContext read FContext;
   end;
 
@@ -1183,18 +1187,18 @@ type
       Size: NativeUInt;
     end;
     FContext: PUniConvContext;
-    function InternalCallback(Sender: TCachedBuffer; Data: PByte; Size: NativeUInt): NativeUInt;
+    function InternalCallback(const ASender: TCachedBuffer; AData: PByte; ASize: NativeUInt): NativeUInt;
   public
-    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False; const BufferSize: NativeUInt = 0);
+    constructor Create(const AContext: PUniConvContext; const ATarget: TCachedWriter; const AOwner: Boolean = False; const ABufferSize: NativeUInt = 0);
     property Context: PUniConvContext read FContext;
   end;
 
 
 { TCachedTextBuffer class }
 
-  TCachedTextBuffer = class
+  TCachedTextBuffer = class(TCachedObject)
   protected
-    FInternalContext: PUniConvContext;
+    FInternalContext: TUniConvContext;
     FFileName: string;
     FKind: TCachedBufferKind;
     FFinishing: Boolean;
@@ -1205,9 +1209,8 @@ type
     FCurrent: PByte;
     FOverflow: PByte;
 
-    procedure Initialize(const Context: PUniConvContext; const DataBuffer: TCachedBuffer; const Owner: Boolean);
+    procedure Initialize(const AContext: PUniConvContext; const ADataBuffer: TCachedBuffer; const AOwner: Boolean);
     procedure Finalize;
-    function GetInternalContext: PUniConvContext;
     procedure FieldsCopy;
     function GetSource: TCachedReader;
     function GetTarget: TCachedWriter;
@@ -1215,12 +1218,10 @@ type
     function GetUniConvReWriterConverter: TUniConvReWriter;
     function GetMargin: NativeInt; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function GetPosition: Int64; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure SetEOF(const Value: Boolean); virtual;
-    procedure OverflowReaderSkip(const Count: NativeUInt);
+    procedure SetEOF(const AValue: Boolean); virtual;
+    procedure OverflowReaderSkip(const ACount: NativeUInt);
     function Flush: NativeUInt;
-  {$ifNdef AUTOREFCOUNT}
   public
-  {$endif}
     destructor Destroy; override;
   end;
 
@@ -1229,17 +1230,17 @@ type
 
   TCachedTextReader = class(TCachedTextBuffer)
   protected
-    procedure OverflowReadData(var Buffer; const Count: NativeUInt);
+    procedure OverflowReadData(var ABuffer; const ACount: NativeUInt);
     function FlushReadChar: UCS4Char;
   public
-    constructor Create(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
-    procedure ReadData(var Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure Skip(const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    constructor Create(const AContext: PUniConvContext; const ASource: TCachedReader; const AOwner: Boolean = False);
+    procedure ReadData(var ABuffer; const ACount: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure Skip(const ACount: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function Flush: NativeUInt;
     function Readln(var S: UnicodeString): Boolean; virtual; abstract;
     function ReadChar: UCS4Char; virtual; abstract;
-    procedure Export(const Writer: TCachedWriter); overload; virtual;
-    procedure Export(const FileName: string); overload; virtual;
+    procedure Export(const AWriter: TCachedWriter); overload; virtual;
+    procedure Export(const AFileName: string); overload;
 
     property Current: PByte read FCurrent write FCurrent;
     property Overflow: PByte read FOverflow;
@@ -1262,19 +1263,19 @@ type
     FUCS2: PUniConvWB;
     FNativeFlags: NativeUInt;
 
-    procedure SetSBCS(const Value: PUniConvSBCS);
+    procedure SetSBCS(const AValue: PUniConvSBCS);
     function FlushReadln(var S: ByteString): Boolean;
   public
-    constructor Create(const Encoding: Word; const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const Encoding: Word; const FileName: string; const DefaultByteEncoding: Word = 0);
-    constructor CreateDefault(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateDefaultFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    constructor Create(const AEncoding: Word; const ASource: TCachedReader; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile(const AEncoding: Word; const AFileName: string; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDefault(const ASource: TCachedReader; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateDefaultFromFile(const AFileName: string; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ASource: TCachedReader; const AOwner: Boolean = False);
 
     function Readln(var S: ByteString): Boolean; reintroduce; overload;
     function Readln(var S: UnicodeString): Boolean; overload; override;
     function ReadChar: UCS4Char; override;
-    procedure Export(const Writer: TCachedWriter); override;
+    procedure Export(const AWriter: TCachedWriter); override;
 
     property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
     property Encoding: Word read FEncoding;
@@ -1287,14 +1288,14 @@ type
   protected
     function FlushReadln(var S: UTF16String): Boolean;
   public
-    constructor Create(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    constructor Create(const ASource: TCachedReader; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile(const AFileName: string; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ASource: TCachedReader; const AOwner: Boolean = False);
 
     function Readln(var S: UTF16String): Boolean; reintroduce; overload;
     function Readln(var S: UnicodeString): Boolean; overload; override;
     function ReadChar: UCS4Char; override;
-    procedure Export(const Writer: TCachedWriter); override;
+    procedure Export(const AWriter: TCachedWriter); override;
   end;
 
 
@@ -1304,14 +1305,14 @@ type
   protected
     function FlushReadln(var S: UTF32String): Boolean;
   public
-    constructor Create(const Source: TCachedReader; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Source: TCachedReader; const Owner: Boolean = False);
+    constructor Create(const ASource: TCachedReader; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile(const AFileName: string; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ASource: TCachedReader; const AOwner: Boolean = False);
 
     function Readln(var S: UTF32String): Boolean; reintroduce; overload;
     function Readln(var S: UnicodeString): Boolean; overload; override;
     function ReadChar: UCS4Char; override;
-    procedure Export(const Writer: TCachedWriter); override;
+    procedure Export(const AWriter: TCachedWriter); override;
   end;
 
 
@@ -1427,16 +1428,16 @@ type
     FString: Pointer;
     FEncoding: TCachedEncoding;
 
-    procedure InternalAppend(const MaxAppendSize: NativeUInt; const Source; const AFlags: NativeUInt; const Conversion: Pointer);
+    procedure InternalAppend(const AMaxAppendSize: NativeUInt; const ASource; const AFlags: NativeUInt; const AConversion: Pointer);
   public
-    function InitByteString(const CodePage: Word = 0; const ALength: NativeUInt = 0): PByteString;
+    function InitByteString(const ACodePage: Word = 0; const ALength: NativeUInt = 0): PByteString;
     function InitUTF16String(const ALength: NativeUInt = 0): PUTF16String;
     function InitUTF32String(const ALength: NativeUInt = 0): PUTF32String;
     function InitString(const ALength: NativeUInt = 0): {$ifdef UNICODE}PUTF16String{$else}PByteString{$endif}; {$ifdef INLINESUPPORT}inline;{$endif}
 
-    procedure Append(const S: ByteString; const CharCase: TCharCase = ccOriginal); overload;
-    procedure Append(const S: UTF16String; const CharCase: TCharCase = ccOriginal); overload;
-    procedure Append(const S: UTF32String; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: ByteString; const ACharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: UTF16String; const ACharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: UTF32String; const ACharCase: TCharCase = ccOriginal); overload;
     procedure AppendAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
 
     function EmulateShortString: PShortString;
@@ -1462,47 +1463,47 @@ type
     property Flags: Cardinal read FEncoding.Flags write FEncoding.Flags;
   public
     // high level ByteString.Assign + Append
-    procedure Append(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const CodePage: Word; const CharCase: TCharCase = ccOriginal); overload;
-    procedure Append(const S: AnsiString; const CharCase: TCharCase = ccOriginal{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+    procedure Append(const AChars: PAnsiChar{/PUTF8Char}; const ALength: NativeUInt; const ACodePage: Word; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: AnsiString; const ACharCase: TCharCase = ccOriginal{$ifNdef INTERNALCODEPAGE}; const ACodePage: Word = 0{$endif}); overload;
     {$ifdef UNICODE}
-    procedure Append(const S: UTF8String; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: UTF8String; const ACharCase: TCharCase = ccOriginal); overload;
     {$else}
-    procedure AppendUTF8(const S: UTF8String; const CharCase: TCharCase = ccOriginal);
+    procedure AppendUTF8(const S: UTF8String; const ACharCase: TCharCase = ccOriginal);
     {$endif}
-    procedure Append(const S: ShortString; const CodePage: Word = 0; const CharCase: TCharCase = ccOriginal); overload;
-    procedure Append(const S: TBytes; const CodePage: Word = 0; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: ShortString; const ACodePage: Word = 0; const ACharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: TBytes; const ACodePage: Word = 0; const ACharCase: TCharCase = ccOriginal); overload;
 
     // high level UTF16String.Assign + Append
-    procedure Append(const AChars: PUnicodeChar; const ALength: NativeUInt; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const AChars: PUnicodeChar; const ALength: NativeUInt; const ACharCase: TCharCase = ccOriginal); overload;
     {$ifdef MSWINDOWS}
-    procedure Append(const S: WideString; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: WideString; const ACharCase: TCharCase = ccOriginal); overload;
     {$endif}
     {$ifdef UNICODE}
-    procedure Append(const S: UnicodeString; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: UnicodeString; const ACharCase: TCharCase = ccOriginal); overload;
     {$endif}
 
     // high level UTF32String.Assign + Append
-    procedure Append(const AChars: PUCS4Char; const ALength: NativeUInt; const CharCase: TCharCase = ccOriginal); overload;
-    procedure Append(const S: UCS4String; const NullTerminated: Boolean = True; const CharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const AChars: PUCS4Char; const ALength: NativeUInt; const ACharCase: TCharCase = ccOriginal); overload;
+    procedure Append(const S: UCS4String; const ANullTerminated: Boolean = True; const ACharCase: TCharCase = ccOriginal); overload;
   public
     // boolean, ordinal and float
-    procedure AppendBoolean(const Value: Boolean);
-    procedure AppendInteger(const Value: Integer; const Digits: NativeUInt = 0);
-    procedure AppendCardinal(const Value: Cardinal; const Digits: NativeUInt = 0);
-    procedure AppendHex(const Value: Integer; const Digits: NativeUInt = 0);
-    procedure AppendInt64(const Value: Int64; const Digits: NativeUInt = 0);
-    procedure AppendUInt64(const Value: UInt64; const Digits: NativeUInt = 0);
-    procedure AppendHex64(const Value: Int64; const Digits: NativeUInt = 0);
-    procedure AppendFloat(const Value: Extended; const Settings: TFloatSettings); overload;
-    procedure AppendFloat(const Value: Extended); overload; {$ifNdef CPUINTELASM}inline;{$endif}
-    procedure AppendDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure AppendDate(const Value: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
-    procedure AppendTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure AppendTime(const Value: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
-    procedure AppendDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure AppendDateTime(const Value: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
-    procedure AppendVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings); overload;
-    procedure AppendVariant(const Value: Variant); overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    procedure AppendBoolean(const AValue: Boolean);
+    procedure AppendInteger(const AValue: Integer; const ADigits: NativeUInt = 0);
+    procedure AppendCardinal(const AValue: Cardinal; const ADigits: NativeUInt = 0);
+    procedure AppendHex(const AValue: Integer; const ADigits: NativeUInt = 0);
+    procedure AppendInt64(const AValue: Int64; const ADigits: NativeUInt = 0);
+    procedure AppendUInt64(const AValue: UInt64; const ADigits: NativeUInt = 0);
+    procedure AppendHex64(const AValue: Int64; const ADigits: NativeUInt = 0);
+    procedure AppendFloat(const AValue: Extended; const ASettings: TFloatSettings); overload;
+    procedure AppendFloat(const AValue: Extended); overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    procedure AppendDate(const AValue: TDateTime; const ASettings: TDateTimeSettings); overload;
+    procedure AppendDate(const AValue: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    procedure AppendTime(const AValue: TDateTime; const ASettings: TDateTimeSettings); overload;
+    procedure AppendTime(const AValue: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    procedure AppendDateTime(const AValue: TDateTime; const ASettings: TDateTimeSettings); overload;
+    procedure AppendDateTime(const AValue: TDateTime); overload; {$ifNdef CPUINTELASM}inline;{$endif}
+    procedure AppendVariant(const AValue: Variant; const AFloatSettings: TFloatSettings; const ADateTimeSettings: TDateTimeSettings); overload;
+    procedure AppendVariant(const AValue: Variant); overload; {$ifNdef CPUINTELASM}inline;{$endif}
   end;
   PTemporaryString = ^TTemporaryString;
 
@@ -1512,13 +1513,13 @@ type
   TCachedTextWriter = class(TCachedTextBuffer)
   protected
     FVirtuals: record
-      WriteBufferedAscii: procedure(Self: Pointer; From: PByte; Count: NativeUInt);
-      WriteAscii: procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
-      WriteUnicodeAscii: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
-      WriteUCS4Ascii: procedure(Self: Pointer; const AChars: PUCS4Char; const ALength: NativeUInt);
-      WriteSBCSCharsInternal: procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
-      WriteUTF8Chars: procedure(Self: Pointer; const AChars: PUTF8Char; const ALength: NativeUInt);
-      WriteUnicodeChars: procedure(Self: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
+      WriteBufferedAscii: procedure(ASelf: Pointer; AFrom: PByte; ACount: NativeUInt);
+      WriteAscii: procedure(ASelf: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
+      WriteUnicodeAscii: procedure(ASelf: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
+      WriteUCS4Ascii: procedure(ASelf: Pointer; const AChars: PUCS4Char; const ALength: NativeUInt);
+      WriteSBCSCharsInternal: procedure(ASelf: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
+      WriteUTF8Chars: procedure(ASelf: Pointer; const AChars: PUTF8Char; const ALength: NativeUInt);
+      WriteUnicodeChars: procedure(ASelf: Pointer; const AChars: PUnicodeChar; const ALength: NativeUInt);
     end;
     FBuffer: record
       Booleans: array[0..1] of array[0..7] of Byte;
@@ -1543,19 +1544,19 @@ type
       Settings: TFloatSettings;
     end;
 
-    procedure OverflowWriteData(const Buffer; const Count: NativeUInt);
-    procedure WriteContextData(var Context: TUniConvContext);
-    procedure WriteBufferedSBCSChars(const CodePage: Word);
-    function GetSBCSConverter(var Encoding: TCachedEncoding; const CodePage: Word): Pointer; virtual;
+    procedure OverflowWriteData(const ABuffer; const ACount: NativeUInt);
+    procedure WriteContextData(var AContext: TUniConvContext);
+    procedure WriteBufferedSBCSChars(const ACodePage: Word);
+    function GetSBCSConverter(var AEncoding: TCachedEncoding; const ACodePage: Word): Pointer; virtual;
     procedure InitContexts; virtual; abstract;
-    procedure WriteBufferedAscii(From: PByte; Count: NativeUInt); virtual; abstract;
-    procedure WriteFormatString(const Arg: TVarRec);
-    function WriteFormatArg(const ArgType: NativeUInt; const Arg: TVarRec): Boolean;
+    procedure WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt); virtual; abstract;
+    procedure WriteFormatString(const AArg: TVarRec);
+    function WriteFormatArg(const AArgType: NativeUInt; const AArg: TVarRec): Boolean;
     procedure WriteFormatByte;
     procedure WriteFormatWord;
   public
-    constructor Create(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
-    procedure WriteData(const Buffer; const Count: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    constructor Create(const AContext: PUniConvContext; const ATarget: TCachedWriter; const AOwner: Boolean = False);
+    procedure WriteData(const ABuffer; const ACount: NativeUInt); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     function Flush: NativeUInt;
 
     property Current: PByte read FCurrent write FCurrent;
@@ -1574,7 +1575,7 @@ type
     procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt); virtual; abstract;
     procedure WriteUnicodeAscii(const AChars: PUnicodeChar; const ALength: NativeUInt); virtual; abstract;
     procedure WriteUCS4Ascii(const AChars: PUCS4Char; const ALength: NativeUInt); virtual; abstract;
-    procedure WriteAnsiChars(const AChars: PAnsiChar; const ALength: NativeUInt; const CodePage: Word); overload;
+    procedure WriteAnsiChars(const AChars: PAnsiChar; const ALength: NativeUInt; const ACodePage: Word);
     procedure WriteUTF8Chars(const AChars: PUTF8Char; const ALength: NativeUInt); virtual; abstract;
     procedure WriteUnicodeChars(const AChars: PUnicodeChar; const ALength: NativeUInt); virtual; abstract;
     procedure WriteUCS4Chars(const AChars: PUCS4Char; const ALength: NativeUInt);
@@ -1583,42 +1584,42 @@ type
     procedure WriteUTF16String(const S: UTF16String); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure WriteUTF32String(const S: UTF32String);
 
-    procedure WriteAnsiString(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif});
-    procedure WriteShortString(const S: ShortString; const CodePage: Word = 0);
+    procedure WriteAnsiString(const S: AnsiString{$ifNdef INTERNALCODEPAGE}; const ACodePage: Word = 0{$endif});
+    procedure WriteShortString(const S: ShortString; const ACodePage: Word = 0);
     procedure WriteUTF8String(const S: UTF8String); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure WriteWideString(const S: WideString); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
     procedure WriteUnicodeString(const S: UnicodeString); {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure WriteUCS4String(const S: UCS4String; const NullTerminated: Boolean = True);
+    procedure WriteUCS4String(const S: UCS4String; const ANullTerminated: Boolean = True);
 
     {$ifNdef NEXTGEN}
-    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif});
+    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const ACodePage: Word = 0{$endif});
     procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const);
     {$else .NEXTGEN}
-    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const CodePage: Word = 0{$endif}); overload;
+    procedure WriteFormat(const FmtStr: AnsiString; const Args: array of const{$ifNdef INTERNALCODEPAGE}; const ACodePage: Word = 0{$endif}); overload;
     procedure WriteFormat(const FmtStr: UnicodeString; const Args: array of const); overload;
     procedure WriteFormatUTF8(const FmtStr: UTF8String; const Args: array of const); overload;
     procedure WriteFormatUTF8(const FmtStr: UnicodeString; const Args: array of const); overload;
     {$endif}
     procedure WriteFormatUnicode(const FmtStr: UnicodeString; const Args: array of const);
   public
-    procedure WriteBoolean(const Value: Boolean);
-    procedure WriteBooleanOrdinal(const Value: Boolean);
-    procedure WriteInteger(const Value: Integer; const Digits: NativeUInt = 0);
-    procedure WriteHex(const Value: Integer; const Digits: NativeUInt = 0);
-    procedure WriteCardinal(const Value: Cardinal; const Digits: NativeUInt = 0);
-    procedure WriteInt64(const Value: Int64; const Digits: NativeUInt = 0);
-    procedure WriteHex64(const Value: Int64; const Digits: NativeUInt = 0);
-    procedure WriteUInt64(const Value: UInt64; const Digits: NativeUInt = 0);
-    procedure WriteFloat(const Value: Extended; const Settings: TFloatSettings); overload;
-    procedure WriteFloat(const Value: Extended); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure WriteDate(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure WriteDate(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure WriteTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure WriteTime(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure WriteDateTime(const Value: TDateTime; const Settings: TDateTimeSettings); overload;
-    procedure WriteDateTime(const Value: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
-    procedure WriteVariant(const Value: Variant; const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings); overload;
-    procedure WriteVariant(const Value: Variant); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteBoolean(const AValue: Boolean);
+    procedure WriteBooleanOrdinal(const AValue: Boolean);
+    procedure WriteInteger(const AValue: Integer; const ADigits: NativeUInt = 0);
+    procedure WriteHex(const AValue: Integer; const ADigits: NativeUInt = 0);
+    procedure WriteCardinal(const AValue: Cardinal; const ADigits: NativeUInt = 0);
+    procedure WriteInt64(const AValue: Int64; const ADigits: NativeUInt = 0);
+    procedure WriteHex64(const AValue: Int64; const ADigits: NativeUInt = 0);
+    procedure WriteUInt64(const AValue: UInt64; const ADigits: NativeUInt = 0);
+    procedure WriteFloat(const AValue: Extended; const ASettings: TFloatSettings); overload;
+    procedure WriteFloat(const AValue: Extended); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteDate(const AValue: TDateTime; const ASettings: TDateTimeSettings); overload;
+    procedure WriteDate(const AValue: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteTime(const AValue: TDateTime; const ASettings: TDateTimeSettings); overload;
+    procedure WriteTime(const AValue: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteDateTime(const AValue: TDateTime; const ASettings: TDateTimeSettings); overload;
+    procedure WriteDateTime(const AValue: TDateTime); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
+    procedure WriteVariant(const AValue: Variant; const AFloatSettings: TFloatSettings; const ADateTimeSettings: TDateTimeSettings); overload;
+    procedure WriteVariant(const AValue: Variant); overload; {$ifdef INLINESUPPORTSIMPLE}inline;{$endif}
   end;
 
 
@@ -1630,16 +1631,16 @@ type
     FSBCSValues: PUniConvSBCSValues;
     FEncoding: TCachedEncoding;
 
-    procedure SetEncoding(const Value: Word);
-    function GetSBCSConverter(var Encoding: TCachedEncoding; const CodePage: Word): Pointer; override;
+    procedure SetEncoding(const AValue: Word);
+    function GetSBCSConverter(var AEncoding: TCachedEncoding; const ACodePage: Word): Pointer; override;
     procedure InitContexts; override;
-    procedure WriteBufferedAscii(From: PByte; Count: NativeUInt); override;
+    procedure WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt); override;
     procedure WriteSBCSCharsToSBCS(const AChars: PAnsiChar; const ALength: NativeUInt);
     procedure WriteSBCSCharsToUTF8(const AChars: PAnsiChar; const ALength: NativeUInt);
   public
-    constructor Create(const Encoding: Word; const Target: TCachedWriter; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const Encoding: Word; const FileName: string; const BOM: TBOM = bomNone; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    constructor Create(const AEncoding: Word; const ATarget: TCachedWriter; const ABOM: TBOM = bomNone; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile(const AEncoding: Word; const AFileName: string; const ABOM: TBOM = bomNone; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ATarget: TCachedWriter; const AOwner: Boolean = False);
 
     property SBCS{nil for UTF8}: PUniConvSBCS read FSBCS;
     property SBCSIndex: ShortInt read FEncoding.SBCSIndex;
@@ -1659,12 +1660,12 @@ type
   TUTF16TextWriter = class(TCachedTextWriter)
   protected
     procedure InitContexts; override;
-    procedure WriteBufferedAscii(From: PByte; Count: NativeUInt); override;
+    procedure WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt); override;
     procedure WriteSBCSCharsInternal(const AChars: PAnsiChar; const ALength: NativeUInt);
   public
-    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomUTF16; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomUTF16; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    constructor Create(const ATarget: TCachedWriter; const ABOM: TBOM = bomUTF16; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile(const AFileName: string; const ABOM: TBOM = bomUTF16; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ATarget: TCachedWriter; const AOwner: Boolean = False);
   public
     procedure WriteCRLF; override;
     procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt); override;
@@ -1680,12 +1681,12 @@ type
   TUTF32TextWriter = class(TCachedTextWriter)
   protected
     procedure InitContexts; override;
-    procedure WriteBufferedAscii(From: PByte; Count: NativeUInt); override;
+    procedure WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt); override;
     procedure WriteSBCSCharsInternal(const AChars: PAnsiChar; const ALength: NativeUInt);
   public
-    constructor Create(const Target: TCachedWriter; const BOM: TBOM = bomUTF32; const DefaultByteEncoding: Word = 0; const Owner: Boolean = False);
-    constructor CreateFromFile(const FileName: string; const BOM: TBOM = bomUTF32; const DefaultByteEncoding: Word = 0);
-    constructor CreateDirect(const Context: PUniConvContext; const Target: TCachedWriter; const Owner: Boolean = False);
+    constructor Create(const ATarget: TCachedWriter; const ABOM: TBOM = bomUTF32; const ADefaultByteEncoding: Word = 0; const AOwner: Boolean = False);
+    constructor CreateFromFile(const AFileName: string; const ABOM: TBOM = bomUTF32; const ADefaultByteEncoding: Word = 0);
+    constructor CreateDirect(const AContext: PUniConvContext; const ATarget: TCachedWriter; const AOwner: Boolean = False);
   public
     procedure WriteCRLF; override;
     procedure WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt); override;
@@ -27622,75 +27623,75 @@ end;
 
 { TUniConvReReader }
 
-constructor TUniConvReReader.Create(const Context: PUniConvContext;
-  const Source: TCachedReader; const Owner: Boolean;
-  const BufferSize: NativeUInt);
+constructor TUniConvReReader.Create(const AContext: PUniConvContext;
+  const ASource: TCachedReader; const AOwner: Boolean;
+  const ABufferSize: NativeUInt);
 begin
-  FContext := Context;
-  inherited Create(InternalCallback, Source, Owner, BufferSize);
+  FContext := AContext;
+  inherited Create(InternalCallback, ASource, AOwner, ABufferSize);
 end;
 
-function TUniConvReReader.InternalCallback(Sender: TCachedBuffer; Data: PByte;
-  Size: NativeUInt): NativeUInt;
+function TUniConvReReader.InternalCallback(const ASender: TCachedBuffer; AData: PByte;
+  ASize: NativeUInt): NativeUInt;
 var
-  Context: PUniConvContext;
-  Reader: TCachedReader;
-  Gap: PGap16;
+  LContext: PUniConvContext;
+  LReader: TCachedReader;
+  LGap: PGap16;
   R: NativeInt;
 begin
-  Context := Self.Context;
-  Reader := Self.Source;
-  Gap := PGap16(@Self.FGap);
+  LContext := Self.Context;
+  LReader := Self.Source;
+  LGap := PGap16(@Self.FGap);
 
-  Result := Gap16Clear(Data, Size, Gap);
-  Inc(Data, Result);
-  Dec(Size, Result);
+  Result := Gap16Clear(AData, ASize, LGap);
+  Inc(AData, Result);
+  Dec(ASize, Result);
 
-  if (Size <> 0) and (not Reader.EOF) then
+  if (ASize <> 0) and (not LReader.EOF) then
   repeat
     // conversion
-    Context.Destination := Data;
-    Context.DestinationSize := Size;
-    Context.ModeFinalize := Reader.Finishing;
-    Context.Source := Reader.Current;
-    Context.SourceSize := Reader.Margin;
-    R := Context.Convert;
+    LContext.Destination := AData;
+    LContext.DestinationSize := ASize;
+    LContext.ModeFinalize := LReader.Finishing;
+    LContext.Source := LReader.Current;
+    LContext.SourceSize := LReader.Margin;
+    R := LContext.Convert;
 
     // increment
-    Inc(Data, Context.DestinationWritten);
-    Dec(Size, Context.DestinationWritten);
-    Inc(Result, Context.DestinationWritten);
-    Inc(Reader.Current, Context.SourceRead);
+    Inc(AData, LContext.DestinationWritten);
+    Dec(ASize, LContext.DestinationWritten);
+    Inc(Result, LContext.DestinationWritten);
+    Inc(LReader.Current, LContext.SourceRead);
 
     // next iteration
     if (R <= 0) then
     begin
       // reader buffer fully read
-      if (Reader.Finishing) then
+      if (LReader.Finishing) then
       begin
-        Reader.EOF := True;
+        LReader.EOF := True;
         Exit;
       end else
       begin
-        Reader.Flush;
+        LReader.Flush;
       end;
     end else
     // if (R > 0) then
     begin
       // destination too small
       // convert to Gap
-      Context.Destination := @Gap.Data;
-      Context.DestinationSize := SizeOf(Gap.Data);
-      Context.Source := Reader.Current;
-      Context.SourceSize := Reader.Margin;
-      Context.Convert;
+      LContext.Destination := @LGap.Data;
+      LContext.DestinationSize := SizeOf(LGap.Data);
+      LContext.Source := LReader.Current;
+      LContext.SourceSize := LReader.Margin;
+      LContext.Convert;
 
       // converted sizes
-      Gap.Size := Context.DestinationWritten;
-      Inc(Reader.Current, Context.SourceRead);
+      LGap.Size := LContext.DestinationWritten;
+      Inc(LReader.Current, LContext.SourceRead);
 
       // copy Gap bytes
-      Inc(Result, Gap16Clear(Data, Size, Gap));
+      Inc(Result, Gap16Clear(AData, ASize, LGap));
       Exit;
     end;
   until (False);
@@ -27699,59 +27700,59 @@ end;
 
 { TUniConvReWriter }
 
-constructor TUniConvReWriter.Create(const Context: PUniConvContext;
-  const Target: TCachedWriter; const Owner: Boolean;
-  const BufferSize: NativeUInt);
+constructor TUniConvReWriter.Create(const AContext: PUniConvContext;
+  const ATarget: TCachedWriter; const AOwner: Boolean;
+  const ABufferSize: NativeUInt);
 begin
-  FContext := Context;
-  inherited Create(InternalCallback, Target, Owner, BufferSize);
+  FContext := AContext;
+  inherited Create(InternalCallback, ATarget, AOwner, ABufferSize);
 end;
 
-function TUniConvReWriter.InternalCallback(Sender: TCachedBuffer; Data: PByte;
-  Size: NativeUInt): NativeUInt;
+function TUniConvReWriter.InternalCallback(const ASender: TCachedBuffer; AData: PByte;
+  ASize: NativeUInt): NativeUInt;
 var
-  Context: PUniConvContext;
-  Writer: TCachedWriter;
-  Gap: PGap16;
+  LContext: PUniConvContext;
+  LWriter: TCachedWriter;
+  LGap: PGap16;
   R: NativeInt;
 begin
-  Context := Self.Context;
-  Writer := Self.Target;
-  Gap := PGap16(@Self.FGap);
+  LContext := Self.Context;
+  LWriter := Self.Target;
+  LGap := PGap16(@Self.FGap);
   Result := 0;
-  if (Writer.EOF) then Exit;
+  if (LWriter.EOF) then Exit;
 
-  Context.ModeFinalize := (Size < Self.Memory.Size);
-  Inc(Writer.Current, Gap16Clear(Writer.Current, Gap.Size, Gap));
-  if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
+  LContext.ModeFinalize := (ASize < Self.Memory.Size);
+  Inc(LWriter.Current, Gap16Clear(LWriter.Current, LGap.Size, LGap));
+  if (NativeUInt(LWriter.Current) >= NativeUInt(LWriter.Overflow)) then LWriter.Flush;
 
   repeat
     // conversion
-    Context.Source := Data;
-    Context.SourceSize := Size;
-    Context.Destination := Writer.Current;
-    Context.DestinationSize := Writer.Margin + 16;
-    R := Context.Convert;
+    LContext.Source := AData;
+    LContext.SourceSize := ASize;
+    LContext.Destination := LWriter.Current;
+    LContext.DestinationSize := LWriter.Margin + 16;
+    R := LContext.Convert;
 
     // increment
-    Inc(Data, Context.SourceRead);
-    Dec(Size, Context.SourceRead);
-    Inc(Result, Context.SourceRead);
-    Inc(Writer.Current, Context.DestinationWritten);
+    Inc(AData, LContext.SourceRead);
+    Dec(ASize, LContext.SourceRead);
+    Inc(Result, LContext.SourceRead);
+    Inc(LWriter.Current, LContext.DestinationWritten);
 
     // next iteration
     if (R > 0) then
     begin
       // writer buffer fully written
-      Writer.Flush;
+      LWriter.Flush;
     end else
     // if (R <= 0) then
     begin
       // data buffer fully read
-      Move(Data^, Gap.Data, Size);
-      Gap.Size := Size;
-      Inc(Result, Size);
-      if (NativeUInt(Writer.Current) >= NativeUInt(Writer.Overflow)) then Writer.Flush;
+      Move(AData^, LGap.Data, ASize);
+      LGap.Size := ASize;
+      Inc(Result, ASize);
+      if (NativeUInt(LWriter.Current) >= NativeUInt(LWriter.Overflow)) then LWriter.Flush;
       Exit;
     end;
   until (False);
@@ -27760,27 +27761,27 @@ end;
 
 { TCachedTextBuffer }
 
-procedure TCachedTextBuffer.Initialize(const Context: PUniConvContext;
-  const DataBuffer: TCachedBuffer; const Owner: Boolean);
+procedure TCachedTextBuffer.Initialize(const AContext: PUniConvContext;
+  const ADataBuffer: TCachedBuffer; const AOwner: Boolean);
 begin
   Finalize;
 
-  FKind := DataBuffer.Kind;
-  FOwner := Owner;
-  if (Context <> nil) and
-    (@PUniConvContextEx(Context).FConvertProc <> @TUniConvContextEx.convert_copy) then
+  FKind := ADataBuffer.Kind;
+  FOwner := AOwner;
+  if (AContext <> nil) and
+    (@PUniConvContextEx(AContext).FConvertProc <> @TUniConvContextEx.convert_copy) then
   begin
     if (FKind = cbReader) then
     begin
-      FTextConverter := TUniConvReReader.Create(Context, DataBuffer as TCachedReader);
+      FTextConverter := TUniConvReReader.Create(AContext, ADataBuffer as TCachedReader);
     end else
     begin
-      FTextConverter := TUniConvReWriter.Create(Context, DataBuffer as TCachedWriter);
+      FTextConverter := TUniConvReWriter.Create(AContext, ADataBuffer as TCachedWriter);
     end;
     FDataBuffer := FTextConverter;
   end else
   begin
-    FDataBuffer := DataBuffer;
+    FDataBuffer := ADataBuffer;
   end;
 
   FieldsCopy;
@@ -27834,20 +27835,7 @@ end;
 destructor TCachedTextBuffer.Destroy;
 begin
   Finalize;
-  if (FInternalContext <> nil) then Dispose(FInternalContext);
   inherited;
-end;
-
-function TCachedTextBuffer.GetInternalContext: PUniConvContext;
-begin
-  Result := FInternalContext;
-
-  if (Result = nil) then
-  begin
-    GetMem(Result, SizeOf(TUniConvContext));
-    FillChar(Result^, SizeOf(TUniConvContext), #0);
-    FInternalContext := Result;
-  end;
 end;
 
 function TCachedTextBuffer.GetSource: TCachedReader;
@@ -27888,20 +27876,20 @@ begin
   Result := FDataBuffer.Position;
 end;
 
-procedure TCachedTextBuffer.SetEOF(const Value: Boolean);
+procedure TCachedTextBuffer.SetEOF(const AValue: Boolean);
 begin
-  if (Value) and (FEOF <> Value) then
+  if (AValue) and (FEOF <> AValue) then
   begin
     FDataBuffer.EOF := True;
     FieldsCopy;
   end;
 end;
 
-procedure TCachedTextBuffer.OverflowReaderSkip(const Count: NativeUInt);
+procedure TCachedTextBuffer.OverflowReaderSkip(const ACount: NativeUInt);
 begin
-  Dec(FCurrent, Count);
+  Dec(FCurrent, ACount);
   FDataBuffer.Current := FCurrent;
-  (FDataBuffer as TCachedReader).Skip(Count);
+  (FDataBuffer as TCachedReader).Skip(ACount);
   FieldsCopy;
 end;
 
@@ -27915,33 +27903,33 @@ end;
 
 { TCachedTextReader }
 
-function DetectSBCS(const CodePage: Word; const UTF8Compatible: Boolean = True): PUniConvSBCS;
+function DetectSBCS(const ACodePage: Word; const AUTF8Compatible: Boolean = True): PUniConvSBCS;
 begin
-  if (CodePage = CODEPAGE_UTF8) and (UTF8Compatible) then
+  if (ACodePage = CODEPAGE_UTF8) and (AUTF8Compatible) then
   begin
     Result := nil;
   end else
   begin
-    Result := UniConvSBCS(CodePage);
-    if (CodePage <> 0) and (Result.CodePage <> CodePage) then
-      raise ECachedText.CreateFmt('CP%d is not byte encoding', [CodePage]);
+    Result := UniConvSBCS(ACodePage);
+    if (ACodePage <> 0) and (Result.CodePage <> ACodePage) then
+      raise ECachedText.CreateFmt('CP%d is not byte encoding', [ACodePage]);
   end;
 end;
 
-function DetectBOM(const Source: TCachedReader): TBOM;
+function DetectBOM(const ASource: TCachedReader): TBOM;
 begin
-  if (Source.Margin < 4) and (not Source.EOF) then Source.Flush;
+  if (ASource.Margin < 4) and (not ASource.EOF) then ASource.Flush;
 
-  Result := UniConv.DetectBOM(Source.Current, Source.Margin);
+  Result := UniConv.DetectBOM(ASource.Current, ASource.Margin);
   if (Result <> bomNone) then
-    Inc(Source.Current, BOM_INFO[Result].Size);
+    Inc(ASource.Current, BOM_INFO[Result].Size);
 end;
 
-constructor TCachedTextReader.Create(const Context: PUniConvContext;
-  const Source: TCachedReader; const Owner: Boolean);
+constructor TCachedTextReader.Create(const AContext: PUniConvContext;
+  const ASource: TCachedReader; const AOwner: Boolean);
 begin
   inherited Create;
-  Initialize(Context, Source, Owner);
+  Initialize(AContext, ASource, AOwner);
 end;
 
 function TCachedTextReader.Flush: NativeUInt;
@@ -27949,40 +27937,40 @@ begin
   Result := inherited Flush;
 end;
 
-procedure TCachedTextReader.OverflowReadData(var Buffer; const Count: NativeUInt);
+procedure TCachedTextReader.OverflowReadData(var ABuffer; const ACount: NativeUInt);
 begin
   FDataBuffer.Current := FCurrent;
-  TCachedReader(FDataBuffer).Read(Buffer, Count);
+  TCachedReader(FDataBuffer).Read(ABuffer, ACount);
   FieldsCopy;
 end;
 
-procedure TCachedTextReader.ReadData(var Buffer; const Count: NativeUInt);
+procedure TCachedTextReader.ReadData(var ABuffer; const ACount: NativeUInt);
 var
   P: PByte;
 begin
   P := FCurrent;
-  Inc(P, Count);
+  Inc(P, ACount);
 
   if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
   begin
-    OverflowReadData(Buffer, Count);
+    OverflowReadData(ABuffer, ACount);
   end else
   begin
     FCurrent := P;
-    Dec(P, Count);
-    NcMove(P^, Buffer, Count);
+    Dec(P, ACount);
+    NcMove(P^, ABuffer, ACount);
   end;
 end;
 
-procedure TCachedTextReader.Skip(const Count: NativeUInt);
+procedure TCachedTextReader.Skip(const ACount: NativeUInt);
 var
   P: PByte;
 begin
   P := FCurrent;
-  Inc(P, Count);
+  Inc(P, ACount);
   if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
   begin
-    OverflowReaderSkip(Count);
+    OverflowReaderSkip(ACount);
   end else
   begin
     FCurrent := P;
@@ -27997,7 +27985,7 @@ begin
   Result := Self.ReadChar;
 end;
 
-procedure TCachedTextReader.Export(const Writer: TCachedWriter);
+procedure TCachedTextReader.Export(const AWriter: TCachedWriter);
 var
   Count: NativeInt;
 begin
@@ -28006,7 +27994,7 @@ begin
     Count := Self.Margin;
     if (Count > 0) then
     begin
-      Writer.Write(Self.FCurrent^, Count);
+      AWriter.Write(Self.FCurrent^, Count);
       Self.FCurrent := Self.FOverflow;
     end;
 
@@ -28020,139 +28008,171 @@ begin
   end;
 end;
 
-procedure TCachedTextReader.Export(const FileName: string);
-var
-  Writer: TCachedWriter;
-begin
-  Writer := TCachedFileWriter.Create(FileName);
-  try
-    Export(Writer);
-  finally
-    Writer.Free;
+type
+  TCachedTextReaderExportRec = record
+    Reader: Pointer;
+    FileName: PString;
   end;
+
+procedure CachedTextReaderExport(const ASender: TCachedObject; const AParam: Pointer);
+var
+  LRec: ^TCachedTextReaderExportRec;
+begin
+  LRec := AParam;
+  TCachedFileWriter(ASender).Create(LRec^.FileName^);
+  try
+    TCachedTextReader(LRec^.Reader).Export(TCachedFileWriter(ASender));
+  finally
+    ASender.Destroy;
+  end;
+end;
+
+procedure TCachedTextReader.Export(const AFileName: string);
+var
+  LLimit: Int64;
+  LBufferSize: NativeUInt;
+  LRec: TCachedTextReaderExportRec;
+begin
+  LBufferSize := 16 * 1024;
+  if (FDataBuffer.Limited) then
+  begin
+    LLimit := FDataBuffer.Limit shr 1;
+
+    if (LLimit <= 32 * 1024) then
+    begin
+      LBufferSize := LLimit;
+    end else
+    begin
+      LBufferSize := 32 * 1024;
+    end;
+  end;
+
+  LRec.Reader := Self;
+  LRec.FileName := @AFileName;
+  TCachedFileWriter.PreallocatedCall(@LRec, LBufferSize, CachedTextReaderExport);
 end;
 
 
 { TByteTextReader }
 
-procedure TByteTextReader.SetSBCS(const Value: PUniConvSBCS);
+procedure TByteTextReader.SetSBCS(const AValue: PUniConvSBCS);
 begin
-  FSBCS := Value;
+  FSBCS := AValue;
 
-  if (Value = nil) then
+  if (AValue = nil) then
   begin
     FEncoding := CODEPAGE_UTF8;
     FNativeFlags := $ff000000;
   end else
   begin
-    FEncoding := Value.CodePage;
-    FUCS2 := Pointer(Value.UCS2);
-    FNativeFlags := NativeUInt(Value.Index) shl 24;
+    FEncoding := AValue.CodePage;
+    FUCS2 := Pointer(AValue.UCS2);
+    FNativeFlags := NativeUInt(AValue.Index) shl 24;
   end;
 end;
 
-constructor TByteTextReader.Create(const Encoding: Word;
-  const Source: TCachedReader; const DefaultByteEncoding: Word;
-  const Owner: Boolean);
+constructor TByteTextReader.Create(const AEncoding: Word;
+  const ASource: TCachedReader; const ADefaultByteEncoding: Word;
+  const AOwner: Boolean);
 var
-  BOM: TBOM;
-  SBCS, DefaultSBCS: PUniConvSBCS;
-  Context: PUniConvContext;
+  LBOM: TBOM;
+  LSBCS, LDefaultSBCS: PUniConvSBCS;
+  LContext: PUniConvContext;
 begin
-  BOM := DetectBOM(Source);
-  SBCS := DetectSBCS(Encoding);
-  DefaultSBCS := DetectSBCS(DefaultByteEncoding);
-  Context := Self.GetInternalContext;
+  LBOM := DetectBOM(ASource);
+  LSBCS := DetectSBCS(AEncoding);
+  LDefaultSBCS := DetectSBCS(ADefaultByteEncoding);
+  LContext := @Self.FInternalContext;
 
-  if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
-    BOM := bomUTF8;
+  if (LBOM = bomNone) and (ADefaultByteEncoding = CODEPAGE_UTF8) then
+    LBOM := bomUTF8;
 
-  if (SBCS = nil) then
+  if (LSBCS = nil) then
   begin
-    if (BOM = bomUTF8) then
+    if (LBOM = bomUTF8) then
     begin
-      Context := nil;
+      LContext := nil;
     end else
     begin
-      Context.Init(bomUTF8, BOM, DefaultByteEncoding);
+      LContext.Init(bomUTF8, LBOM, ADefaultByteEncoding);
     end;
   end else
-  if (BOM = bomNone) then
+  if (LBOM = bomNone) then
   begin
-    if (SBCS = DefaultSBCS) then
+    if (LSBCS = LDefaultSBCS) then
     begin
-      Context := nil;
+      LContext := nil;
     end else
     begin
-      Context.InitSBCSFromSBCS(SBCS.CodePage, DefaultSBCS.CodePage);
+      LContext.InitSBCSFromSBCS(LSBCS.CodePage, LDefaultSBCS.CodePage);
     end;
   end else
   begin
-    Context.Init(bomNone, BOM, Encoding);
+    LContext.Init(bomNone, LBOM, AEncoding);
   end;
 
-  SetSBCS(SBCS);
-  inherited Create(Context, Source, Owner);
+  SetSBCS(LSBCS);
+  inherited Create(LContext, ASource, AOwner);
 end;
 
-constructor TByteTextReader.CreateFromFile(const Encoding: Word;
-  const FileName: string; const DefaultByteEncoding: Word);
+constructor TByteTextReader.CreateFromFile(const AEncoding: Word;
+  const AFileName: string; const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  Create(Encoding, TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
+  FFileName := AFileName;
+  Create(AEncoding, TCachedFileReader.Create(AFileName), ADefaultByteEncoding, True);
 end;
 
-constructor TByteTextReader.CreateDefault(const Source: TCachedReader;
-  const DefaultByteEncoding: Word; const Owner: Boolean);
+constructor TByteTextReader.CreateDefault(const ASource: TCachedReader;
+  const ADefaultByteEncoding: Word; const AOwner: Boolean);
 var
-  BOM: TBOM;
-  SBCS: PUniConvSBCS;
-  Context: PUniConvContext;
+  LBOM: TBOM;
+  LSBCS: PUniConvSBCS;
+  LContext: PUniConvContext;
 begin
-  BOM := DetectBOM(Source);
-  SBCS := DetectSBCS(DefaultByteEncoding);
-  Context := Self.GetInternalContext;
+  LBOM := DetectBOM(ASource);
+  LSBCS := DetectSBCS(ADefaultByteEncoding);
+  LContext := @Self.FInternalContext;
 
-  if (BOM = bomNone) then
+  if (LBOM = bomNone) then
   begin
-    Context := nil;
+    LContext := nil;
   end else
-  if (BOM = bomUTF8) then
+  if (LBOM = bomUTF8) then
   begin
-    SBCS := nil;
-    Context := nil;
+    LSBCS := nil;
+    LContext := nil;
   end else
   begin
-    if (SBCS = nil) then
+    if (LSBCS = nil) then
     begin
-      Context.Init(bomUTF8, BOM);
+      LContext.Init(bomUTF8, LBOM);
     end else
     begin
-      Context.Init(bomNone, BOM, DefaultByteEncoding);
+      LContext.Init(bomNone, LBOM, ADefaultByteEncoding);
     end;
   end;
 
-  SetSBCS(SBCS);
-  inherited Create(Context, Source, Owner);
+  SetSBCS(LSBCS);
+  inherited Create(LContext, ASource, AOwner);
 end;
 
-constructor TByteTextReader.CreateDefaultFromFile(const FileName: string;
-  const DefaultByteEncoding: Word);
+constructor TByteTextReader.CreateDefaultFromFile(const AFileName: string;
+  const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  CreateDefault(TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
+  FFileName := AFileName;
+  CreateDefault(TCachedFileReader.Create(AFileName), ADefaultByteEncoding, True);
 end;
 
-constructor TByteTextReader.CreateDirect(const Context: PUniConvContext;
-  const Source: TCachedReader; const Owner: Boolean);
+constructor TByteTextReader.CreateDirect(const AContext: PUniConvContext;
+  const ASource: TCachedReader; const AOwner: Boolean);
 var
-  SBCS: PUniConvSBCS;
+  LSBCS: PUniConvSBCS;
 begin
-  SBCS := nil{UTF-8};
-  if (Context <> nil) then SBCS := DetectSBCS(Context.DestinationCodePage);
+  LSBCS := nil{UTF-8};
+  if (AContext <> nil) then LSBCS := DetectSBCS(AContext.DestinationCodePage);
 
-  SetSBCS(SBCS);
-  inherited Create(Context, Source, Owner);
+  SetSBCS(LSBCS);
+  inherited Create(AContext, ASource, AOwner);
 end;
 
 function TByteTextReader.ReadChar: UCS4Char;
@@ -28161,7 +28181,7 @@ label
 var
   P: PByte;
   X, Y: NativeUInt;
-  UCS2: PUniConvWB;
+  LUCS2: PUniConvWB;
 begin
   P := Self.FCurrent;
 
@@ -28176,10 +28196,10 @@ begin
       Exit;
     end;
 
-    UCS2 := Self.FUCS2;
-    if (UCS2 <> nil) then
+    LUCS2 := Self.FUCS2;
+    if (LUCS2 <> nil) then
     begin
-      X := UCS2[X];
+      X := LUCS2[X];
       Self.FCurrent := P;
       Result := X;
       Exit;
@@ -28241,8 +28261,13 @@ end;
 
 function TByteTextReader.FlushReadln(var S: ByteString): Boolean;
 begin
-  if (Self.Finishing) then Self.EOF := True
-  else Self.Flush;
+  if (Self.Finishing) then
+  begin
+    Self.EOF := True;
+  end else
+  begin
+    Self.Flush;
+  end;
 
   Result := Self.Readln(S);
 end;
@@ -28397,54 +28422,54 @@ begin
   end;
 end;
 
-procedure TByteTextReader.Export(const Writer: TCachedWriter);
+procedure TByteTextReader.Export(const AWriter: TCachedWriter);
 begin
   if (Encoding = CODEPAGE_UTF8) then
   begin
-    Writer.Write(BOM_INFO[bomUTF8].Data, BOM_INFO[bomUTF8].Size);
+    AWriter.Write(BOM_INFO[bomUTF8].Data, BOM_INFO[bomUTF8].Size);
   end;
 
-  inherited Export(Writer);
+  inherited Export(AWriter);
 end;
 
 
 { TUTF16TextReader }
 
-constructor TUTF16TextReader.Create(const Source: TCachedReader;
-  const DefaultByteEncoding: Word; const Owner: Boolean);
+constructor TUTF16TextReader.Create(const ASource: TCachedReader;
+  const ADefaultByteEncoding: Word; const AOwner: Boolean);
 var
-  BOM: TBOM;
-  Context: PUniConvContext;
+  LBOM: TBOM;
+  LContext: PUniConvContext;
 begin
-  BOM := DetectBOM(Source);
-  {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.GetInternalContext;
+  LBOM := DetectBOM(ASource);
+  {Check}DetectSBCS(ADefaultByteEncoding);
+  LContext := @Self.FInternalContext;
 
-  if (BOM = bomUTF16) then
+  if (LBOM = bomUTF16) then
   begin
-    Context := nil;
+    LContext := nil;
   end else
   begin
-    if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
-      BOM := bomUTF8;
+    if (LBOM = bomNone) and (ADefaultByteEncoding = CODEPAGE_UTF8) then
+      LBOM := bomUTF8;
 
-    Context.Init(bomUTF16, BOM, DefaultByteEncoding);
+    LContext.Init(bomUTF16, LBOM, ADefaultByteEncoding);
   end;
 
-  inherited Create(Context, Source, Owner);
+  inherited Create(LContext, ASource, AOwner);
 end;
 
-constructor TUTF16TextReader.CreateFromFile(const FileName: string;
-  const DefaultByteEncoding: Word);
+constructor TUTF16TextReader.CreateFromFile(const AFileName: string;
+  const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  Create(TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
+  FFileName := AFileName;
+  Create(TCachedFileReader.Create(AFileName), ADefaultByteEncoding, True);
 end;
 
-constructor TUTF16TextReader.CreateDirect(const Context: PUniConvContext;
-  const Source: TCachedReader; const Owner: Boolean);
+constructor TUTF16TextReader.CreateDirect(const AContext: PUniConvContext;
+  const ASource: TCachedReader; const AOwner: Boolean);
 begin
-  inherited Create(Context, Source, Owner);
+  inherited Create(AContext, ASource, AOwner);
 end;
 
 function TUTF16TextReader.ReadChar: UCS4Char;
@@ -28498,8 +28523,13 @@ end;
 
 function TUTF16TextReader.FlushReadln(var S: UTF16String): Boolean;
 begin
-  if (Self.Finishing) then Self.EOF := True
-  else Self.Flush;
+  if (Self.Finishing) then
+  begin
+    Self.EOF := True;
+  end else
+  begin
+    Self.Flush;
+  end;
 
   Result := Self.Readln(S);
 end;
@@ -28653,50 +28683,50 @@ begin
   end;
 end;
 
-procedure TUTF16TextReader.Export(const Writer: TCachedWriter);
+procedure TUTF16TextReader.Export(const AWriter: TCachedWriter);
 begin
-  Writer.Write(BOM_INFO[bomUTF16].Data, BOM_INFO[bomUTF16].Size);
-  inherited Export(Writer);
+  AWriter.Write(BOM_INFO[bomUTF16].Data, BOM_INFO[bomUTF16].Size);
+  inherited Export(AWriter);
 end;
 
 
 { TUTF32TextReader }
 
-constructor TUTF32TextReader.Create(const Source: TCachedReader;
-  const DefaultByteEncoding: Word; const Owner: Boolean);
+constructor TUTF32TextReader.Create(const ASource: TCachedReader;
+  const ADefaultByteEncoding: Word; const AOwner: Boolean);
 var
-  BOM: TBOM;
-  Context: PUniConvContext;
+  LBOM: TBOM;
+  LContext: PUniConvContext;
 begin
-  BOM := DetectBOM(Source);
-  {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.GetInternalContext;
+  LBOM := DetectBOM(ASource);
+  {Check}DetectSBCS(ADefaultByteEncoding);
+  LContext := @Self.FInternalContext;
 
-  if (BOM = bomUTF32) then
+  if (LBOM = bomUTF32) then
   begin
-    Context := nil;
+    LContext := nil;
   end else
   begin
-    if (BOM = bomNone) and (DefaultByteEncoding = CODEPAGE_UTF8) then
-      BOM := bomUTF8;
+    if (LBOM = bomNone) and (ADefaultByteEncoding = CODEPAGE_UTF8) then
+      LBOM := bomUTF8;
 
-    Context.Init(bomUTF32, BOM, DefaultByteEncoding);
+    LContext.Init(bomUTF32, LBOM, ADefaultByteEncoding);
   end;
 
-  inherited Create(Context, Source, Owner);
+  inherited Create(LContext, ASource, AOwner);
 end;
 
-constructor TUTF32TextReader.CreateFromFile(const FileName: string;
-  const DefaultByteEncoding: Word);
+constructor TUTF32TextReader.CreateFromFile(const AFileName: string;
+  const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  Create(TCachedFileReader.Create(FileName), DefaultByteEncoding, True);
+  FFileName := AFileName;
+  Create(TCachedFileReader.Create(AFileName), ADefaultByteEncoding, True);
 end;
 
-constructor TUTF32TextReader.CreateDirect(const Context: PUniConvContext;
-  const Source: TCachedReader; const Owner: Boolean);
+constructor TUTF32TextReader.CreateDirect(const AContext: PUniConvContext;
+  const ASource: TCachedReader; const AOwner: Boolean);
 begin
-  inherited Create(Context, Source, Owner);
+  inherited Create(AContext, ASource, AOwner);
 end;
 
 function TUTF32TextReader.ReadChar: UCS4Char;
@@ -28723,8 +28753,13 @@ end;
 
 function TUTF32TextReader.FlushReadln(var S: UTF32String): Boolean;
 begin
-  if (Self.Finishing) then Self.EOF := True
-  else Self.Flush;
+  if (Self.Finishing) then
+  begin
+    Self.EOF := True;
+  end else
+  begin
+    Self.Flush;
+  end;
 
   Result := Self.Readln(S);
 end;
@@ -28825,10 +28860,10 @@ begin
   end;
 end;
 
-procedure TUTF32TextReader.Export(const Writer: TCachedWriter);
+procedure TUTF32TextReader.Export(const AWriter: TCachedWriter);
 begin
-  Writer.Write(BOM_INFO[bomUTF32].Data, BOM_INFO[bomUTF32].Size);
-  inherited Export(Writer);
+  AWriter.Write(BOM_INFO[bomUTF32].Data, BOM_INFO[bomUTF32].Size);
+  inherited Export(AWriter);
 end;
 
 
@@ -28841,8 +28876,7 @@ begin
     FData := nil;
 end;
 
-function TTemporaryAllocator.Resize(const ASize,
-  AMemoryDelta: NativeUInt): Pointer;
+function TTemporaryAllocator.Resize(const ASize, AMemoryDelta: NativeUInt): Pointer;
 begin
   FSize := (ASize + AMemoryDelta - 1) and (-AMemoryDelta);
   SetLength(FData, FSize);
@@ -28861,8 +28895,7 @@ end;
 { TTemporaryString }
 
 {$if not Defined(FPC) and (CompilerVersion < 21)}
-function TTemporaryString.Resize(const ASize,
-  AMemoryDelta: NativeUInt): Pointer;
+function TTemporaryString.Resize(const ASize, AMemoryDelta: NativeUInt): Pointer;
 begin
   FSize := (ASize + AMemoryDelta - 1) and (-AMemoryDelta);
   SetLength(FData, FSize);
@@ -28894,48 +28927,47 @@ begin
     FData := nil;
 end;
 
-function TTemporaryString.InitByteString(const CodePage: Word;
-  const ALength: NativeUInt): PByteString;
+function TTemporaryString.InitByteString(const ACodePage: Word; const ALength: NativeUInt): PByteString;
 var
-  Index: NativeUInt;
-  Value: Integer;
-  SBCS: PUniConvSBCS;
+  LIndex: NativeUInt;
+  LValue: Integer;
+  LSBCS: PUniConvSBCS;
 
   P: PStrRec;
-  ASize: NativeUInt;
+  LSize: NativeUInt;
 begin
   Self.FBuffer.Length := ALength;
 
-  if (CodePage = CODEPAGE_UTF8) then
+  if (ACodePage = CODEPAGE_UTF8) then
   begin
     Self.FEncoding.Flags := $ff000000 or CODEPAGE_UTF8 or (Ord(csByte) shl 16);
     Self.FBuffer.Flags := $ff000000 + ((ALength - 1) shr 31){ALength = 0};
-    ASize := ALength;
+    LSize := ALength;
   end else
   begin
-    Index := NativeUInt(CodePage);
-    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+    LIndex := NativeUInt(ACodePage);
+    LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[LIndex and High(UNICONV_SUPPORTED_SBCS_HASH)]);
     repeat
-      if (Word(Value) = CodePage) or (Value < 0) then Break;
-      Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+      if (Word(LValue) = ACodePage) or (LValue < 0) then Break;
+      LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(LValue) shr 24]);
     until (False);
 
-    Index := Byte(Value shr 16);
-    SBCS := Pointer(Index * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
-    Index := Index shl 24;
-    Inc(Index, SBCS.CodePage);
-    Inc(Index, Ord(csByte) shl 16);
+    LIndex := Byte(LValue shr 16);
+    LSBCS := Pointer(LIndex * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    LIndex := LIndex shl 24;
+    Inc(LIndex, LSBCS.CodePage);
+    Inc(LIndex, Ord(csByte) shl 16);
 
-    ASize := Self.FBuffer.Length;
-    Self.FEncoding.NativeFlags := Index;
-    Self.FBuffer.NativeFlags := (Index and $ff000000) + Byte(ASize = 0);
+    LSize := Self.FBuffer.Length;
+    Self.FEncoding.NativeFlags := LIndex;
+    Self.FBuffer.NativeFlags := (LIndex and $ff000000) + Byte(LSize = 0);
   end;
 
-  if (ASize <> 0) then
+  if (LSize <> 0) then
   begin
     P := Pointer(Self.FData);
-    ASize := ASize + (SizeOf(TStrRec) + SizeOf(UCS4Char));
-    if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+    LSize := LSize + (SizeOf(TStrRec) + SizeOf(UCS4Char));
+    if (P = nil) or (LSize > Self.FSize) then P := Self.Resize(LSize);
 
     Inc(P);
     Self.FBuffer.Chars := P;
@@ -28947,7 +28979,7 @@ end;
 function TTemporaryString.InitUTF16String(const ALength: NativeUInt): PUTF16String;
 var
   P: PStrRec;
-  ASize: NativeUInt;
+  LSize: NativeUInt;
 begin
   Self.FBuffer.Length := ALength;
   Self.FEncoding.Flags := $ff000000 or CODEPAGE_UTF16 or (Ord(csUTF16) shl 16);
@@ -28956,8 +28988,8 @@ begin
   if (ALength <> 0) then
   begin
     P := Pointer(Self.FData);
-    ASize := ALength + ALength + (SizeOf(TStrRec) + SizeOf(UCS4Char));
-    if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+    LSize := ALength + ALength + (SizeOf(TStrRec) + SizeOf(UCS4Char));
+    if (P = nil) or (LSize > Self.FSize) then P := Self.Resize(LSize);
 
     Inc(P);
     Self.FBuffer.Chars := P;
@@ -29000,61 +29032,61 @@ end;
 
 
 type
-  TCachedStringConversion = function(const Dest: Pointer; const Source{CachedString}; AFlags: NativeUInt): {ResultLength}NativeUInt;
-  TCharactersConversion = function(Dest, Src: Pointer; ALength: NativeUInt): {ResultLength}NativeUInt;
-  TCharactersConversionEx = function(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): {ResultLength}NativeUInt;
+  TCachedStringConversion = function(ADest: Pointer; const ASource{CachedString}; AFlags: NativeUInt): {ResultLength}NativeUInt;
+  TCharactersConversion = function(ADest, ASrc: Pointer; ALength: NativeUInt): {ResultLength}NativeUInt;
+  TCharactersConversionEx = function(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): {ResultLength}NativeUInt;
 
-function MoveBytes(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function MoveBytes(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  NcMove(Src^, Dest^, ALength);
+  NcMove(ASrc^, ADest^, ALength);
   Result := ALength;
 end;
 
-function MoveWords(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function MoveWords(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  NcMove(Src^, Dest^, ALength shl 1);
+  NcMove(ASrc^, ADest^, ALength shl 1);
   Result := ALength shl 1;
 end;
 
-procedure utf32_from_ascii(Dest: PCardinal; Src: PByte; ALength: NativeUInt);
+procedure utf32_from_ascii(ADest: PCardinal; ASrc: PByte; ALength: NativeUInt);
 var
   i: NativeUInt;
 begin
   if (ALength <> 0) then
   for i := 0 to NativeInt(ALength) - 1 do
-    PUTF32CharArray(Dest)[i] := PByteCharArray(Src)[i];
+    PUTF32CharArray(ADest)[i] := PByteCharArray(ASrc)[i];
 end;
 
-procedure TTemporaryString.InternalAppend(const MaxAppendSize: NativeUInt;
-  const Source; const AFlags: NativeUInt; const Conversion: Pointer);
+procedure TTemporaryString.InternalAppend(const AMaxAppendSize: NativeUInt;
+  const ASource; const AFlags: NativeUInt; const AConversion: Pointer);
 const
   SHIFT_VALUES: array[TCachedStringKind] of Byte = (0, 0, 1, 2);
 var
   P: PByte;
-  ASize, AOffset: NativeUInt;
+  LSize, LOffset: NativeUInt;
 begin
-  ASize := SizeOf(UCS4Char) + MaxAppendSize;
-  AOffset := SizeOf(TStrRec) + (Self.FBuffer.Length shl SHIFT_VALUES[Self.FEncoding.StringKind]);
-  ASize := ASize + AOffset;
+  LSize := SizeOf(UCS4Char) + AMaxAppendSize;
+  LOffset := SizeOf(TStrRec) + (Self.FBuffer.Length shl SHIFT_VALUES[Self.FEncoding.StringKind]);
+  LSize := LSize + LOffset;
 
   P := Pointer(Self.FData);
-  if (P = nil) or (ASize > Self.FSize) then
+  if (P = nil) or (LSize > Self.FSize) then
   begin
-    NativeUInt(Self.FString) := AOffset;
-      P := Self.Resize(ASize);
-    AOffset := NativeUInt(Self.FString);
+    NativeUInt(Self.FString) := LOffset;
+      P := Self.Resize(LSize);
+    LOffset := NativeUInt(Self.FString);
   end;
 
   Inc(P, SizeOf(TStrRec));
-  Dec(AOffset, SizeOf(TStrRec));
+  Dec(LOffset, SizeOf(TStrRec));
   Self.FBuffer.Chars := P;
 
-  Inc(P, AOffset);
-  Inc(Self.FBuffer.Length, TCachedStringConversion(Conversion)(P, Source, AFlags));
+  Inc(P, LOffset);
+  Inc(Self.FBuffer.Length, TCachedStringConversion(AConversion)(P, ASource, AFlags));
 end;
 
 {$ifdef FPC}
-function UniConv_utf16_from_utf8(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt; forward;
+function UniConv_utf16_from_utf8(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt; forward;
 {$endif}
 
 procedure TTemporaryString.AppendAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
@@ -29068,7 +29100,7 @@ const
   );
 var
   P: PByte;
-  AKind, ASize, AOffset: NativeUInt;
+  LKind, LSize, LOffset: NativeUInt;
   Store: record
     AChars: PAnsiChar;
     ALength: NativeUInt;
@@ -29078,96 +29110,96 @@ begin
   Store.AChars := AChars;
   Store.ALength := ALength;
 
-  ASize := ALength;
-  AOffset := Self.FBuffer.Length;
-  Inc(AOffset, ASize{ALength});
-  Self.FBuffer.Length := AOffset;
-  Dec(AOffset, ASize{ALength});
+  LSize := ALength;
+  LOffset := Self.FBuffer.Length;
+  Inc(LOffset, LSize{ALength});
+  Self.FBuffer.Length := LOffset;
+  Dec(LOffset, LSize{ALength});
 
-  AKind := Byte(Self.FEncoding.StringKind);
-  Dec(AKind);
+  LKind := Byte(Self.FEncoding.StringKind);
+  Dec(LKind);
 
-  if (AKind > High(SHIFT_VALUES)) then
+  if (LKind > High(SHIFT_VALUES)) then
     raise ECachedString.Create(Pointer(@SStringNotInitialized));
 
-  AOffset := AOffset shl SHIFT_VALUES[AKind];
-  ASize := ASize{ALength} shl SHIFT_VALUES[AKind];
-  Inc(AOffset, SizeOf(TStrRec));
-  Inc(ASize, SizeOf(UCS4Char));
-  Inc(ASize, AOffset);
+  LOffset := LOffset shl SHIFT_VALUES[LKind];
+  LSize := LSize{ALength} shl SHIFT_VALUES[LKind];
+  Inc(LOffset, SizeOf(TStrRec));
+  Inc(LSize, SizeOf(UCS4Char));
+  Inc(LSize, LOffset);
 
   P := Pointer(Self.FData);
-  if (P = nil) or (ASize > Self.FSize) then P := Self.Resize(ASize);
+  if (P = nil) or (LSize > Self.FSize) then P := Self.Resize(LSize);
 
   Inc(P, SizeOf(TStrRec));
-  Dec(AOffset, SizeOf(TStrRec));
+  Dec(LOffset, SizeOf(TStrRec));
   Self.FBuffer.Chars := P;
 
-  Inc(P, AOffset);
-  TCharactersConversion(CALLBACKS[AKind])(P, Store.AChars, Store.ALength);
+  Inc(P, LOffset);
+  TCharactersConversion(CALLBACKS[LKind])(P, Store.AChars, Store.ALength);
 end;
 
 {$ifdef FPC}
-function UniConv_sbcs_from_sbcs(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_sbcs(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  UniConv.sbcs_from_sbcs(Dest, Src, ALength, Converter);
+  UniConv.sbcs_from_sbcs(ADest, ASrc, ALength, AConverter);
   Result := 0;
 end;
 
-function UniConv_sbcs_from_sbcs_lower(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_sbcs_lower(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  UniConv.sbcs_from_sbcs_lower(Dest, Src, ALength, Converter);
+  UniConv.sbcs_from_sbcs_lower(ADest, ASrc, ALength, AConverter);
   Result := 0;
 end;
 
-function UniConv_sbcs_from_sbcs_upper  (Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_sbcs_upper(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  UniConv.sbcs_from_sbcs_upper(Dest, Src, ALength, Converter);
+  UniConv.sbcs_from_sbcs_upper(ADest, ASrc, ALength, AConverter);
   Result := 0
 end;
 
-function UniConv_utf8_from_sbcs(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf8_from_sbcs(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.utf8_from_sbcs(Dest, Src, ALength, Converter);
+  Result := UniConv.utf8_from_sbcs(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_utf8_from_sbcs_lower(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf8_from_sbcs_lower(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.utf8_from_sbcs_lower(Dest, Src, ALength, Converter);
+  Result := UniConv.utf8_from_sbcs_lower(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_utf8_from_sbcs_upper(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf8_from_sbcs_upper(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.utf8_from_sbcs_upper(Dest, Src, ALength, Converter);
+  Result := UniConv.utf8_from_sbcs_upper(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_sbcs_from_utf8(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_utf8(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.sbcs_from_utf8(Dest, Src, ALength, Converter);
+  Result := UniConv.sbcs_from_utf8(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_sbcs_from_utf8_lower(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_utf8_lower(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.sbcs_from_utf8_lower(Dest, Src, ALength, Converter);
+  Result := UniConv.sbcs_from_utf8_lower(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_sbcs_from_utf8_upper(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_utf8_upper(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.sbcs_from_utf8_upper(Dest, Src, ALength, Converter);
+  Result := UniConv.sbcs_from_utf8_upper(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_utf8_from_utf8_lower(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf8_from_utf8_lower(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  Result := UniConv.utf8_from_utf8_lower(Dest, Src, ALength);
+  Result := UniConv.utf8_from_utf8_lower(ADest, ASrc, ALength);
 end;
 
-function UniConv_utf8_from_utf8_upper(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf8_from_utf8_upper(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  Result := UniConv.utf8_from_utf8_upper(Dest, Src, ALength);
+  Result := UniConv.utf8_from_utf8_upper(ADest, ASrc, ALength);
 end;
 {$endif}
 
-function ConvertByteFromByte(Dest: PByte; const Source: ByteString;
+function ConvertByteFromByte(ADest: PByte; const ASource: ByteString;
   AFlags{
          CharCase: TCharCase;
          Align: Word;
@@ -29201,115 +29233,115 @@ const
      @{$ifdef FPC}UniConv_utf8_from_utf8_upper{$else}UniConv.utf8_from_utf8_upper{$endif}
   );
 var
-  SrcSBCSIndex, DestSBCSIndex: NativeInt;
-  Converter: Pointer;
+  LSrcSBCSIndex, LDestSBCSIndex: NativeInt;
+  LConverter: Pointer;
 begin
-  DestSBCSIndex := AFlags shr 24;
+  LDestSBCSIndex := AFlags shr 24;
   AFlags := Byte(AFlags);
-  SrcSBCSIndex := Source.SBCSIndex;
+  LSrcSBCSIndex := ASource.SBCSIndex;
 
-  if (Source.Ascii) then
+  if (ASource.Ascii) then
     goto utf8_converter;
 
-  if (SrcSBCSIndex >= 0) then
+  if (LSrcSBCSIndex >= 0) then
   begin
-    SrcSBCSIndex := SrcSBCSIndex * SizeOf(TUniConvSBCS);
-    Inc(SrcSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
+    LSrcSBCSIndex := LSrcSBCSIndex * SizeOf(TUniConvSBCS);
+    Inc(LSrcSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
 
-    if (DestSBCSIndex <= $7f) then
+    if (LDestSBCSIndex <= $7f) then
     begin
       // SBCS <-- SBCS
-      DestSBCSIndex := DestSBCSIndex * SizeOf(TUniConvSBCS);
-      Inc(DestSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
+      LDestSBCSIndex := LDestSBCSIndex * SizeOf(TUniConvSBCS);
+      Inc(LDestSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
 
-      if (SrcSBCSIndex = DestSBCSIndex) then
+      if (LSrcSBCSIndex = LDestSBCSIndex) then
       begin
         case AFlags of
           Ord(ccLower):
           begin
-            Converter := PUniConvSBCSEx(DestSBCSIndex).FLowerCase;
-            if (Converter = nil) then goto universal_sbcs_converter;
+            LConverter := PUniConvSBCSEx(LDestSBCSIndex).FLowerCase;
+            if (LConverter = nil) then goto universal_sbcs_converter;
           end;
           Ord(ccUpper):
           begin
-            Converter := PUniConvSBCSEx(DestSBCSIndex).FUpperCase;
-            if (Converter = nil) then goto universal_sbcs_converter;
+            LConverter := PUniConvSBCSEx(LDestSBCSIndex).FUpperCase;
+            if (LConverter = nil) then goto universal_sbcs_converter;
           end;
         else
           // Ord(ccOriginal):
-          Result := MoveBytes(Dest, Source.Chars, Source.Length);
+          Result := MoveBytes(ADest, ASource.Chars, ASource.Length);
           Exit;
         end;
       end else
       begin
       universal_sbcs_converter:
-        Converter := PUniConvSBCS(DestSBCSIndex).FromSBCS(PUniConvSBCS(SrcSBCSIndex), TCharCase(AFlags));
+        LConverter := PUniConvSBCS(LDestSBCSIndex).FromSBCS(PUniConvSBCS(LSrcSBCSIndex), TCharCase(AFlags));
       end;
 
-      TCharactersConversionEx{procedure}(SBCS_FROM_SBCS[AFlags])(Dest, Source.Chars,
-        Source.Length, Converter);
-      Result := Source.Length;
+      TCharactersConversionEx{procedure}(SBCS_FROM_SBCS[AFlags])(ADest, ASource.Chars,
+        ASource.Length, LConverter);
+      Result := ASource.Length;
     end else
     begin
       // UTF8 <-- SBCS
-      Converter := PUniConvSBCSEx(SrcSBCSIndex).FUTF8.NumericItems[AFlags];
-      if (Converter = nil) then Converter := PUniConvSBCSEx(SrcSBCSIndex).AllocFillUTF8(PUniConvSBCSEx(SrcSBCSIndex).FUTF8.NumericItems[AFlags], TCharCase(AFlags));
-      Result := TCharactersConversionEx(UTF8_FROM_SBCS[AFlags])(Dest, Source.Chars,
-        Source.Length, Converter);
+      LConverter := PUniConvSBCSEx(LSrcSBCSIndex).FUTF8.NumericItems[AFlags];
+      if (LConverter = nil) then LConverter := PUniConvSBCSEx(LSrcSBCSIndex).AllocFillUTF8(PUniConvSBCSEx(LSrcSBCSIndex).FUTF8.NumericItems[AFlags], TCharCase(AFlags));
+      Result := TCharactersConversionEx(UTF8_FROM_SBCS[AFlags])(ADest, ASource.Chars,
+        ASource.Length, LConverter);
     end;
   end else
   begin
-    if (DestSBCSIndex <= $7f) then
+    if (LDestSBCSIndex <= $7f) then
     begin
       // SBCS <-- UTF8
-      DestSBCSIndex := DestSBCSIndex * SizeOf(TUniConvSBCS);
-      Inc(DestSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
-      Converter := PUniConvSBCSEx(DestSBCSIndex).FVALUES;
-      if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(DestSBCSIndex).FVALUES);
-      Result := TCharactersConversionEx(SBCS_FROM_UTF8[AFlags])(Dest, Source.Chars,
-        Source.Length, Converter);
+      LDestSBCSIndex := LDestSBCSIndex * SizeOf(TUniConvSBCS);
+      Inc(LDestSBCSIndex, NativeInt(@UNICONV_SUPPORTED_SBCS));
+      LConverter := PUniConvSBCSEx(LDestSBCSIndex).FVALUES;
+      if (LConverter = nil) then LConverter := PUniConvSBCSEx(LDestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(LDestSBCSIndex).FVALUES);
+      Result := TCharactersConversionEx(SBCS_FROM_UTF8[AFlags])(ADest, ASource.Chars,
+        ASource.Length, LConverter);
     end else
     begin
       // UTF8 <-- UTF8
     utf8_converter:
-      Result := TCharactersConversion(UTF8_FROM_UTF8[AFlags])(Dest, Source.Chars, Source.Length);
+      Result := TCharactersConversion(UTF8_FROM_UTF8[AFlags])(ADest, ASource.Chars, ASource.Length);
     end;
   end;
 end;
 
 {$ifdef FPC}
-function UniConv_sbcs_from_utf16(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_utf16(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.sbcs_from_utf16(Dest, Src, ALength, Converter);
+  Result := UniConv.sbcs_from_utf16(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_sbcs_from_utf16_lower(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_utf16_lower(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.sbcs_from_utf16_lower(Dest, Src, ALength, Converter);
+  Result := UniConv.sbcs_from_utf16_lower(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_sbcs_from_utf16_upper(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_sbcs_from_utf16_upper(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.sbcs_from_utf16_upper(Dest, Src, ALength, Converter);
+  Result := UniConv.sbcs_from_utf16_upper(ADest, ASrc, ALength, AConverter);
 end;
 
-function UniConv_utf8_from_utf16(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf8_from_utf16(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.utf8_from_utf16(Dest, Src, ALength);
+  Result := UniConv.utf8_from_utf16(ADest, ASrc, ALength);
 end;
 
-function UniConv_utf8_from_utf16_lower(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf8_from_utf16_lower(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.utf8_from_utf16_lower(Dest, Src, ALength);
+  Result := UniConv.utf8_from_utf16_lower(ADest, ASrc, ALength);
 end;
 
-function UniConv_utf8_from_utf16_upper(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf8_from_utf16_upper(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  Result := UniConv.utf8_from_utf16_upper(Dest, Src, ALength);
+  Result := UniConv.utf8_from_utf16_upper(ADest, ASrc, ALength);
 end;
 {$endif}
 
-function ConvertByteFromUTF16(Dest: PByte; const Source: UTF16String;
+function ConvertByteFromUTF16(LDest: PByte; const LSource: UTF16String;
   AFlags{
          CharCase: TCharCase;
          Align: Word;
@@ -29329,29 +29361,29 @@ const
      @{$ifdef FPC}UniConv_utf8_from_utf16_upper{$else}UniConv.utf8_from_utf16_upper{$endif}
   );
 var
-  DestSBCSIndex: NativeInt;
-  Converter: Pointer;
+  LDestSBCSIndex: NativeInt;
+  LConverter: Pointer;
 begin
-  DestSBCSIndex := AFlags shr 24;
+  LDestSBCSIndex := AFlags shr 24;
   AFlags := Byte(AFlags);
 
-  if (not Source.Ascii) and (DestSBCSIndex <= $7f) then
+  if (not LSource.Ascii) and (LDestSBCSIndex <= $7f) then
   begin
     // SBCS <-- UTF16
-    DestSBCSIndex := DestSBCSIndex * SizeOf(TUniConvSBCS);
-    Inc(DestSBCSIndex, NativeUInt(@UNICONV_SUPPORTED_SBCS));
-    Converter := PUniConvSBCSEx(DestSBCSIndex).FVALUES;
-    if (Converter = nil) then Converter := PUniConvSBCSEx(DestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(DestSBCSIndex).FVALUES);
-    Result := TCharactersConversionEx(SBCS_FROM_UTF16[AFlags])(Dest, Source.Chars,
-      Source.Length, Converter);
+    LDestSBCSIndex := LDestSBCSIndex * SizeOf(TUniConvSBCS);
+    Inc(LDestSBCSIndex, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    LConverter := PUniConvSBCSEx(LDestSBCSIndex).FVALUES;
+    if (LConverter = nil) then LConverter := PUniConvSBCSEx(LDestSBCSIndex).AllocFillVALUES(PUniConvSBCSEx(LDestSBCSIndex).FVALUES);
+    Result := TCharactersConversionEx(SBCS_FROM_UTF16[AFlags])(LDest, LSource.Chars,
+      LSource.Length, LConverter);
   end else
   begin
     // UTF8 <-- UTF16
-    Result := TCharactersConversion(UTF8_FROM_UTF16[AFlags])(Dest, Source.Chars, Source.Length);
+    Result := TCharactersConversion(UTF8_FROM_UTF16[AFlags])(LDest, LSource.Chars, LSource.Length);
   end;
 end;
 
-function ConvertByteFromUTF32(Dest: PByte; const Source: UTF32String;
+function ConvertByteFromUTF32(ADest: PByte; const ASource: UTF32String;
   AFlags{
          CharCase: TCharCase;
          Align: Word;
@@ -29371,15 +29403,15 @@ const
      @CachedTexts.utf8_from_utf32_upper
   );
 var
-  SBCSConv: TSBCSConv;
+  LSBCSConv: TSBCSConv;
 begin
-  if (Source.Ascii) then
+  if (ASource.Ascii) then
   begin
-    TCharactersConversion{procedure}(ASCII_FROM_UTF32[Byte(AFlags)])(Dest, Source.Chars, Source.Length);
+    TCharactersConversion{procedure}(ASCII_FROM_UTF32[Byte(AFlags)])(ADest, ASource.Chars, ASource.Length);
   end else
   if (Integer(AFlags) < 0) then
   begin
-    Result := TCharactersConversion(UTF8_FROM_UTF32[Byte(AFlags)])(Dest, Source.Chars, Source.Length);
+    Result := TCharactersConversion(UTF8_FROM_UTF32[Byte(AFlags)])(ADest, ASource.Chars, ASource.Length);
     Exit;
   end else
   begin
@@ -29387,61 +29419,61 @@ begin
     begin
       if (AFlags and 1 <> 0) then
       begin
-        SBCSConv.CaseLookup := Pointer(@UNICONV_CHARCASE.LOWER);
+        LSBCSConv.CaseLookup := Pointer(@UNICONV_CHARCASE.LOWER);
       end else
       begin
-        SBCSConv.CaseLookup := Pointer(@UNICONV_CHARCASE.UPPER);
+        LSBCSConv.CaseLookup := Pointer(@UNICONV_CHARCASE.UPPER);
       end;
     end else
     begin
-      SBCSConv.CaseLookup := nil;
+      LSBCSConv.CaseLookup := nil;
     end;
 
-    SBCSConv.CodePageIndex := AFlags or $10000;
-    SBCSConv.Length := Source.Length;
-    sbcs_from_utf32(Dest, Pointer(Source.Chars), SBCSConv);
+    LSBCSConv.CodePageIndex := AFlags or $10000;
+    LSBCSConv.Length := ASource.Length;
+    sbcs_from_utf32(ADest, Pointer(ASource.Chars), LSBCSConv);
   end;
 
-  Result := Source.Length;
+  Result := ASource.Length;
 end;
 
 {$ifdef FPC}
-function UniConv_utf16_from_sbcs(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf16_from_sbcs(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  UniConv.utf16_from_sbcs(Dest, Src, ALength, Converter);
+  UniConv.utf16_from_sbcs(ADest, ASrc, ALength, AConverter);
   Result := 0;
 end;
 
-function UniConv_utf16_from_sbcs_lower(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf16_from_sbcs_lower(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  UniConv.utf16_from_sbcs_lower(Dest, Src, ALength, Converter);
+  UniConv.utf16_from_sbcs_lower(ADest, ASrc, ALength, AConverter);
   Result := 0;
 end;
 
-function UniConv_utf16_from_sbcs_upper(Dest, Src: Pointer; ALength: NativeUInt; Converter: Pointer): NativeUInt;
+function UniConv_utf16_from_sbcs_upper(ADest, ASrc: Pointer; ALength: NativeUInt; AConverter: Pointer): NativeUInt;
 begin
-  UniConv.utf16_from_sbcs_upper(Dest, Src, ALength, Converter);
+  UniConv.utf16_from_sbcs_upper(ADest, ASrc, ALength, AConverter);
   Result := 0;
 end;
 
-function UniConv_utf16_from_utf8(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf16_from_utf8(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  Result := UniConv.utf16_from_utf8(Dest, Src, ALength);
+  Result := UniConv.utf16_from_utf8(ADest, ASrc, ALength);
 end;
 
-function UniConv_utf16_from_utf8_lower(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf16_from_utf8_lower(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  Result := UniConv.utf16_from_utf8_lower(Dest, Src, ALength);
+  Result := UniConv.utf16_from_utf8_lower(ADest, ASrc, ALength);
 end;
 
-function UniConv_utf16_from_utf8_upper(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf16_from_utf8_upper(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  Result := UniConv.utf16_from_utf8_upper(Dest, Src, ALength);
+  Result := UniConv.utf16_from_utf8_upper(ADest, ASrc, ALength);
 end;
 {$endif}
 
-function ConvertUTF16FromByte(Dest: PWord; const Source: ByteString;
-  CharCase: NativeUInt): NativeUInt;
+function ConvertUTF16FromByte(ADest: PWord; const ASource: ByteString;
+  ACharCase: NativeUInt): NativeUInt;
 const
   UTF16_FROM_SBCS: array[0..2{CharCase}] of {TCharactersConversionEx} Pointer =
   (
@@ -29456,45 +29488,45 @@ const
      @{$ifdef FPC}UniConv_utf16_from_utf8_upper{$else}UniConv.utf16_from_utf8_upper{$endif}
   );
 var
-  Index: NativeInt;
-  Converter: Pointer;
+  LIndex: NativeInt;
+  LConverter: Pointer;
 begin
-  Index := Source.Flags;
-  if (Index and 1 = 0{not Ascii}) and (Integer(Index) >= 0) then
+  LIndex := ASource.Flags;
+  if (LIndex and 1 = 0{not Ascii}) and (Integer(LIndex) >= 0) then
   begin
     // UTF16 <-- SBCS
-    Index := Index shr 24;
-    Index := Index * SizeOf(TUniConvSBCS);
-    Inc(Index, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    LIndex := LIndex shr 24;
+    LIndex := LIndex * SizeOf(TUniConvSBCS);
+    Inc(LIndex, NativeUInt(@UNICONV_SUPPORTED_SBCS));
 
-    Converter := PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase];
-    if (Converter = nil) then Converter := PUniConvSBCSEx(Index).AllocFillUCS2(PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+    LConverter := PUniConvSBCSEx(LIndex).FUCS2.NumericItems[ACharCase];
+    if (LConverter = nil) then LConverter := PUniConvSBCSEx(LIndex).AllocFillUCS2(PUniConvSBCSEx(LIndex).FUCS2.NumericItems[ACharCase], TCharCase(ACharCase));
 
-    TCharactersConversionEx{procedure}(UTF16_FROM_SBCS[CharCase])(Dest, Source.Chars, Source.Length, Converter);
-    Result := Source.Length;
+    TCharactersConversionEx{procedure}(UTF16_FROM_SBCS[ACharCase])(ADest, ASource.Chars, ASource.Length, LConverter);
+    Result := ASource.Length;
   end else
   begin
     // UTF16 <-- UTF8/Ascii
-    Result := TCharactersConversion(UTF16_FROM_UTF8[CharCase])(Dest, Source.Chars, Source.Length);
+    Result := TCharactersConversion(UTF16_FROM_UTF8[ACharCase])(ADest, ASource.Chars, ASource.Length);
   end;
 end;
 
 {$ifdef FPC}
-function UniConv_utf16_from_utf16_lower(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf16_from_utf16_lower(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  UniConv.utf16_from_utf16_lower(Dest, Src, ALength);
+  UniConv.utf16_from_utf16_lower(ADest, ASrc, ALength);
   Result := 0;
 end;
 
-function UniConv_utf16_from_utf16_upper(Dest, Src: Pointer; ALength: NativeUInt): NativeUInt;
+function UniConv_utf16_from_utf16_upper(ADest, ASrc: Pointer; ALength: NativeUInt): NativeUInt;
 begin
-  UniConv.utf16_from_utf16_upper(Dest, Src, ALength);
+  UniConv.utf16_from_utf16_upper(ADest, ASrc, ALength);
   Result := 0;
 end;
 {$endif}
 
-function ConvertUTF16FromUTF16(Dest: PWord; const Source: UTF16String;
-  CharCase: NativeUInt): NativeUInt;
+function ConvertUTF16FromUTF16(ADest: PWord; const ASource: UTF16String;
+  ACharCase: NativeUInt): NativeUInt;
 const
   UTF16_FROM_UTF16: array[0..2{CharCase}] of {TCharactersConversion} Pointer =
   (
@@ -29503,12 +29535,12 @@ const
      @{$ifdef FPC}UniConv_utf16_from_utf16_upper{$else}UniConv.utf16_from_utf16_upper{$endif}
   );
 begin
-  TCharactersConversion{procedure}(UTF16_FROM_UTF16[CharCase])(Dest, Source.Chars, Source.Length);
-  Result := Source.Length;
+  TCharactersConversion{procedure}(UTF16_FROM_UTF16[ACharCase])(ADest, ASource.Chars, ASource.Length);
+  Result := ASource.Length;
 end;
 
-function ConvertUTF16FromUTF32(Dest: PWord; const Source: UTF32String;
-  CharCase: NativeUInt): NativeUInt;
+function ConvertUTF16FromUTF32(ADest: PWord; const ASource: UTF32String;
+  ACharCase: NativeUInt): NativeUInt;
 const
   UTF16_FROM_UTF32: array[0..2{CharCase}] of {TCharactersConversion} Pointer =
   (
@@ -29517,110 +29549,109 @@ const
      @CachedTexts.utf16_from_utf32_upper
   );
 begin
-  TCharactersConversion{procedure}(UTF16_FROM_UTF32[CharCase])(Dest, Source.Chars, Source.Length);
-  Result := Source.Length;
+  TCharactersConversion{procedure}(UTF16_FROM_UTF32[ACharCase])(ADest, ASource.Chars, ASource.Length);
+  Result := ASource.Length;
 end;
 
-function ConvertUTF32FromByte(Dest: PCardinal; const Source: ByteString;
-  CharCase: NativeUInt): NativeUInt;
+function ConvertUTF32FromByte(ADest: PCardinal; const ASource: ByteString;
+  ACharCase: NativeUInt): NativeUInt;
 var
-  Index: NativeInt;
-  Context: TUniConvContextEx;
+  LIndex: NativeInt;
+  LContext: TUniConvContextEx;
 begin
-  Context.Destination := Dest;
-  Context.DestinationSize := NativeUInt(High(NativeInt));
-  Context.F.Flags := CHARCASE_FLAGS[CharCase] + (Ord(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
-  Context.Source := Source.Chars;
-  Context.SourceSize := Source.Length;
+  LContext.Destination := ADest;
+  LContext.DestinationSize := NativeUInt(High(NativeInt));
+  LContext.F.Flags := CHARCASE_FLAGS[ACharCase] + (Ord(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
+  LContext.Source := ASource.Chars;
+  LContext.SourceSize := ASource.Length;
 
-  Index := Source.Flags;
-  if (Index and 1 = 0{not Ascii}) and (Integer(Index) >= 0) then
+  LIndex := ASource.Flags;
+  if (LIndex and 1 = 0{not Ascii}) and (Integer(LIndex) >= 0) then
   begin
     // UTF32 <-- SBCS
-    Index := Index shr 24;
-    Index := Index * SizeOf(TUniConvSBCS);
-    Inc(Index, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+    LIndex := LIndex shr 24;
+    LIndex := LIndex * SizeOf(TUniConvSBCS);
+    Inc(LIndex, NativeUInt(@UNICONV_SUPPORTED_SBCS));
 
-    Context.FCallbacks.Reader := PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase];
-    if (Context.FCallbacks.Reader = nil) then
-      Context.FCallbacks.Reader := PUniConvSBCSEx(Index).AllocFillUCS2(PUniConvSBCSEx(Index).FUCS2.NumericItems[CharCase], TCharCase(CharCase));
+    LContext.FCallbacks.Reader := PUniConvSBCSEx(LIndex).FUCS2.NumericItems[ACharCase];
+    if (LContext.FCallbacks.Reader = nil) then
+      LContext.FCallbacks.Reader := PUniConvSBCSEx(LIndex).AllocFillUCS2(PUniConvSBCSEx(LIndex).FUCS2.NumericItems[ACharCase], TCharCase(ACharCase));
   end else
   begin
     // UTF32 <-- UTF8/Ascii
-    Inc(Context.F.Flags, Ord(bomUTF8));
+    Inc(LContext.F.Flags, Ord(bomUTF8));
   end;
 
-  Index := Context.convert_universal;
-  Result := Context.DestinationWritten shr 2;
-  if (Index < 0) then
+  LIndex := LContext.convert_universal;
+  Result := LContext.DestinationWritten shr 2;
+  if (LIndex < 0) then
   begin
-    Dest := Context.Destination;
-    Inc(Dest, Result);
-    Dest^ := UNKNOWN_CHARACTER;
+    ADest := LContext.Destination;
+    Inc(ADest, Result);
+    ADest^ := UNKNOWN_CHARACTER;
     Inc(Result);
   end;
 end;
 
-function ConvertUTF32FromUTF16(Dest: PCardinal; const Source: UTF16String;
-  CharCase: NativeUInt): NativeUInt;
+function ConvertUTF32FromUTF16(ADest: PCardinal; const ASource: UTF16String;
+  ACharCase: NativeUInt): NativeUInt;
 var
-  Index: NativeInt;
-  Context: TUniConvContextEx;
+  LIndex: NativeInt;
+  LContext: TUniConvContextEx;
 begin
-  Context.Destination := Dest;
-  Context.DestinationSize := NativeUInt(High(NativeInt));
-  Context.F.Flags := CHARCASE_FLAGS[CharCase] + (Ord(bomUTF32) shl ENCODING_DESTINATION_OFFSET + Ord(bomUTF16));
-  Context.Source := Source.Chars;
-  Context.SourceSize := Source.Length shl 1;
+  LContext.Destination := ADest;
+  LContext.DestinationSize := NativeUInt(High(NativeInt));
+  LContext.F.Flags := CHARCASE_FLAGS[ACharCase] + (Ord(bomUTF32) shl ENCODING_DESTINATION_OFFSET + Ord(bomUTF16));
+  LContext.Source := ASource.Chars;
+  LContext.SourceSize := ASource.Length shl 1;
 
-  Index := Context.convert_universal;
-  Result := Context.DestinationWritten shr 2;
-  if (Index < 0) then
+  LIndex := LContext.convert_universal;
+  Result := LContext.DestinationWritten shr 2;
+  if (LIndex < 0) then
   begin
-    Dest := Context.Destination;
-    Inc(Dest, Result);
-    Dest^ := UNKNOWN_CHARACTER;
+    ADest := LContext.Destination;
+    Inc(ADest, Result);
+    ADest^ := UNKNOWN_CHARACTER;
     Inc(Result);
   end;
 end;
 
-function ConvertUTF32FromUTF32(Dest: PCardinal; const Source: UTF32String;
-  CharCase: NativeUInt): NativeUInt;
+function ConvertUTF32FromUTF32(ADest: PCardinal; const ASource: UTF32String;
+  ACharCase: NativeUInt): NativeUInt;
 var
   i, X: NativeUInt;
-  Src: PCardinal;
-  CaseLookup: PUniConvWW;
+  LSrc: PCardinal;
+  LCaseLookup: PUniConvWW;
 begin
-  Result := Source.Length;
+  Result := ASource.Length;
 
-  if (CharCase = 0) then
+  if (ACharCase = 0) then
   begin
-    NcMove(Source.Chars^, Dest^, Result shl 2);
+    NcMove(ASource.Chars^, ADest^, Result shl 2);
     Exit;
   end else
   begin
-    CaseLookup := Pointer(@UNICONV_CHARCASE);
-    Dec(CharCase);
-    CharCase := CharCase shl (16+1);
-    Inc(NativeUInt(CaseLookup), CharCase);
+    LCaseLookup := Pointer(@UNICONV_CHARCASE);
+    Dec(ACharCase);
+    ACharCase := ACharCase shl (16+1);
+    Inc(NativeUInt(LCaseLookup), ACharCase);
   end;
 
-  Src := Pointer(Source.Chars);
+  LSrc := Pointer(ASource.Chars);
   for i := 1 to Result do
   begin
-    X := Src^;
+    X := LSrc^;
 
     if (X <= $ffff) then
-      X := CaseLookup[X];
+      X := LCaseLookup[X];
 
-    Dest^ := X;
-    Inc(Src);
-    Inc(Dest);
+    ADest^ := X;
+    Inc(LSrc);
+    Inc(ADest);
   end;
 end;
 
-procedure TTemporaryString.Append(const S: ByteString;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: ByteString; const ACharCase: TCharCase);
 const
   CONVERSIONS: array[0..3{TCachedStringKind}] of {TCachedStringConversion} Pointer =
   (
@@ -29630,61 +29661,60 @@ const
      @CachedTexts.ConvertUTF32FromByte
   );
 var
-  MaxAppendSize: NativeUInt;
-  AFlags, SourceFlags, AKind: NativeUInt;
+  LMaxAppendSize: NativeUInt;
+  LFlags, LSourceFlags, LKind: NativeUInt;
 begin
-  MaxAppendSize := S.Length;
-  SourceFlags := S.Flags;
-  AFlags := Self.FBuffer.NativeFlags;
-  if (MaxAppendSize = 0) then Exit;
+  LMaxAppendSize := S.Length;
+  LSourceFlags := S.Flags;
+  LFlags := Self.FBuffer.NativeFlags;
+  if (LMaxAppendSize = 0) then Exit;
 
-  AFlags := AFlags and (SourceFlags or NativeUInt(-2));
-  Self.FBuffer.NativeFlags := AFlags;
-  AFlags := AFlags and NativeUInt($ff000000);
-  Inc(AFlags, Byte(CharCase));
+  LFlags := LFlags and (LSourceFlags or NativeUInt(-2));
+  Self.FBuffer.NativeFlags := LFlags;
+  LFlags := LFlags and NativeUInt($ff000000);
+  Inc(LFlags, Byte(ACharCase));
 
-  AKind := Byte(Self.Kind);
-  if (AKind = NativeUInt(csByte)) then
+  LKind := Byte(Self.Kind);
+  if (LKind = NativeUInt(csByte)) then
   begin
     // csByte
-    if (Integer(AFlags) < 0) then
+    if (Integer(LFlags) < 0) then
     begin
-      if (NativeInt(SourceFlags) and 1 = 0{not Ascii}) then
+      if (NativeInt(LSourceFlags) and 1 = 0{not Ascii}) then
       begin
-        if (Integer(SourceFlags) >= 0) then
+        if (Integer(LSourceFlags) >= 0) then
         begin
           // UTF8 <-- SBCS
-          MaxAppendSize := MaxAppendSize * 3;
+          LMaxAppendSize := LMaxAppendSize * 3;
         end else
         begin
           // UTF8 <-- UTF8
-          if (AFlags and 3 <> 0) then
+          if (LFlags and 3 <> 0) then
           begin
-            MaxAppendSize := MaxAppendSize * 3;
-            MaxAppendSize := MaxAppendSize shr 1;
+            LMaxAppendSize := LMaxAppendSize * 3;
+            LMaxAppendSize := LMaxAppendSize shr 1;
           end;
         end;
       end;
     end;
   end else
   begin
-    if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
+    if (LKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
       // csUTF16, csUTF32
-      AFlags := AFlags and $7f;
-      MaxAppendSize := MaxAppendSize shl 1;
-      Inc(MaxAppendSize, NativeUInt(-(NativeInt(AKind) and 1)) and MaxAppendSize);
+      LFlags := LFlags and $7f;
+      LMaxAppendSize := LMaxAppendSize shl 1;
+      Inc(LMaxAppendSize, NativeUInt(-(NativeInt(LKind) and 1)) and LMaxAppendSize);
     end else
     begin
       raise ECachedString.Create(Pointer(@SStringNotInitialized));
     end;
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[AKind]);
+  Self.InternalAppend(LMaxAppendSize, S, LFlags, CONVERSIONS[LKind]);
 end;
 
-procedure TTemporaryString.Append(const S: UTF16String;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: UTF16String; const ACharCase: TCharCase);
 const
   CONVERSIONS: array[0..3{TCachedStringKind}] of {TCachedStringConversion} Pointer =
   (
@@ -29694,44 +29724,43 @@ const
      @CachedTexts.ConvertUTF32FromUTF16
   );
 var
-  MaxAppendSize: NativeUInt;
-  AFlags, SourceFlags, AKind: NativeUInt;
+  LMaxAppendSize: NativeUInt;
+  LFlags, LSourceFlags, LKind: NativeUInt;
 begin
-  MaxAppendSize := S.Length;
-  SourceFlags := S.F.NativeFlags or NativeUInt(-2);
-  AFlags := Self.FBuffer.NativeFlags;
-  if (MaxAppendSize = 0) then Exit;
+  LMaxAppendSize := S.Length;
+  LSourceFlags := S.F.NativeFlags or NativeUInt(-2);
+  LFlags := Self.FBuffer.NativeFlags;
+  if (LMaxAppendSize = 0) then Exit;
 
-  AFlags := AFlags and SourceFlags;
-  Self.FBuffer.NativeFlags := AFlags;
-  AFlags := AFlags and NativeUInt($ff000000);
-  Inc(AFlags, Byte(CharCase));
+  LFlags := LFlags and LSourceFlags;
+  Self.FBuffer.NativeFlags := LFlags;
+  LFlags := LFlags and NativeUInt($ff000000);
+  Inc(LFlags, Byte(ACharCase));
 
-  AKind := Byte(Self.Kind);
-  SourceFlags := {not Ascii}not SourceFlags;
-  if (AKind = NativeUInt(csByte)) then
+  LKind := Byte(Self.Kind);
+  LSourceFlags := {not Ascii}not LSourceFlags;
+  if (LKind = NativeUInt(csByte)) then
   begin
-    if ((AFlags shr 31) and SourceFlags <> 0) then
-      MaxAppendSize := MaxAppendSize * 3;
+    if ((LFlags shr 31) and LSourceFlags <> 0) then
+      LMaxAppendSize := LMaxAppendSize * 3;
   end else
   begin
-    if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
+    if (LKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
       // csUTF16, csUTF32
-      AFlags := AFlags and $7f;
-      MaxAppendSize := MaxAppendSize shl 1;
-      Inc(MaxAppendSize, NativeUInt(-(NativeInt(AKind) and 1)) and MaxAppendSize);
+      LFlags := LFlags and $7f;
+      LMaxAppendSize := LMaxAppendSize shl 1;
+      Inc(LMaxAppendSize, NativeUInt(-(NativeInt(LKind) and 1)) and LMaxAppendSize);
     end else
     begin
       raise ECachedString.Create(Pointer(@SStringNotInitialized));
     end;
   end;
 
-  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[AKind]);
+  Self.InternalAppend(LMaxAppendSize, S, LFlags, CONVERSIONS[LKind]);
 end;
 
-procedure TTemporaryString.Append(const S: UTF32String;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: UTF32String; const ACharCase: TCharCase);
 label
   done;
 const
@@ -29743,41 +29772,41 @@ const
      @CachedTexts.ConvertUTF32FromUTF32
   );
 var
-  MaxAppendSize: NativeUInt;
-  AFlags, SourceFlags, AKind: NativeUInt;
+  LMaxAppendSize: NativeUInt;
+  LFlags, LSourceFlags, LKind: NativeUInt;
 begin
-  MaxAppendSize := S.Length;
-  SourceFlags := S.F.NativeFlags or NativeUInt(-2);
-  AFlags := Self.FBuffer.NativeFlags;
-  if (MaxAppendSize = 0) then Exit;
+  LMaxAppendSize := S.Length;
+  LSourceFlags := S.F.NativeFlags or NativeUInt(-2);
+  LFlags := Self.FBuffer.NativeFlags;
+  if (LMaxAppendSize = 0) then Exit;
 
-  AFlags := AFlags and SourceFlags;
-  Self.FBuffer.NativeFlags := AFlags;
-  AFlags := AFlags and NativeUInt($ff000000);
-  Inc(AFlags, Byte(CharCase));
+  LFlags := LFlags and LSourceFlags;
+  Self.FBuffer.NativeFlags := LFlags;
+  LFlags := LFlags and NativeUInt($ff000000);
+  Inc(LFlags, Byte(ACharCase));
 
-  AKind := Byte(Self.Kind);
-  SourceFlags := {not Ascii}not SourceFlags;
-  if (AKind = NativeUInt(csByte)) then
+  LKind := Byte(Self.Kind);
+  LSourceFlags := {not Ascii}not LSourceFlags;
+  if (LKind = NativeUInt(csByte)) then
   begin
-    if ((AFlags shr 31) and SourceFlags = 0) then goto done;
+    if ((LFlags shr 31) and LSourceFlags = 0) then goto done;
   end else
   begin
-    if (AKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
+    if (LKind + NativeUInt(-1) <= Ord(csUTF32) - 1) then
     begin
       // csUTF16, csUTF32
-      AFlags := AFlags and $7f;
-      SourceFlags := {not Ascii}SourceFlags or {AKind = csUTF32}(AKind and 1);
+      LFlags := LFlags and $7f;
+      LSourceFlags := {not Ascii}LSourceFlags or {AKind = csUTF32}(LKind and 1);
     end else
     begin
       raise ECachedString.Create(Pointer(@SStringNotInitialized));
     end;
   end;
 
-  MaxAppendSize := MaxAppendSize shl 1;
-  Inc(MaxAppendSize, NativeUInt(-NativeInt(SourceFlags)) and MaxAppendSize);
+  LMaxAppendSize := LMaxAppendSize shl 1;
+  Inc(LMaxAppendSize, NativeUInt(-NativeInt(LSourceFlags)) and LMaxAppendSize);
 done:
-  Self.InternalAppend(MaxAppendSize, S, AFlags, CONVERSIONS[AKind]);
+  Self.InternalAppend(LMaxAppendSize, S, LFlags, CONVERSIONS[LKind]);
 end;
 
 function TTemporaryString.EmulateShortString: PShortString;
@@ -29849,14 +29878,14 @@ end;
 function TTemporaryString.EmulateUTF8String: PUTF8String;
 var
   P: PStrRec;
-  L, AFlags: NativeUInt;
+  L, LFlags: NativeUInt;
 begin
   P := Pointer(Self.FData);
-  AFlags := Self.FEncoding.Flags;
+  LFlags := Self.FEncoding.Flags;
   if (P <> nil) then
   begin
-    if (AFlags and (3 shl 16) = (1 shl 16){csByte}) and
-      ((Integer(AFlags) < 0) or (Self.CastByteString.Ascii)) then
+    if (LFlags and (3 shl 16) = (1 shl 16){csByte}) and
+      ((Integer(LFlags) < 0) or (Self.CastByteString.Ascii)) then
     begin
       L := Self.FBuffer.Length;
       if (L <> 0) then
@@ -30022,132 +30051,128 @@ begin
 end;
 
 procedure TTemporaryString.Append(const AChars: PAnsiChar;
-  const ALength: NativeUInt; const CodePage: Word; const CharCase: TCharCase);
+  const ALength: NativeUInt; const ACodePage: Word; const CharCase: TCharCase);
 var
-  Buffer: ByteString;
+  LBuffer: ByteString;
 begin
   if (ALength <> 0) then
   begin
-    Buffer.Assign(AChars, ALength, CodePage);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(AChars, ALength, ACodePage);
+    Self.Append(LBuffer, CharCase);
   end;
 end;
 
 procedure TTemporaryString.Append(const S: AnsiString;
-  const CharCase: TCharCase
-  {$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
+  const ACharCase: TCharCase{$ifNdef INTERNALCODEPAGE}; const ACodePage: Word{$endif});
 var
-  Buffer: ByteString;
+  LBuffer: ByteString;
 begin
   if (Pointer(S) <> nil) then
   begin
-    Buffer.Assign(S{$ifNdef INTERNALCODEPAGE}, CodePage{$endif});
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(S{$ifNdef INTERNALCODEPAGE}, ACodePage{$endif});
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
 procedure TTemporaryString.{$ifdef UNICODE}Append{$else}AppendUTF8{$endif}(
-  const S: UTF8String;
-  const CharCase: TCharCase);
+  const S: UTF8String; const ACharCase: TCharCase);
 var
-  Buffer: ByteString;
+  LBuffer: ByteString;
 begin
   if (Pointer(S) <> nil) then
   begin
-    Buffer.{$ifdef UNICODE}Assign{$else}AssignUTF8{$endif}(S);
-    Self.Append(Buffer, CharCase);
+    LBuffer.{$ifdef UNICODE}Assign{$else}AssignUTF8{$endif}(S);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
-procedure TTemporaryString.Append(const S: ShortString; const CodePage: Word;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: ShortString; const ACodePage: Word;
+  const ACharCase: TCharCase);
 var
-  Buffer: ByteString;
+  LBuffer: ByteString;
 begin
   if (PByte(@S)^ <> 0) then
   begin
-    Buffer.Assign(S, CodePage);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(S, ACodePage);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
-procedure TTemporaryString.Append(const S: TBytes; const CodePage: Word;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: TBytes; const ACodePage: Word;
+  const ACharCase: TCharCase);
 var
-  Buffer: ByteString;
+  LBuffer: ByteString;
 begin
   if (Pointer(S) <> nil) then
   begin
-    Buffer.Assign(S, CodePage);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(S, ACodePage);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
 procedure TTemporaryString.Append(const AChars: PUnicodeChar;
-  const ALength: NativeUInt; const CharCase: TCharCase);
+  const ALength: NativeUInt; const ACharCase: TCharCase);
 var
-  Buffer: UTF16String;
+  LBuffer: UTF16String;
 begin
   if (ALength <> 0) then
   begin
-    Buffer.Assign(AChars, ALength);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(AChars, ALength);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
 {$ifdef MSWINDOWS}
-procedure TTemporaryString.Append(const S: WideString;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: WideString; const ACharCase: TCharCase);
 var
-  Buffer: UTF16String;
+  LBuffer: UTF16String;
 begin
   if (Pointer(S) <> nil) then
   begin
-    Buffer.Assign(S);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(S);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 {$endif}
 
 {$ifdef UNICODE}
-procedure TTemporaryString.Append(const S: UnicodeString;
-  const CharCase: TCharCase);
+procedure TTemporaryString.Append(const S: UnicodeString; const ACharCase: TCharCase);
 var
-  Buffer: UTF16String;
+  LBuffer: UTF16String;
 begin
   if (Pointer(S) <> nil) then
   begin
-    Buffer.Assign(S);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(S);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 {$endif}
 
 procedure TTemporaryString.Append(const AChars: PUCS4Char;
-  const ALength: NativeUInt; const CharCase: TCharCase);
+  const ALength: NativeUInt; const ACharCase: TCharCase);
 var
-  Buffer: UTF32String;
+  LBuffer: UTF32String;
 begin
   if (ALength <> 0) then
   begin
-    Buffer.Assign(AChars, ALength);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(AChars, ALength);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
 procedure TTemporaryString.Append(const S: UCS4String;
-  const NullTerminated: Boolean; const CharCase: TCharCase);
+  const ANullTerminated: Boolean; const ACharCase: TCharCase);
 var
-  Buffer: UTF32String;
+  LBuffer: UTF32String;
 begin
   if (Pointer(S) <> nil) then
   begin
-    Buffer.Assign(S, NullTerminated);
-    Self.Append(Buffer, CharCase);
+    LBuffer.Assign(S, ANullTerminated);
+    Self.Append(LBuffer, ACharCase);
   end;
 end;
 
-procedure TTemporaryString.AppendBoolean(const Value: Boolean);
+procedure TTemporaryString.AppendBoolean(const AValue: Boolean);
 type
   TBooleanChars = array[0..7] of Byte;
 const
@@ -30156,14 +30181,14 @@ const
     (Ord('T'), Ord('r'), Ord('u'), Ord('e'), 0, 0, 0, 0)
   );
 var
-  Count: NativeUInt;
+  LCount: NativeUInt;
 begin
-  Count := Byte(Value);
-  Self.AppendAscii(Pointer(@BOOLEANS[Count]), Count xor 5);
+  LCount := Byte(AValue);
+  Self.AppendAscii(Pointer(@BOOLEANS[LCount]), LCount xor 5);
 end;
 
-procedure TTemporaryString.AppendInteger(const Value: Integer;
-  const Digits: NativeUInt);
+procedure TTemporaryString.AppendInteger(const AValue: Integer;
+  const ADigits: NativeUInt);
 var
   Store: record
     Prev: array[1..SizeOf(NativeUInt)] of Byte;
@@ -30171,41 +30196,41 @@ var
   end;
   P: PByte;
 begin
-  if (Value < 0) then
+  if (AValue < 0) then
   begin
-    P := WriteCardinalAscii(Store.DigitsRec, Cardinal(-Value), Digits);
+    P := WriteCardinalAscii(Store.DigitsRec, Cardinal(-AValue), ADigits);
     Dec(P);
     P^ := Ord('-');
   end else
   begin
-    P := WriteCardinalAscii(Store.DigitsRec, Cardinal(Value), Digits);
+    P := WriteCardinalAscii(Store.DigitsRec, Cardinal(AValue), ADigits);
   end;
 
   Self.AppendAscii(Pointer(P), NativeUInt(@Store.DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendCardinal(const Value: Cardinal;
-  const Digits: NativeUInt);
+procedure TTemporaryString.AppendCardinal(const AValue: Cardinal;
+  const ADigits: NativeUInt);
 var
-  DigitsRec: TDigitsRec;
+  LDigitsRec: TDigitsRec;
   P: PByte;
 begin
-  P := WriteCardinalAscii(DigitsRec, Cardinal(Value), Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
+  P := WriteCardinalAscii(LDigitsRec, Cardinal(AValue), ADigits);
+  Self.AppendAscii(Pointer(P), NativeUInt(@LDigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendHex(const Value: Integer;
-  const Digits: NativeUInt);
+procedure TTemporaryString.AppendHex(const AValue: Integer;
+  const ADigits: NativeUInt);
 var
-  DigitsRec: TDigitsRec;
+  LDigitsRec: TDigitsRec;
   P: PByte;
 begin
-  P := WriteHexAscii(DigitsRec, Cardinal(Value), Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
+  P := WriteHexAscii(LDigitsRec, Cardinal(AValue), ADigits);
+  Self.AppendAscii(Pointer(P), NativeUInt(@LDigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendInt64(const Value: Int64;
-  const Digits: NativeUInt);
+procedure TTemporaryString.AppendInt64(const AValue: Int64;
+  const ADigits: NativeUInt);
 var
   Store: record
     Prev: array[1..SizeOf(NativeUInt)] of Byte;
@@ -30214,50 +30239,48 @@ var
   P: PByte;
 begin
   {$ifdef SMALLINT}
-  if (TPoint(Value).Y < 0) then
+  if (TPoint(AValue).Y < 0) then
   begin
-    Store.DigitsRec.Quads[0] := Digits;
-    PInt64(@Store.DigitsRec.Ascii)^ := -Value;
+    Store.DigitsRec.Quads[0] := ADigits;
+    PInt64(@Store.DigitsRec.Ascii)^ := -AValue;
     P := WriteUInt64Ascii(Store.DigitsRec, PInt64(@Store.DigitsRec.Ascii), {Digits}Store.DigitsRec.Quads[0]);
   {$else}
-  if (Value < 0) then
+  if (AValue < 0) then
   begin
-    P := WriteUInt64Ascii(Store.DigitsRec, -Value, Digits);
+    P := WriteUInt64Ascii(Store.DigitsRec, -AValue, ADigits);
   {$endif}
     Dec(P);
     P^ := Ord('-');
   end else
   begin
-    P := WriteUInt64Ascii(Store.DigitsRec, {$ifdef SMALLINT}@{$endif}Value, Digits);
+    P := WriteUInt64Ascii(Store.DigitsRec, {$ifdef SMALLINT}@{$endif}AValue, ADigits);
   end;
 
   Self.AppendAscii(Pointer(P), NativeUInt(@Store.DigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendUInt64(const Value: UInt64;
-  const Digits: NativeUInt);
+procedure TTemporaryString.AppendUInt64(const AValue: UInt64; const ADigits: NativeUInt);
 var
-  DigitsRec: TDigitsRec;
+  LDigitsRec: TDigitsRec;
   P: PByte;
 begin
-  P := WriteUInt64Ascii(DigitsRec, {$ifdef SMALLINT}@{$endif}Int64(Value), Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
+  P := WriteUInt64Ascii(LDigitsRec, {$ifdef SMALLINT}@{$endif}Int64(AValue), ADigits);
+  Self.AppendAscii(Pointer(P), NativeUInt(@LDigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendHex64(const Value: Int64;
-  const Digits: NativeUInt);
+procedure TTemporaryString.AppendHex64(const AValue: Int64; const ADigits: NativeUInt);
 var
-  DigitsRec: TDigitsRec;
+  LDigitsRec: TDigitsRec;
   P: PByte;
 begin
-  P := WriteHex64Ascii(DigitsRec, {$ifdef SMALLINT}@{$endif}Value, Digits);
-  Self.AppendAscii(Pointer(P), NativeUInt(@DigitsRec.Buffer[0]) - NativeUInt(P));
+  P := WriteHex64Ascii(LDigitsRec, {$ifdef SMALLINT}@{$endif}AValue, ADigits);
+  Self.AppendAscii(Pointer(P), NativeUInt(@LDigitsRec.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TTemporaryString.AppendFloat(const Value: Extended);
+procedure TTemporaryString.AppendFloat(const AValue: Extended);
 {$ifNdef CPUINTELASM}
 begin
-  AppendFloat(Value, DefaultFloatSettings);
+  AppendFloat(AValue, DefaultFloatSettings);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
 asm
@@ -30271,28 +30294,27 @@ asm
 end;
 {$endif}
 
-procedure TTemporaryString.AppendFloat(const Value: Extended;
- const Settings: TFloatSettings);
+procedure TTemporaryString.AppendFloat(const AValue: Extended; const ASettings: TFloatSettings);
 var
   Store: record
     Prev: array[1..SizeOf(NativeUInt)] of Byte;
     DigitsRec: TDigitsRec;
   end;
   P: PByte;
-  Count: NativeUInt;
+  LCount: NativeUInt;
 begin
-  Count := CachedTexts.WriteFloatAscii(Store.DigitsRec, {$ifdef EXTENDEDSUPPORT}@{$endif}Value, Settings);
+  LCount := CachedTexts.WriteFloatAscii(Store.DigitsRec, {$ifdef EXTENDEDSUPPORT}@{$endif}AValue, ASettings);
   Store.Prev[High(Store.Prev)] := Ord('-');
   P := @Store.DigitsRec.Ascii[0];
-  Dec(P, Count and 1);
-  Count := Count shr 1;
-  Self.AppendAscii(Pointer(P), Count);
+  Dec(P, LCount and 1);
+  LCount := LCount shr 1;
+  Self.AppendAscii(Pointer(P), LCount);
 end;
 
-procedure TTemporaryString.AppendDate(const Value: TDateTime);
+procedure TTemporaryString.AppendDate(const AValue: TDateTime);
 {$ifNdef CPUINTELASM}
 begin
-  AppendDate(Value, DefaultDateTimeSettings);
+  AppendDate(AValue, DefaultDateTimeSettings);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
 asm
@@ -30306,21 +30328,20 @@ asm
 end;
 {$endif}
 
-procedure TTemporaryString.AppendDate(const Value: TDateTime;
-  const Settings: TDateTimeSettings);
+procedure TTemporaryString.AppendDate(const AValue: TDateTime; const ASettings: TDateTimeSettings);
 var
-  DigitsRec: TDigitsRec;
+  LDigitsRec: TDigitsRec;
   P: PByte;
 begin
-  SeparateDateTime(DigitsRec, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, True);
-  P := WriteDateAscii(DigitsRec, @DigitsRec.Ascii[0], Settings);
-  Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+  SeparateDateTime(LDigitsRec, {$ifNdef CPUX86}AValue{$else}PDouble(@AValue)^{$endif}, True);
+  P := WriteDateAscii(LDigitsRec, @LDigitsRec.Ascii[0], ASettings);
+  Self.AppendAscii(Pointer(@LDigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@LDigitsRec.Ascii[0]));
 end;
 
-procedure TTemporaryString.AppendTime(const Value: TDateTime);
+procedure TTemporaryString.AppendTime(const AValue: TDateTime);
 {$ifNdef CPUINTELASM}
 begin
-  AppendTime(Value, DefaultDateTimeSettings);
+  AppendTime(AValue, DefaultDateTimeSettings);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
 asm
@@ -30334,21 +30355,20 @@ asm
 end;
 {$endif}
 
-procedure TTemporaryString.AppendTime(const Value: TDateTime;
-  const Settings: TDateTimeSettings);
+procedure TTemporaryString.AppendTime(const AValue: TDateTime; const ASettings: TDateTimeSettings);
 var
-  DigitsRec: TDigitsRec;
+  LDigitsRec: TDigitsRec;
   P: PByte;
 begin
-  SeparateDateTime(DigitsRec, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
-  P := WriteTimeAscii(DigitsRec, @DigitsRec.Ascii[0], Settings);
-  Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+  SeparateDateTime(LDigitsRec, {$ifNdef CPUX86}AValue{$else}PDouble(@AValue)^{$endif}, False);
+  P := WriteTimeAscii(LDigitsRec, @LDigitsRec.Ascii[0], ASettings);
+  Self.AppendAscii(Pointer(@LDigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@LDigitsRec.Ascii[0]));
 end;
 
-procedure TTemporaryString.AppendDateTime(const Value: TDateTime);
+procedure TTemporaryString.AppendDateTime(const AValue: TDateTime);
 {$ifNdef CPUINTELASM}
 begin
-  AppendDateTime(Value, DefaultDateTimeSettings);
+  AppendDateTime(AValue, DefaultDateTimeSettings);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
 asm
@@ -30362,29 +30382,28 @@ asm
 end;
 {$endif}
 
-procedure TTemporaryString.AppendDateTime(const Value: TDateTime;
-  const Settings: TDateTimeSettings);
+procedure TTemporaryString.AppendDateTime(const AValue: TDateTime; const ASettings: TDateTimeSettings);
 var
-  DigitsRec: TDigitsRec;
   P: PByte;
   Sep: NativeUInt;
+  LDigitsRec: TDigitsRec;
 begin
-  SeparateDateTime(DigitsRec, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
-  P := WriteDateAscii(DigitsRec, @DigitsRec.Ascii[0], Settings);
-  Sep := Byte(Settings.BetweenSeparator);
+  SeparateDateTime(LDigitsRec, {$ifNdef CPUX86}AValue{$else}PDouble(@AValue)^{$endif}, False);
+  P := WriteDateAscii(LDigitsRec, @LDigitsRec.Ascii[0], ASettings);
+  Sep := Byte(ASettings.BetweenSeparator);
   if (Sep <> NativeUInt(sepNone)) then
   begin
     P^ := DATETIME_SEPARATORS[Sep];
     Inc(P);
   end;
-  P := WriteTimeAscii(DigitsRec, P, Settings);
-  Self.AppendAscii(Pointer(@DigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@DigitsRec.Ascii[0]));
+  P := WriteTimeAscii(LDigitsRec, P, ASettings);
+  Self.AppendAscii(Pointer(@LDigitsRec.Ascii[0]), NativeUInt(P) - NativeUInt(@LDigitsRec.Ascii[0]));
 end;
 
-procedure TTemporaryString.AppendVariant(const Value: Variant);
+procedure TTemporaryString.AppendVariant(const AValue: Variant);
 {$ifNdef CPUINTELASM}
 begin
-  AppendVariant(Value, DefaultFloatSettings, DefaultDateTimeSettings);
+  AppendVariant(AValue, DefaultFloatSettings, DefaultDateTimeSettings);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
 asm
@@ -30401,8 +30420,8 @@ asm
 end;
 {$endif}
 
-procedure TTemporaryString.AppendVariant(const Value: Variant;
-  const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings);
+procedure TTemporaryString.AppendVariant(const AValue: Variant;
+  const AFloatSettings: TFloatSettings; const ADateTimeSettings: TDateTimeSettings);
 label
   check_byref, signed_value, unsigned_value, uint64_value, float_value;
 var
@@ -30413,8 +30432,8 @@ var
     Date: Int64;
   end;
 begin
-  VType := TVarData(Value).VType;
-  PValue := @TVarData(Value).VWords[3];
+  VType := TVarData(AValue).VType;
+  PValue := @TVarData(AValue).VWords[3];
 check_byref:
   if (VType and varByRef <> 0) then
   begin
@@ -30483,20 +30502,20 @@ $15{varUInt64}: begin
      varDouble: begin
                   Store.FloatValue := PDouble(PValue)^;
                 float_value:
-                  Self.AppendFloat(Store.FloatValue, FloatSettings);
+                  Self.AppendFloat(Store.FloatValue, AFloatSettings);
                 end;
        varDate: begin
                   Store.Date := Trunc(PDouble(PValue)^);
                   if (PDouble(PValue)^ - Store.Date < 1 / (24 * 60 * 60 * 1000)) then
                   begin
-                    Self.AppendDate(PDateTime(PValue)^, DateTimeSettings);
+                    Self.AppendDate(PDateTime(PValue)^, ADateTimeSettings);
                   end else
                   if (Store.Date <> 0) then
                   begin
-                    Self.AppendDateTime(PDateTime(PValue)^, DateTimeSettings);
+                    Self.AppendDateTime(PDateTime(PValue)^, ADateTimeSettings);
                   end else
                   begin
-                    Self.AppendTime(PDateTime(PValue)^, DateTimeSettings);
+                    Self.AppendTime(PDateTime(PValue)^, ADateTimeSettings);
                   end;
                 end;
      {$ifdef ANSISTRSUPPORT}
@@ -30523,13 +30542,13 @@ end;
 const
   WRITER_OVERFLOW_LIMIT = 128;
 
-constructor TCachedTextWriter.Create(const Context: PUniConvContext;
-  const Target: TCachedWriter; const Owner: Boolean);
+constructor TCachedTextWriter.Create(const AContext: PUniConvContext;
+  const ATarget: TCachedWriter; const AOwner: Boolean);
 const
   CHARS_FALSE: array[0..4] of Byte = (Ord('F'), Ord('a'), Ord('l'), Ord('s'), Ord('e'));
   CHARS_TRUE: array[0..3] of Byte = (Ord('T'), Ord('r'), Ord('u'), Ord('e'));
 var
-  VWBufferedAscii: procedure(From: PByte; Count: NativeUInt) of object;
+  VWBufferedAscii: procedure(AFrom: PByte; ACount: NativeUInt) of object;
   VWAscii: procedure(const AChars: PAnsiChar; const ALength: NativeUInt) of object;
   VWUnicodeAscii: procedure(const AChars: PUnicodeChar; const ALength: NativeUInt) of object;
   VWUCS4Ascii: procedure(const AChars: PUCS4Char; const ALength: NativeUInt) of object;
@@ -30537,7 +30556,7 @@ var
   VWUnicodeChars: procedure(const AChars: PUnicodeChar; const ALength: NativeUInt) of object;
 begin
   inherited Create;
-  Initialize(Context, Target, Owner);
+  Initialize(AContext, ATarget, AOwner);
 
   // SBCS
   FSBCSLookup.DefaultConverter := Self.GetSBCSConverter(FSBCSLookup.Default, CODEPAGE_DEFAULT);
@@ -30582,56 +30601,55 @@ begin
   Result := inherited Flush;
 end;
 
-procedure TCachedTextWriter.OverflowWriteData(const Buffer;
-  const Count: NativeUInt);
+procedure TCachedTextWriter.OverflowWriteData(const ABuffer; const ACount: NativeUInt);
 begin
   FDataBuffer.Current := FCurrent;
-  TCachedWriter(FDataBuffer).Write(Buffer, Count);
+  TCachedWriter(FDataBuffer).Write(ABuffer, ACount);
   FieldsCopy;
 end;
 
-procedure TCachedTextWriter.WriteData(const Buffer; const Count: NativeUInt);
+procedure TCachedTextWriter.WriteData(const ABuffer; const ACount: NativeUInt);
 var
   P: PByte;
 begin
   P := FCurrent;
-  Inc(P, Count);
+  Inc(P, ACount);
 
   if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
   begin
-    OverflowWriteData(Buffer, Count);
+    OverflowWriteData(ABuffer, ACount);
   end else
   begin
     FCurrent := P;
-    Dec(P, Count);
-    NcMove(Buffer, P^, Count);
+    Dec(P, ACount);
+    NcMove(ABuffer, P^, ACount);
   end;
 end;
 
-procedure TCachedTextWriter.WriteContextData(var Context: TUniConvContext);
+procedure TCachedTextWriter.WriteContextData(var AContext: TUniConvContext);
 label
   flush;
 var
   P: PByte;
-  Count: NativeUInt;
   R: NativeInt;
+  LCount: NativeUInt;
 begin
   P := FCurrent;
 
   // write data
-  if (@PUniConvContextEx(@Context).FConvertProc = @TUniConvContextEx.convert_copy) then
+  if (@PUniConvContextEx(@AContext).FConvertProc = @TUniConvContextEx.convert_copy) then
   begin
-    Count := Context.SourceSize;
-    Inc(P, Count);
+    LCount := AContext.SourceSize;
+    Inc(P, LCount);
 
     if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
     begin
-      OverflowWriteData(Context.Source^, Count);
+      OverflowWriteData(AContext.Source^, LCount);
     end else
     begin
       FCurrent := P;
-      Dec(P, Count);
-      NcMove(Context.Source^, P^, Count);
+      Dec(P, LCount);
+      NcMove(AContext.Source^, P^, LCount);
     end;
     Exit;
   end;
@@ -30639,15 +30657,15 @@ begin
   // conversion loop
   if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then goto flush;
   repeat
-    Context.Destination := P;
-    Context.DestinationSize := NativeUInt(Self.FOverflow) - NativeUInt(P) + WRITER_OVERFLOW_LIMIT;
+    AContext.Destination := P;
+    AContext.DestinationSize := NativeUInt(Self.FOverflow) - NativeUInt(P) + WRITER_OVERFLOW_LIMIT;
 
-    R := TUniConvContextEx(Context).FConvertProc(@Context);
-    P := Context.Destination;
-    Inc(P, Context.DestinationWritten);
+    R := TUniConvContextEx(AContext).FConvertProc(@AContext);
+    P := AContext.Destination;
+    Inc(P, AContext.DestinationWritten);
     if (R <= 0) then Break;
-    Inc(NativeUInt(TUniConvContextEx(Context).FSource), Context.SourceRead);
-    Dec(TUniConvContextEx(Context).FSourceSize, Context.SourceRead);
+    Inc(NativeUInt(TUniConvContextEx(AContext).FSource), AContext.SourceRead);
+    Dec(TUniConvContextEx(AContext).FSourceSize, AContext.SourceRead);
     if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
     begin
     flush:
@@ -30662,66 +30680,66 @@ begin
     Self.Flush;
 end;
 
-function TCachedTextWriter.GetSBCSConverter(var Encoding: TCachedEncoding;
-  const CodePage: Word): Pointer;
+function TCachedTextWriter.GetSBCSConverter(var AEncoding: TCachedEncoding;
+  const ACodePage: Word): Pointer;
 var
-  Index: NativeUInt;
-  SBCS: PUniConvSBCSEx;
-  Value: Integer;
+  LIndex: NativeUInt;
+  LSBCS: PUniConvSBCSEx;
+  LValue: Integer;
 begin
   // SBCS
-  Index := NativeUInt(CodePage);
-  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  LIndex := NativeUInt(ACodePage);
+  LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[LIndex and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CodePage) or (Value < 0) then Break;
-    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+    if (Word(LValue) = ACodePage) or (LValue < 0) then Break;
+    LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(LValue) shr 24]);
   until (False);
-  SBCS := Pointer(NativeUInt(Byte(Value shr 16)) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+  LSBCS := Pointer(NativeUInt(Byte(LValue shr 16)) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
 
   // Encoding fields
-  Index := Cardinal(SBCS.F);
-  Index := {Index}(Index shl 24) + (Ord(csByte) shl 16) + {CodePage}(Index shr 16);
-  Encoding.Flags := Index;
+  LIndex := Cardinal(LSBCS.F);
+  LIndex := {Index}(LIndex shl 24) + (Ord(csByte) shl 16) + {CodePage}(LIndex shr 16);
+  AEncoding.Flags := LIndex;
 
   // UCS2 converter
-  Result := SBCS.FUCS2.Original;
-  if (Result = nil) then Result := SBCS.AllocFillUCS2(SBCS.FUCS2.Original, ccOriginal);
+  Result := LSBCS.FUCS2.Original;
+  if (Result = nil) then Result := LSBCS.AllocFillUCS2(LSBCS.FUCS2.Original, ccOriginal);
 end;
 
-procedure TCachedTextWriter.WriteBufferedSBCSChars(const CodePage: Word);
+procedure TCachedTextWriter.WriteBufferedSBCSChars(const ACodePage: Word);
 begin
-  Self.FSBCSLookup.CurrentConverter := Self.GetSBCSConverter(Self.FSBCSLookup.Current, CodePage);
+  Self.FSBCSLookup.CurrentConverter := Self.GetSBCSConverter(Self.FSBCSLookup.Current, ACodePage);
   Self.FVirtuals.WriteSBCSCharsInternal(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
 end;
 
 procedure TCachedTextWriter.WriteByteString(const S: ByteString);
 var
   {$ifNdef CPUX86}
-  Length: NativeUInt;
+  LLength: NativeUInt;
   {$endif}
-  Index: NativeUInt;
+  LIndex: NativeUInt;
 begin
   {$ifNdef CPUX86}
-  Length := S.Length;
+  LLength := S.Length;
   {$endif}
-  Index := S.Flags;
-  if ({$ifdef CPUX86}S.{$endif}Length <> 0) then
+  LIndex := S.Flags;
+  if ({$ifdef CPUX86}S.Length{$else}LLength{$endif} <> 0) then
   begin
-    if (Index and 1 = 0) then
+    if (LIndex and 1 = 0) then
     begin
-      if (Integer(Index) >= 0) then
+      if (Integer(LIndex) >= 0) then
       begin
-        Index := Index shr 24;
-        FBuffer.Cached.Length := {$ifdef CPUX86}S.{$endif}Length;
+        LIndex := LIndex shr 24;
+        FBuffer.Cached.Length := {$ifdef CPUX86}S.Length{$else}LLength{$endif};
 
-        if (Index <> Byte(FSBCSLookup.Current.SBCSIndex)) then
+        if (LIndex <> Byte(FSBCSLookup.Current.SBCSIndex)) then
         begin
-          if (Index <> DEFAULT_UNICONV_SBCS_INDEX) then
+          if (LIndex <> DEFAULT_UNICONV_SBCS_INDEX) then
           begin
             FBuffer.Cached.Chars := S.Chars;
-            Index := Index * SizeOf(TUniConvSBCS);
-            Inc(Index, NativeUInt(@UNICONV_SUPPORTED_SBCS));
-            Self.WriteBufferedSBCSChars(PUniConvSBCS(Index).CodePage);
+            LIndex := LIndex * SizeOf(TUniConvSBCS);
+            Inc(LIndex, NativeUInt(@UNICONV_SUPPORTED_SBCS));
+            Self.WriteBufferedSBCSChars(PUniConvSBCS(LIndex).CodePage);
             Exit;
           end else
           begin
@@ -30734,60 +30752,60 @@ begin
         Exit;
       end else
       begin
-        Index := {$ifdef CPUX86}S.{$endif}Length;
-        Self.FVirtuals.WriteUTF8Chars(Self, Pointer(S.Chars), Index);
+        LIndex := {$ifdef CPUX86}S.Length{$else}LLength{$endif};
+        Self.FVirtuals.WriteUTF8Chars(Self, Pointer(S.Chars), LIndex);
         Exit;
       end;
     end else
     begin
-      Index := {$ifdef CPUX86}S.{$endif}Length;
-      Self.FVirtuals.WriteAscii(Self, S.Chars, Index);
+      LIndex := {$ifdef CPUX86}S.Length{$else}LLength{$endif};
+      Self.FVirtuals.WriteAscii(Self, S.Chars, LIndex);
     end;
   end;
 end;
 
 procedure TCachedTextWriter.WriteUTF16String(const S: UTF16String);
 var
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
-  Length := S.Length;
-  if (Length <> 0) then
+  LLength := S.Length;
+  if (LLength <> 0) then
   begin
     if (not S.Ascii) then
     begin
-      Self.FVirtuals.WriteUnicodeChars(Self, S.Chars, Length);
+      Self.FVirtuals.WriteUnicodeChars(Self, S.Chars, LLength);
     end else
     begin
-      Self.FVirtuals.WriteUnicodeAscii(Self, S.Chars, Length);
+      Self.FVirtuals.WriteUnicodeAscii(Self, S.Chars, LLength);
     end;
   end;
 end;
 
 procedure TCachedTextWriter.WriteUTF32String(const S: UTF32String);
 var
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
-  Length := S.Length;
-  if (Length <> 0) then
+  LLength := S.Length;
+  if (LLength <> 0) then
   begin
     if (not S.Ascii) then
     begin
       FUTF32Context.Source := S.Chars;
-      FUTF32Context.SourceSize := Length shl 2;
+      FUTF32Context.SourceSize := LLength shl 2;
       Self.WriteContextData(FUTF32Context);
     end else
     begin
-      Self.FVirtuals.WriteUCS4Ascii(Self, S.Chars, Length);
+      Self.FVirtuals.WriteUCS4Ascii(Self, S.Chars, LLength);
     end;
   end;
 end;
 
 procedure TCachedTextWriter.WriteAnsiString(const S: AnsiString
-  {$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
+  {$ifNdef INTERNALCODEPAGE}; const ACodePage: Word{$endif});
 var
   P: PInteger;
   {$ifdef INTERNALCODEPAGE}
-  CodePage: Word;
+  ACodePage: Word;
   {$endif}
 begin
   P := Pointer(S);
@@ -30798,20 +30816,20 @@ begin
     FBuffer.Cached.Length := P^;
     {$ifdef INTERNALCODEPAGE}
     Dec(NativeInt(P), (ASTR_OFFSET_CODEPAGE-ASTR_OFFSET_LENGTH));
-    CodePage := PWord(P)^;
+    ACodePage := PWord(P)^;
     {$endif}
 
-    if (CodePage = CODEPAGE_UTF8) then
+    if (ACodePage = CODEPAGE_UTF8) then
     begin
       Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
       Exit;
     end else
     begin
-      if (CodePage <> Self.FSBCSLookup.Current.CodePage) then
+      if (ACodePage <> Self.FSBCSLookup.Current.CodePage) then
       begin
-        if (CodePage <> 0) and (CodePage <> CODEPAGE_DEFAULT) then
+        if (ACodePage <> 0) and (ACodePage <> CODEPAGE_DEFAULT) then
         begin
-          Self.WriteBufferedSBCSChars(CodePage);
+          Self.WriteBufferedSBCSChars(ACodePage);
           Exit;
         end else
         begin
@@ -30825,28 +30843,27 @@ begin
   end;
 end;
 
-procedure TCachedTextWriter.WriteShortString(const S: ShortString;
-  const CodePage: Word);
+procedure TCachedTextWriter.WriteShortString(const S: ShortString; const ACodePage: Word);
 var
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
-  Length := PByte(@S)^;
-  if (Length <> 0) then
+  LLength := PByte(@S)^;
+  if (LLength <> 0) then
   begin
-    FBuffer.Cached.Length := Length;
+    FBuffer.Cached.Length := LLength;
     NativeUInt(FBuffer.Cached.Chars) := NativeUInt(@S[1]);
 
-    if (CodePage = CODEPAGE_UTF8) then
+    if (ACodePage = CODEPAGE_UTF8) then
     begin
       Self.FVirtuals.WriteUTF8Chars(Self, FBuffer.Cached.Chars, FBuffer.Cached.Length);
       Exit;
     end else
     begin
-      if (CodePage <> Self.FSBCSLookup.Current.CodePage) then
+      if (ACodePage <> Self.FSBCSLookup.Current.CodePage) then
       begin
-        if (CodePage <> 0) and (CodePage <> CODEPAGE_DEFAULT) then
+        if (ACodePage <> 0) and (ACodePage <> CODEPAGE_DEFAULT) then
         begin
-          Self.WriteBufferedSBCSChars(CodePage);
+          Self.WriteBufferedSBCSChars(ACodePage);
           Exit;
         end else
         begin
@@ -30863,84 +30880,84 @@ end;
 procedure TCachedTextWriter.WriteUTF8String(const S: UTF8String);
 var
   P: PInteger;
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     Dec(NativeInt(P), ASTR_OFFSET_LENGTH);
-    Length := P^;
+    LLength := P^;
     Inc(NativeInt(P), ASTR_OFFSET_LENGTH);
-    Self.FVirtuals.WriteUTF8Chars(Self, Pointer(P), Length);
+    Self.FVirtuals.WriteUTF8Chars(Self, Pointer(P), LLength);
   end;
 end;
 
 procedure TCachedTextWriter.WriteWideString(const S: WideString);
 var
   P: PInteger;
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     Dec(NativeInt(P), WSTR_OFFSET_LENGTH);
-    Length := P^;
+    LLength := P^;
     Inc(NativeInt(P), WSTR_OFFSET_LENGTH);
     {$ifdef MSWINDOWS}
-    if (Length <> 0) then
+    if (LLength <> 0) then
     {$endif}
-    Self.FVirtuals.WriteUnicodeChars(Self, Pointer(P), Length {$ifdef WIDESTRLENSHIFT} shr 1{$endif});
+    Self.FVirtuals.WriteUnicodeChars(Self, Pointer(P), LLength {$ifdef WIDESTRLENSHIFT} shr 1{$endif});
   end;
 end;
 
 procedure TCachedTextWriter.WriteUnicodeString(const S: UnicodeString);
 var
   P: PInteger;
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     Dec(NativeInt(P), USTR_OFFSET_LENGTH);
-    Length := P^;
+    LLength := P^;
     Inc(NativeInt(P), USTR_OFFSET_LENGTH);
     {$if not Defined(UNICODE) and Defined(WIDESTRLENSHIFT)}
-    if (Length = 0) then Exit;
-    Length := Length shr 1;
+    if (LLength = 0) then Exit;
+    LLength := LLength shr 1;
     {$ifend}
-    Self.FVirtuals.WriteUnicodeChars(Self, Pointer(P), Length);
+    Self.FVirtuals.WriteUnicodeChars(Self, Pointer(P), LLength);
   end;
 end;
 
 procedure TCachedTextWriter.WriteUCS4String(const S: UCS4String;
-  const NullTerminated: Boolean);
+  const ANullTerminated: Boolean);
 var
   P: PNativeInt;
-  Length: NativeUInt;
+  LLength: NativeUInt;
 begin
   P := Pointer(S);
   if (P <> nil) then
   begin
     Dec(P);
-    Length := P^ - Ord(NullTerminated) {$ifdef FPC}+ 1{$endif};
+    LLength := P^ - Ord(ANullTerminated) {$ifdef FPC}+ 1{$endif};
     Inc(P);
-    if (Length <> 0) then
+    if (LLength <> 0) then
     begin
       FUTF32Context.Source := P;
-      FUTF32Context.SourceSize := Length shl 2;
+      FUTF32Context.SourceSize := LLength shl 2;
       Self.WriteContextData(FUTF32Context);
     end;
   end;
 end;
 
 procedure TCachedTextWriter.WriteAnsiChars(const AChars: PAnsiChar;
-  const ALength: NativeUInt; const CodePage: Word);
+  const ALength: NativeUInt; const ACodePage: Word);
 var
   CP: Word;
 begin
   if (ALength <> 0) then
   begin
-    CP := CodePage;
+    CP := ACodePage;
     if (CP = CODEPAGE_UTF8) then
     begin
       Self.FVirtuals.WriteUTF8Chars(Self, Pointer(AChars), ALength);
@@ -30967,8 +30984,7 @@ begin
   end;
 end;
 
-procedure TCachedTextWriter.WriteUCS4Chars(const AChars: PUCS4Char;
-  const ALength: NativeUInt);
+procedure TCachedTextWriter.WriteUCS4Chars(const AChars: PUCS4Char; const ALength: NativeUInt);
 begin
   if (ALength <> 0) then
   begin
@@ -30979,15 +30995,14 @@ begin
 end;
 
 procedure TCachedTextWriter.WriteFormat(const FmtStr: AnsiString;
-  const Args: array of const
-  {$ifNdef INTERNALCODEPAGE}; const CodePage: Word{$endif});
+  const Args: array of const {$ifNdef INTERNALCODEPAGE}; const ACodePage: Word{$endif});
 var
   P: PInteger;
   {$ifdef INTERNALCODEPAGE}
-  CodePage: Word;
+  ACodePage: Word;
   {$endif}
-  Index: NativeUInt;
-  Value: Integer;
+  LIndex: NativeUInt;
+  LValue: Integer;
 begin
   P := Pointer(FmtStr);
   if (P = nil) then Exit;
@@ -31002,28 +31017,28 @@ begin
 
   {$ifdef INTERNALCODEPAGE}
   Dec(NativeInt(P), (ASTR_OFFSET_CODEPAGE-ASTR_OFFSET_LENGTH));
-  CodePage := PWord(P)^;
+  ACodePage := PWord(P)^;
   {$endif}
-  if (CodePage = 0) or (CodePage = CODEPAGE_DEFAULT) then
+  if (ACodePage = 0) or (ACodePage = CODEPAGE_DEFAULT) then
   begin
     Self.FFormat.FmtStr.Flags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
   end else
   begin
-    Value := Integer($ff000000);
-    if (CodePage <> CODEPAGE_UTF8) then
+    LValue := Integer($ff000000);
+    if (ACodePage <> CODEPAGE_UTF8) then
     begin
-      Index := NativeUInt(CodePage);
-      Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+      LIndex := NativeUInt(ACodePage);
+      LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[LIndex and High(UNICONV_SUPPORTED_SBCS_HASH)]);
       repeat
-        if (Word(Value) = CodePage) or (Value < 0) then Break;
-        Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+        if (Word(LValue) = ACodePage) or (LValue < 0) then Break;
+        LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(LValue) shr 24]);
       until (False);
 
-      Value := Value shl 8;
-      Value := Value and $ff000000;
+      LValue := LValue shl 8;
+      LValue := LValue and $ff000000;
     end;
 
-    Self.FFormat.FmtStr.Flags := Value;
+    Self.FFormat.FmtStr.Flags := LValue;
   end;
 
   Self.WriteFormatByte;
@@ -31070,8 +31085,7 @@ begin
 end;
 
 {$ifdef NEXTGEN}
-procedure TCachedTextWriter.WriteFormat(const FmtStr: UnicodeString;
-  const Args: array of const);
+procedure TCachedTextWriter.WriteFormat(const FmtStr: UnicodeString; const Args: array of const);
 begin
   WriteFormatUnicode(FmtStr, Args);
 end;
@@ -31119,13 +31133,13 @@ const
   );
 
 
-procedure WriteDefaultSBCSChar(var DigitsRec: TDigitsRec; const C: AnsiChar);
+procedure WriteDefaultSBCSChar(var ADigitsRec: TDigitsRec; const C: AnsiChar);
 begin
   with TUniConvSBCSEx(DEFAULT_UNICONV_SBCS^) do
-  PWideChar(@DigitsRec.Ascii)^ := AllocFillUCS2(FUCS2.Original, ccOriginal)[C];
+  PWideChar(@ADigitsRec.Ascii)^ := AllocFillUCS2(FUCS2.Original, ccOriginal)[C];
 end;
 
-procedure TCachedTextWriter.WriteFormatString(const Arg: TVarRec);
+procedure TCachedTextWriter.WriteFormatString(const AArg: TVarRec);
 label
   {$if Defined(ANSISTRSUPPORT) or Defined(SHORTSTRSUPPORT)}
   ansi_assign_default, ansi_convert_utf16,
@@ -31133,53 +31147,53 @@ label
   ascii_align;
 var
   S: Pointer;
-  Count: NativeUInt;
+  LCount: NativeUInt;
   {$ifdef ANSISTRSUPPORT}
-  Lookup: PUniConvWB;
+  LLookup: PUniConvWB;
   {$endif}
-  Width: NativeInt;
+  LWidth: NativeInt;
 begin
-  S := Arg.VPointer;
-  case Arg.VType of
+  S := AArg.VPointer;
+  case AArg.VType of
     {$ifdef ANSISTRSUPPORT}
     vtChar:
     begin
-      Lookup := Pointer(PUniConvSBCSEx(DEFAULT_UNICONV_SBCS).FUCS2.Original);
-      if (Lookup = nil) then
+      LLookup := Pointer(PUniConvSBCSEx(DEFAULT_UNICONV_SBCS).FUCS2.Original);
+      if (LLookup = nil) then
       begin
         WriteDefaultSBCSChar(FBuffer.Digits, AnsiChar(Byte(S)));
       end else
       begin
-        PWord(@FBuffer.Digits.Ascii)^ := Lookup[Byte(S)];
+        PWord(@FBuffer.Digits.Ascii)^ := LLookup[Byte(S)];
       end;
       S := Pointer(@FBuffer.Digits.Ascii);
-      Count := Byte(PWord(@FBuffer.Digits.Ascii)^ <> 0);
+      LCount := Byte(PWord(@FBuffer.Digits.Ascii)^ <> 0);
     end;
     vtPChar:
     begin
-      Count := AStrLen(S);
+      LCount := AStrLen(S);
       goto ansi_assign_default;
     end;
     vtAnsiString:
     begin
-      with ByteString(FBuffer.Cached) do Assign(AnsiString(Arg.VPointer{S}));
+      with ByteString(FBuffer.Cached) do Assign(AnsiString(AArg.VPointer{S}));
       if (Self.FFormat.Settings.F.PrecisionWidth <> UNDEFINED_PRECISIONWIDTH) then
         goto ansi_convert_utf16;
 
       Self.WriteByteString(ByteString(FBuffer.Cached));
       Exit;
     {$ifNdef SHORTSTRSUPPORT}
-      Count := 0;
+      LCount := 0;
     {$else}
     end;
     vtString:
     begin
-      Count := PByte(Arg.VPointer)^;
+      LCount := PByte(AArg.VPointer)^;
       Inc(NativeUInt(S));
     {$endif}
 
     ansi_assign_default:
-      FBuffer.Cached.Length := Count;
+      FBuffer.Cached.Length := LCount;
       FBuffer.Cached.Chars := S;
       FBuffer.Cached.NativeFlags := DEFAULT_UNICONV_SBCS_INDEX shl 24;
       if (Self.FFormat.Settings.F.PrecisionWidth = UNDEFINED_PRECISIONWIDTH) then
@@ -31192,7 +31206,7 @@ begin
         FBuffer.UnicodeTemp.Length := 0;
         FBuffer.UnicodeTemp.Append(ByteString(FBuffer.Cached));
         S := FBuffer.UnicodeTemp.Chars;
-        Count := FBuffer.UnicodeTemp.Length;
+        LCount := FBuffer.UnicodeTemp.Length;
       end;
     end;
     {$endif}
@@ -31201,79 +31215,78 @@ begin
     begin
       if (S <> nil) then
       begin
-        Count := PInteger(PAnsiChar(S) - WSTR_OFFSET_LENGTH)^ {$ifdef WIDESTRLENSHIFT} shr 1{$endif};
+        LCount := PInteger(PAnsiChar(S) - WSTR_OFFSET_LENGTH)^ {$ifdef WIDESTRLENSHIFT} shr 1{$endif};
       end else
       begin
-        Count := 0;
+        LCount := 0;
       end;
     end;
     {$endif}
     vtPWideChar:
     begin
-      Count := WStrLen(S);
+      LCount := WStrLen(S);
     end;
     vtVariant:
     begin
       FBuffer.UnicodeTemp.Length := 0;
-      FBuffer.UnicodeTemp.AppendVariant(Arg.VVariant^, Self.FloatSettings, Self.DateTimeSettings);
+      FBuffer.UnicodeTemp.AppendVariant(AArg.VVariant^, Self.FloatSettings, Self.DateTimeSettings);
       S := FBuffer.UnicodeTemp.Chars;
-      Count := FBuffer.UnicodeTemp.Length;
+      LCount := FBuffer.UnicodeTemp.Length;
     end;
     {$ifdef UNICODE}
     vtUnicodeString:
     begin
       if (S <> nil) then
       begin
-        Count := PInteger(PAnsiChar(S) - USTR_OFFSET_LENGTH)^;
+        LCount := PInteger(PAnsiChar(S) - USTR_OFFSET_LENGTH)^;
       end else
       begin
-        Count := 0;
+        LCount := 0;
       end;
     end;
     {$endif}
   else
     // vtWideChar
-    S := Pointer(@Arg.VWideChar);
-    Count := Byte(Arg.VWideChar <> #0);
+    S := Pointer(@AArg.VWideChar);
+    LCount := Byte(AArg.VWideChar <> #0);
   end;
 
-  Width := Self.FFormat.Settings.Precision;
-  if (NativeUInt(Width) < Count) then
-    Count := NativeUInt(Width);
+  LWidth := Self.FFormat.Settings.Precision;
+  if (NativeUInt(LWidth) < LCount) then
+    LCount := NativeUInt(LWidth);
 
-  Width := Self.FFormat.Settings.Width;
-  if (Width < 0) then
+  LWidth := Self.FFormat.Settings.Width;
+  if (LWidth < 0) then
   begin
-    Width := -Width;
-    FVirtuals.WriteUnicodeChars(Self, S, Count);
+    LWidth := -LWidth;
+    FVirtuals.WriteUnicodeChars(Self, S, LCount);
     FBuffer.Cached.Chars{S} := nil;
-    if (NativeUInt(Width) > Count) then goto ascii_align;
+    if (NativeUInt(LWidth) > LCount) then goto ascii_align;
   end else
   begin
     FBuffer.Cached.Chars := S;
 
-    if (NativeUInt(Width) > Count) then
+    if (NativeUInt(LWidth) > LCount) then
     begin
     ascii_align:
-      Dec(Width, Count);
+      Dec(LWidth, LCount);
       FBuffer.Digits.Quads[0] := $20202020;
       FBuffer.Digits.Quads[1] := $20202020;
-      if (Width > 8) then
+      if (LWidth > 8) then
       repeat
-        Dec(Width, 8);
+        Dec(LWidth, 8);
         FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Quads[0]), 8);
-      until (Width <= 8);
-      FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Quads[0]), Width);
+      until (LWidth <= 8);
+      FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Quads[0]), LWidth);
     end;
 
     S := FBuffer.Cached.Chars;
     if (S <> nil) then
-      FVirtuals.WriteUnicodeChars(Self, S, Count);
+      FVirtuals.WriteUnicodeChars(Self, S, LCount);
   end;
 end;
 
-function TCachedTextWriter.WriteFormatArg(const ArgType: NativeUInt;
-  const Arg: TVarRec): Boolean;
+function TCachedTextWriter.WriteFormatArg(const AArgType: NativeUInt; const AArg: TVarRec): Boolean;
 label
   cardinal_value, uint64_value, float_value,
   write_difficult_string, fail,
@@ -31311,36 +31324,36 @@ const
   );
 var
   X: NativeUInt;
-  Width, Precision: NativeInt;
+  LWidth, LPrecision: NativeInt;
   VExtended: PExtended;
   VInteger: Integer;
   VInt64: PInt64;
   P: PByte;
-  Count: NativeUInt;
+  LCount: NativeUInt;
 begin
-  X := (ArgType or $20) - $60;
-  Precision := Self.FFormat.Settings.F.PrecisionWidth;
+  X := (AArgType or $20) - $60;
+  LPrecision := Self.FFormat.Settings.F.PrecisionWidth;
   if (X >= NativeUInt(Length(CHAR_LOOKUP))) then goto fail;
   X := CHAR_LOOKUP[X];
-  Width := SmallInt(Precision shr 16);
-  Precision := SmallInt(Precision);
+  LWidth := SmallInt(LPrecision shr 16);
+  LPrecision := SmallInt(LPrecision);
 
-  case Arg.VType of
+  case AArg.VType of
     vtInteger:
     begin
-      Precision := Precision and -NativeInt(NativeUInt(Precision) <= 16);
+      LPrecision := LPrecision and -NativeInt(NativeUInt(LPrecision) <= 16);
       if (X > CHX) then goto fail;
-      if (Width = UNDEFINED_WIDTH) then
+      if (LWidth = UNDEFINED_WIDTH) then
       begin
-        TIntegerProc(INTEGER_PROCS[X])(Self, Arg.VInteger, Precision);
+        TIntegerProc(INTEGER_PROCS[X])(Self, AArg.VInteger, LPrecision);
         goto done;
       end else
       begin
-        VInteger := Arg.VInteger;
+        VInteger := AArg.VInteger;
         case X of
           CHX{'x'}:
           begin
-            P := WriteHexAscii(FBuffer.Digits, Cardinal(VInteger), Precision);
+            P := WriteHexAscii(FBuffer.Digits, Cardinal(VInteger), LPrecision);
           end;
           CHU{'u'}: goto cardinal_value;
         else
@@ -31348,11 +31361,11 @@ begin
           if (VInteger >= 0) then
           begin
           cardinal_value:
-            P := WriteCardinalAscii(FBuffer.Digits, Cardinal(VInteger), Precision);
+            P := WriteCardinalAscii(FBuffer.Digits, Cardinal(VInteger), LPrecision);
           end else
           begin
             VInteger := -VInteger;
-            P := WriteCardinalAscii(FBuffer.Digits, Cardinal(VInteger), Precision);
+            P := WriteCardinalAscii(FBuffer.Digits, Cardinal(VInteger), LPrecision);
             Dec(P);
             P^ := Ord('-');
           end;
@@ -31361,19 +31374,19 @@ begin
     end;
     vtInt64:
     begin
-      Precision := Precision and -NativeInt(NativeUInt(Precision) <= 32);
+      LPrecision := LPrecision and -NativeInt(NativeUInt(LPrecision) <= 32);
       if (X > CHX) then goto fail;
-      if (Width = UNDEFINED_WIDTH) then
+      if (LWidth = UNDEFINED_WIDTH) then
       begin
-        TInt64Proc(INT64_PROCS[X])(Self, Arg.VInt64^, Precision);
+        TInt64Proc(INT64_PROCS[X])(Self, AArg.VInt64^, LPrecision);
         goto done;
       end else
       begin
-        VInt64 := Arg.VInt64;
+        VInt64 := AArg.VInt64;
         case X of
           CHX{'x'}:
           begin
-            P := WriteHex64Ascii(FBuffer.Digits, VInt64{$ifdef LARGEINT}^{$endif}, Precision);
+            P := WriteHex64Ascii(FBuffer.Digits, VInt64{$ifdef LARGEINT}^{$endif}, LPrecision);
           end;
           CHU{'u'}: goto uint64_value;
         else
@@ -31381,11 +31394,11 @@ begin
           if ({$ifdef SMALLINT}TPoint(Pointer(VInt64)^).Y{$else}VInt64^{$endif} >= 0) then
           begin
           uint64_value:
-            P := WriteUInt64Ascii(FBuffer.Digits, VInt64{$ifdef LARGEINT}^{$endif}, Precision);
+            P := WriteUInt64Ascii(FBuffer.Digits, VInt64{$ifdef LARGEINT}^{$endif}, LPrecision);
           end else
           begin
             PInt64(@FBuffer.Digits.Ascii)^ := -VInt64^;
-            P := WriteUInt64Ascii(FBuffer.Digits, PInt64(@FBuffer.Digits.Ascii){$ifdef LARGEINT}^{$endif}, Precision);
+            P := WriteUInt64Ascii(FBuffer.Digits, PInt64(@FBuffer.Digits.Ascii){$ifdef LARGEINT}^{$endif}, LPrecision);
             Dec(P);
             P^ := Ord('-');
           end;
@@ -31394,26 +31407,26 @@ begin
     end;
     vtPointer:
     begin
-      Dec(Precision, SizeOf(Pointer) * 2);
-      Precision := Precision and -NativeInt(NativeUInt(Precision) <= (32 - SizeOf(Pointer) * 2));
+      Dec(LPrecision, SizeOf(Pointer) * 2);
+      LPrecision := LPrecision and -NativeInt(NativeUInt(LPrecision) <= (32 - SizeOf(Pointer) * 2));
       if (X <> CHP) then goto fail;
-      Inc(Precision, SizeOf(Pointer) * 2);
+      Inc(LPrecision, SizeOf(Pointer) * 2);
 
       {$ifdef SMALLINT}
-         P := WriteHexAscii(FBuffer.Digits, Cardinal(Arg.VPointer), Precision);
+         P := WriteHexAscii(FBuffer.Digits, Cardinal(AArg.VPointer), LPrecision);
       {$else .LARGEINT}
-         P := WriteHex64Ascii(FBuffer.Digits, Int64(Arg.VPointer), Precision);
+         P := WriteHex64Ascii(FBuffer.Digits, Int64(AArg.VPointer), LPrecision);
       {$endif}
     end;
     vtCurrency:
     begin
-      PExtended(@Self.FBuffer.Digits.Ascii[0])^ := Arg.VInt64^ * (1 / 10000);
+      PExtended(@Self.FBuffer.Digits.Ascii[0])^ := AArg.VInt64^ * (1 / 10000);
       VExtended := Pointer(@Self.FBuffer.Digits.Ascii[0]);
       goto float_value;
     end;
     vtExtended:
     begin
-      VExtended := Arg.VExtended;
+      VExtended := AArg.VExtended;
 
     float_value:
       Self.FFormat.Settings.F.Options := Self.FloatSettings.F.Options;
@@ -31421,33 +31434,33 @@ begin
         CHG{'g'}:
         begin
           Self.FFormat.Settings.Format := ffGeneral;
-          Self.FFormat.Settings.Precision := Precision;
+          Self.FFormat.Settings.Precision := LPrecision;
           Self.FFormat.Settings.Digits := 3;
-          if (NativeUInt(Precision) > 18) then
+          if (NativeUInt(LPrecision) > 18) then
             Self.FFormat.Settings.Precision := 15;
         end;
         CHE{'e'}:
         begin
           Self.FFormat.Settings.Format := ffExponent;
-          Self.FFormat.Settings.Precision := Precision;
+          Self.FFormat.Settings.Precision := LPrecision;
           Self.FFormat.Settings.Digits := 3;
-          if (NativeUInt(Precision) > 18) then
+          if (NativeUInt(LPrecision) > 18) then
             Self.FFormat.Settings.Precision := 15;
         end;
         CHF{'f'}:
         begin
           Self.FFormat.Settings.Format := ffFixed;
           Self.FFormat.Settings.Precision := 18;
-          Self.FFormat.Settings.Digits := Precision;
-          if (NativeUInt(Precision) > 18) then
+          Self.FFormat.Settings.Digits := LPrecision;
+          if (NativeUInt(LPrecision) > 18) then
             Self.FFormat.Settings.Digits := 2;
         end;
         CHN{'n'}:
         begin
           Self.FFormat.Settings.Format := ffNumber;
           Self.FFormat.Settings.Precision := 18;
-          Self.FFormat.Settings.Digits := Precision;
-          if (NativeUInt(Precision) > 18) then
+          Self.FFormat.Settings.Digits := LPrecision;
+          if (NativeUInt(LPrecision) > 18) then
             Self.FFormat.Settings.Digits := 2;
         end;
         // CHM{'m'}: goto fail;
@@ -31455,12 +31468,12 @@ begin
         goto fail;
       end;
 
-      Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, VExtended{$ifNdef EXTENDEDSUPPORT}^{$endif}, Self.FFormat.Settings);
+      LCount := CachedTexts.WriteFloatAscii(FBuffer.Digits, VExtended{$ifNdef EXTENDEDSUPPORT}^{$endif}, Self.FFormat.Settings);
       P := @FBuffer.Digits.Ascii[0];
-      Dec(P, Count and 1);
-      Count := Count shr 1;
-      if (Width <> UNDEFINED_WIDTH) then goto count_calculated;
-      FVirtuals.WriteBufferedAscii(Self, P, Count);
+      Dec(P, LCount and 1);
+      LCount := LCount shr 1;
+      if (LWidth <> UNDEFINED_WIDTH) then goto count_calculated;
+      FVirtuals.WriteBufferedAscii(Self, P, LCount);
       goto done;
     end;
     {$ifdef UNICODE}
@@ -31479,9 +31492,9 @@ begin
       if (Self.FFormat.Settings.F.PrecisionWidth <> UNDEFINED_PRECISIONWIDTH) then
         goto write_difficult_string;
 
-      P := Arg.VPointer;
+      P := AArg.VPointer;
       if (P <> nil) then
-      case Arg.VType of
+      case AArg.VType of
         {$ifdef ANSISTRSUPPORT}
         vtAnsiString:
         begin
@@ -31507,12 +31520,12 @@ begin
       goto done;
     end;
   else
-    case Arg.VType of
+    case AArg.VType of
       vtChar, vtPChar, {$ifNdef NEXTGEN}vtString,{$endif} vtWideChar, vtPWideChar, vtVariant:
       begin
         if (X <> CHS) then goto fail;
       write_difficult_string:
-        Self.WriteFormatString(Arg);
+        Self.WriteFormatString(AArg);
         goto done;
       end;
     end;
@@ -31522,37 +31535,37 @@ begin
   end;
 
   // default (integer/hex) count case
-  Count := NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P);
+  LCount := NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P);
 
 count_calculated:
   // ascii spaces align
-  if (Width < 0) then
+  if (LWidth < 0) then
   begin
-    Width := -Width;
-    FVirtuals.WriteBufferedAscii(Self, P, Count);
+    LWidth := -LWidth;
+    FVirtuals.WriteBufferedAscii(Self, P, LCount);
     PPointer(@FBuffer.Digits.Quads[2])^{P} := nil;
-    if (NativeUInt(Width) > Count) then goto ascii_align;
+    if (NativeUInt(LWidth) > LCount) then goto ascii_align;
   end else
   begin
     PPointer(@FBuffer.Digits.Quads[2])^ := P;
 
-    if (NativeUInt(Width) > Count) then
+    if (NativeUInt(LWidth) > LCount) then
     begin
     ascii_align:
-      Dec(Width, Count);
+      Dec(LWidth, LCount);
       FBuffer.Digits.Quads[0] := $20202020;
       FBuffer.Digits.Quads[1] := $20202020;
-      if (Width > 8) then
+      if (LWidth > 8) then
       repeat
-        Dec(Width, 8);
+        Dec(LWidth, 8);
         FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Quads[0]), 8);
-      until (Width <= 8);
-      FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Quads[0]), Width);
+      until (LWidth <= 8);
+      FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Quads[0]), LWidth);
     end;
 
     P := PPointer(@FBuffer.Digits.Quads[2])^;
     if (P <> nil) then
-      FVirtuals.WriteBufferedAscii(Self, P, Count);
+      FVirtuals.WriteBufferedAscii(Self, P, LCount);
   end;
 
 done:
@@ -32248,15 +32261,15 @@ begin
   until (S = Store.TopS);
 end;
 
-procedure TCachedTextWriter.WriteBoolean(const Value: Boolean);
+procedure TCachedTextWriter.WriteBoolean(const AValue: Boolean);
 {$ifNdef CPUINTELASM}
 var
-  Count: NativeUInt;
   P: PByte;
+  LCount: NativeUInt;
 begin
-  Count := Byte(Value);
-  with Self.FBuffer do P := Pointer(@Booleans[Count]);
-  FVirtuals.WriteBufferedAscii(Self, P, Count xor 5);
+  LCount := Byte(AValue);
+  with Self.FBuffer do P := Pointer(@Booleans[LCount]);
+  FVirtuals.WriteBufferedAscii(Self, P, LCount xor 5);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
 asm
@@ -32277,12 +32290,12 @@ asm
 end;
 {$endif}
 
-procedure TCachedTextWriter.WriteBooleanOrdinal(const Value: Boolean);
+procedure TCachedTextWriter.WriteBooleanOrdinal(const AValue: Boolean);
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
 begin
-  with Self.FBuffer do P := Pointer(@Constants[Byte(Value)]);
+  with Self.FBuffer do P := Pointer(@Constants[Byte(AValue)]);
   FVirtuals.WriteBufferedAscii(Self, P, 1);
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
@@ -32301,27 +32314,26 @@ asm
 end;
 {$endif}
 
-procedure TCachedTextWriter.WriteInteger(const Value: Integer;
-  const Digits: NativeUInt);
+procedure TCachedTextWriter.WriteInteger(const AValue: Integer; const ADigits: NativeUInt);
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
   X: NativeUInt;
 begin
-  if (Value >= 0) then
+  if (AValue >= 0) then
   begin
-    if (Digits <= 1) and (Value < DIGITS_2) then
+    if (ADigits <= 1) and (AValue < DIGITS_2) then
     begin
-      PWord(@FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[Value];
-      X := Byte(Value >= DIGITS_1);
+      PWord(@FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[AValue];
+      X := Byte(AValue >= DIGITS_1);
       FVirtuals.WriteBufferedAscii(Self, @FBuffer.Digits.Ascii[31 - X], 1 + X);
       Exit;
     end;
 
-    P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
+    P := WriteCardinalAscii(FBuffer.Digits, Cardinal(AValue), ADigits);
   end else
   begin
-    P := WriteCardinalAscii(FBuffer.Digits, Cardinal(-Value), Digits);
+    P := WriteCardinalAscii(FBuffer.Digits, Cardinal(-AValue), ADigits);
     Dec(P);
     P^ := Ord('-');
   end;
@@ -32409,13 +32421,12 @@ asm
 end;
 {$endif}
 
-procedure TCachedTextWriter.WriteHex(const Value: Integer;
-  const Digits: NativeUInt);
+procedure TCachedTextWriter.WriteHex(const AValue: Integer; const ADigits: NativeUInt);
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
 begin
-  P := WriteHexAscii(FBuffer.Digits, Cardinal(Value), Digits);
+  P := WriteHexAscii(FBuffer.Digits, Cardinal(AValue), ADigits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
@@ -32442,22 +32453,21 @@ asm
 end;
 {$endif}
 
-procedure TCachedTextWriter.WriteCardinal(const Value: Cardinal;
-  const Digits: NativeUInt);
+procedure TCachedTextWriter.WriteCardinal(const AValue: Cardinal; const ADigits: NativeUInt);
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
   X: NativeUInt;
 begin
-  if (Digits <= 1) and (Value < DIGITS_2) then
+  if (ADigits <= 1) and (AValue < DIGITS_2) then
   begin
-    PWord(@FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[Value];
-    X := Byte(Value >= DIGITS_1);
+    PWord(@FBuffer.Digits.Ascii[30])^ := DIGITS_LOOKUP_ASCII[AValue];
+    X := Byte(AValue >= DIGITS_1);
     FVirtuals.WriteBufferedAscii(Self, @FBuffer.Digits.Ascii[31 - X], 1 + X);
     Exit;
   end;
 
-  P := WriteCardinalAscii(FBuffer.Digits, Cardinal(Value), Digits);
+  P := WriteCardinalAscii(FBuffer.Digits, Cardinal(AValue), ADigits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
@@ -32520,54 +32530,51 @@ asm
 end;
 {$endif}
 
-procedure TCachedTextWriter.WriteInt64(const Value: Int64;
-  const Digits: NativeUInt);
+procedure TCachedTextWriter.WriteInt64(const AValue: Int64; const ADigits: NativeUInt);
 var
   P: PByte;
 begin
   {$ifdef SMALLINT}
-  if (TPoint(Value).Y < 0) then
+  if (TPoint(AValue).Y < 0) then
   begin
-    FBuffer.Digits.Quads[0] := Digits;
-    PInt64(@FBuffer.Digits.Ascii)^ := -Value;
+    FBuffer.Digits.Quads[0] := ADigits;
+    PInt64(@FBuffer.Digits.Ascii)^ := -AValue;
     P := WriteUInt64Ascii(FBuffer.Digits, PInt64(@FBuffer.Digits.Ascii), {Digits}FBuffer.Digits.Quads[0]);
   {$else}
-  if (Value < 0) then
+  if (AValue < 0) then
   begin
-    P := WriteUInt64Ascii(FBuffer.Digits, -Value, Digits);
+    P := WriteUInt64Ascii(FBuffer.Digits, -AValue, ADigits);
   {$endif}
     Dec(P);
     P^ := Ord('-');
   end else
   begin
-    P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
+    P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}AValue, ADigits);
   end;
 
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TCachedTextWriter.WriteHex64(const Value: Int64;
-  const Digits: NativeUInt);
+procedure TCachedTextWriter.WriteHex64(const AValue: Int64; const ADigits: NativeUInt);
 var
   P: PByte;
 begin
-  P := WriteHex64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Value, Digits);
+  P := WriteHex64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}AValue, ADigits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TCachedTextWriter.WriteUInt64(const Value: UInt64;
-  const Digits: NativeUInt);
+procedure TCachedTextWriter.WriteUInt64(const AValue: UInt64; const ADigits: NativeUInt);
 var
   P: PByte;
 begin
-  P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Int64(Value), Digits);
+  P := WriteUInt64Ascii(FBuffer.Digits, {$ifdef SMALLINT}@{$endif}Int64(AValue), ADigits);
   FVirtuals.WriteBufferedAscii(Self, P, NativeUInt(@FBuffer.Digits.Buffer[0]) - NativeUInt(P));
 end;
 
-procedure TCachedTextWriter.WriteFloat(const Value: Extended);
+procedure TCachedTextWriter.WriteFloat(const AValue: Extended);
 {$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
 begin
-  WriteFloat(Value, Self.FloatSettings);
+  WriteFloat(AValue, Self.FloatSettings);
 end;
 {$else .CPUX86.DELPHI}
 asm
@@ -32577,23 +32584,22 @@ asm
 end;
 {$ifend}
 
-procedure TCachedTextWriter.WriteFloat(const Value: Extended;
-  const Settings: TFloatSettings);
+procedure TCachedTextWriter.WriteFloat(const AValue: Extended; const ASettings: TFloatSettings);
 var
   P: PByte;
-  Count: NativeUInt;
+  LCount: NativeUInt;
 begin
-  Count := CachedTexts.WriteFloatAscii(FBuffer.Digits, {$ifdef EXTENDEDSUPPORT}@{$endif}Value, Settings);
+  LCount := CachedTexts.WriteFloatAscii(FBuffer.Digits, {$ifdef EXTENDEDSUPPORT}@{$endif}AValue, ASettings);
   P := @FBuffer.Digits.Ascii[0];
-  Dec(P, Count and 1);
-  Count := Count shr 1;
-  FVirtuals.WriteBufferedAscii(Self, P, Count);
+  Dec(P, LCount and 1);
+  LCount := LCount shr 1;
+  FVirtuals.WriteBufferedAscii(Self, P, LCount);
 end;
 
-procedure TCachedTextWriter.WriteDate(const Value: TDateTime);
+procedure TCachedTextWriter.WriteDate(const AValue: TDateTime);
 {$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
 begin
-  WriteDate(Value, Self.DateTimeSettings);
+  WriteDate(AValue, Self.DateTimeSettings);
 end;
 {$else .CPUX86.DELPHI}
 asm
@@ -32603,20 +32609,19 @@ asm
 end;
 {$ifend}
 
-procedure TCachedTextWriter.WriteDate(const Value: TDateTime;
-  const Settings: TDateTimeSettings);
+procedure TCachedTextWriter.WriteDate(const AValue: TDateTime; const ASettings: TDateTimeSettings);
 var
   P: PByte;
 begin
-  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, True);
-  P := WriteDateAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], Settings);
+  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}AValue{$else}PDouble(@AValue)^{$endif}, True);
+  P := WriteDateAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], ASettings);
   FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
 end;
 
-procedure TCachedTextWriter.WriteTime(const Value: TDateTime);
+procedure TCachedTextWriter.WriteTime(const AValue: TDateTime);
 {$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
 begin
-  WriteTime(Value, Self.DateTimeSettings);
+  WriteTime(AValue, Self.DateTimeSettings);
 end;
 {$else .CPUX86.DELPHI}
 asm
@@ -32626,20 +32631,19 @@ asm
 end;
 {$ifend}
 
-procedure TCachedTextWriter.WriteTime(const Value: TDateTime;
-  const Settings: TDateTimeSettings);
+procedure TCachedTextWriter.WriteTime(const AValue: TDateTime; const ASettings: TDateTimeSettings);
 var
   P: PByte;
 begin
-  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
-  P := WriteTimeAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], Settings);
+  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}AValue{$else}PDouble(@AValue)^{$endif}, False);
+  P := WriteTimeAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], ASettings);
   FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
 end;
 
-procedure TCachedTextWriter.WriteDateTime(const Value: TDateTime);
+procedure TCachedTextWriter.WriteDateTime(const AValue: TDateTime);
 {$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
 begin
-  WriteDateTime(Value, Self.DateTimeSettings);
+  WriteDateTime(AValue, Self.DateTimeSettings);
 end;
 {$else .CPUX86.DELPHI}
 asm
@@ -32649,28 +32653,27 @@ asm
 end;
 {$ifend}
 
-procedure TCachedTextWriter.WriteDateTime(const Value: TDateTime;
-  const Settings: TDateTimeSettings);
+procedure TCachedTextWriter.WriteDateTime(const AValue: TDateTime; const ASettings: TDateTimeSettings);
 var
   P: PByte;
   Sep: NativeUInt;
 begin
-  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}Value{$else}PDouble(@Value)^{$endif}, False);
-  P := WriteDateAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], Settings);
-  Sep := Byte(Settings.BetweenSeparator);
+  SeparateDateTime(FBuffer.Digits, {$ifNdef CPUX86}AValue{$else}PDouble(@AValue)^{$endif}, False);
+  P := WriteDateAscii(FBuffer.Digits, @FBuffer.Digits.Ascii[0], ASettings);
+  Sep := Byte(ASettings.BetweenSeparator);
   if (Sep <> NativeUInt(sepNone)) then
   begin
     P^ := DATETIME_SEPARATORS[Sep];
     Inc(P);
   end;
-  P := WriteTimeAscii(FBuffer.Digits, P, Settings);
+  P := WriteTimeAscii(FBuffer.Digits, P, ASettings);
   FVirtuals.WriteBufferedAscii(Self, Pointer(@FBuffer.Digits.Ascii[0]), NativeUInt(P) - NativeUInt(@FBuffer.Digits.Ascii[0]));
 end;
 
-procedure TCachedTextWriter.WriteVariant(const Value: Variant);
+procedure TCachedTextWriter.WriteVariant(const AValue: Variant);
 {$if Defined(INLINESUPPORTSIMPLE) or not Defined(CPUX86)}
 begin
-  WriteVariant(Value, Self.FloatSettings, Self.DateTimeSettings);
+  WriteVariant(AValue, Self.FloatSettings, Self.DateTimeSettings);
 end;
 {$else .CPUX86.DELPHI}
 asm
@@ -32682,8 +32685,8 @@ asm
 end;
 {$ifend}
 
-procedure TCachedTextWriter.WriteVariant(const Value: Variant;
-  const FloatSettings: TFloatSettings; const DateTimeSettings: TDateTimeSettings);
+procedure TCachedTextWriter.WriteVariant(const AValue: Variant;
+  const AFloatSettings: TFloatSettings; const ADateTimeSettings: TDateTimeSettings);
 label
   check_byref, signed_value, unsigned_value, uint64_value, float_value;
 var
@@ -32694,8 +32697,8 @@ var
     Date: Int64;
   end;
 begin
-  VType := TVarData(Value).VType;
-  PValue := @TVarData(Value).VWords[3];
+  VType := TVarData(AValue).VType;
+  PValue := @TVarData(AValue).VWords[3];
 check_byref:
   if (VType and varByRef <> 0) then
   begin
@@ -32764,20 +32767,20 @@ $15{varUInt64}: begin
      varDouble: begin
                   Store.FloatValue := PDouble(PValue)^;
                 float_value:
-                  Self.WriteFloat(Store.FloatValue, FloatSettings);
+                  Self.WriteFloat(Store.FloatValue, AFloatSettings);
                 end;
        varDate: begin
                   Store.Date := Trunc(PDouble(PValue)^);
                   if (PDouble(PValue)^ - Store.Date < 1 / (24 * 60 * 60 * 1000)) then
                   begin
-                    Self.WriteDate(PDateTime(PValue)^, DateTimeSettings);
+                    Self.WriteDate(PDateTime(PValue)^, ADateTimeSettings);
                   end else
                   if (Store.Date <> 0) then
                   begin
-                    Self.WriteDateTime(PDateTime(PValue)^, DateTimeSettings);
+                    Self.WriteDateTime(PDateTime(PValue)^, ADateTimeSettings);
                   end else
                   begin
-                    Self.WriteTime(PDateTime(PValue)^, DateTimeSettings);
+                    Self.WriteTime(PDateTime(PValue)^, ADateTimeSettings);
                   end;
                 end;
      {$ifdef ANSISTRSUPPORT}
@@ -32814,11 +32817,11 @@ end;
 
 { TByteTextWriter }
 
-procedure TByteTextWriter.SetEncoding(const Value: Word);
+procedure TByteTextWriter.SetEncoding(const AValue: Word);
 begin
   FEncoding.StringKind := csByte;
 
-  FSBCS := DetectSBCS(Value);
+  FSBCS := DetectSBCS(AValue);
   if (FSBCS = nil) then
   begin
     FEncoding.CodePage := CODEPAGE_UTF8;
@@ -32834,128 +32837,128 @@ begin
   end;
 end;
 
-constructor TByteTextWriter.Create(const Encoding: Word;
-  const Target: TCachedWriter; const BOM: TBOM; const DefaultByteEncoding: Word;
-  const Owner: Boolean);
+constructor TByteTextWriter.Create(const AEncoding: Word;
+  const ATarget: TCachedWriter; const ABOM: TBOM; const ADefaultByteEncoding: Word;
+  const AOwner: Boolean);
 var
-  Context: PUniConvContext;
-  DestSBCS: PUniConvSBCS;
-  SrcBOM, DestBOM: TBOM;
+  LContext: PUniConvContext;
+  LDestSBCS: PUniConvSBCS;
+  LSrcBOM, LDestBOM: TBOM;
 begin
-  Self.SetEncoding(Encoding);
-  Context := Self.GetInternalContext;
-  Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
+  Self.SetEncoding(AEncoding);
+  LContext := @Self.FInternalContext;
+  ATarget.Write(BOM_INFO[ABOM].Data, BOM_INFO[ABOM].Size);
 
-  SrcBOM := bomNone;
-  if (FSBCS = nil) then SrcBOM := bomUTF8;
-  DestSBCS := DetectSBCS(DefaultByteEncoding);
-  DestBOM := BOM;
-  if (DestBOM = bomNone) then
+  LSrcBOM := bomNone;
+  if (FSBCS = nil) then LSrcBOM := bomUTF8;
+  LDestSBCS := DetectSBCS(ADefaultByteEncoding);
+  LDestBOM := ABOM;
+  if (LDestBOM = bomNone) then
   begin
-    if (DefaultByteEncoding = CODEPAGE_UTF8) then DestBOM := bomUTF8;
+    if (ADefaultByteEncoding = CODEPAGE_UTF8) then LDestBOM := bomUTF8;
   end else
   begin
-    DestSBCS := nil;
+    LDestSBCS := nil;
   end;
 
-  if (SrcBOM = DestBOM) then
+  if (LSrcBOM = LDestBOM) then
   begin
-    if (FSBCS = DestSBCS) then
+    if (FSBCS = LDestSBCS) then
     begin
-      Context := nil;
+      LContext := nil;
     end else
     begin
-      Context.InitSBCSFromSBCS(FSBCS.CodePage, DestSBCS.CodePage);
+      LContext.InitSBCSFromSBCS(FSBCS.CodePage, LDestSBCS.CodePage);
     end;
   end else
-  if (SrcBOM = bomNone) then
+  if (LSrcBOM = bomNone) then
   begin
-    Context.Init(DestBOM, bomNone, Encoding);
+    LContext.Init(LDestBOM, bomNone, AEncoding);
   end else
   begin
-    Context.Init(DestBOM, bomUTF8, DefaultByteEncoding);
+    LContext.Init(LDestBOM, bomUTF8, ADefaultByteEncoding);
   end;
 
-  inherited Create(Context, Target, Owner);
+  inherited Create(LContext, ATarget, AOwner);
 end;
 
-constructor TByteTextWriter.CreateFromFile(const Encoding: Word;
-  const FileName: string; const BOM: TBOM; const DefaultByteEncoding: Word);
+constructor TByteTextWriter.CreateFromFile(const AEncoding: Word;
+  const AFileName: string; const ABOM: TBOM; const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  Create(Encoding, TCachedFileWriter.Create(FileName), BOM, DefaultByteEncoding, True);
+  FFileName := AFileName;
+  Create(AEncoding, TCachedFileWriter.Create(AFileName), ABOM, ADefaultByteEncoding, True);
 end;
 
-constructor TByteTextWriter.CreateDirect(const Context: PUniConvContext;
-  const Target: TCachedWriter; const Owner: Boolean);
+constructor TByteTextWriter.CreateDirect(const AContext: PUniConvContext;
+  const ATarget: TCachedWriter; const AOwner: Boolean);
 begin
-  if (Context = nil) then
+  if (AContext = nil) then
   begin
     Self.SetEncoding(CODEPAGE_UTF8);
   end else
   begin
-    Self.SetEncoding(Context.SourceCodePage);
+    Self.SetEncoding(AContext.SourceCodePage);
   end;
 
-  inherited Create(Context, Target, Owner);
+  inherited Create(AContext, ATarget, AOwner);
 end;
 
-function TByteTextWriter.GetSBCSConverter(var Encoding: TCachedEncoding;
-  const CodePage: Word): Pointer;
+function TByteTextWriter.GetSBCSConverter(var AEncoding: TCachedEncoding;
+  const ACodePage: Word): Pointer;
 var
-  Index: NativeUInt;
-  SBCS: PUniConvSBCSEx;
-  Value: Integer;
+  LIndex: NativeUInt;
+  LSBCS: PUniConvSBCSEx;
+  LValue: Integer;
 begin
   // SBCS
-  Index := NativeUInt(CodePage);
-  Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[Index and High(UNICONV_SUPPORTED_SBCS_HASH)]);
+  LIndex := NativeUInt(ACodePage);
+  LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[LIndex and High(UNICONV_SUPPORTED_SBCS_HASH)]);
   repeat
-    if (Word(Value) = CodePage) or (Value < 0) then Break;
-    Value := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(Value) shr 24]);
+    if (Word(LValue) = ACodePage) or (LValue < 0) then Break;
+    LValue := Integer(UNICONV_SUPPORTED_SBCS_HASH[NativeUInt(LValue) shr 24]);
   until (False);
-  SBCS := Pointer(NativeUInt(Byte(Value shr 16)) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
+  LSBCS := Pointer(NativeUInt(Byte(LValue shr 16)) * SizeOf(TUniConvSBCS) + NativeUInt(@UNICONV_SUPPORTED_SBCS));
 
   // Encoding fields
-  Index := Cardinal(SBCS.F);
-  Index := {Index}(Index shl 24) + (Ord(csByte) shl 16) + {CodePage}(Index shr 16);
-  Encoding.Flags := Index;
+  LIndex := Cardinal(LSBCS.F);
+  LIndex := {Index}(LIndex shl 24) + (Ord(csByte) shl 16) + {CodePage}(LIndex shr 16);
+  AEncoding.Flags := LIndex;
 
   // FromSBCS/UTF8 converter
   if (FSBCS <> nil) then
   begin
-    if (Pointer(FSBCS) = Pointer(SBCS)) then
+    if (Pointer(FSBCS) = Pointer(LSBCS)) then
     begin
       Result := nil;
       Exit;
     end else
     begin
-      Result := FSBCS.FromSBCS(SBCS);
+      Result := FSBCS.FromSBCS(LSBCS);
       Exit;
     end;
   end else
   begin
-    Result := SBCS.FUTF8.Original;
-    if (Result = nil) then Result := SBCS.AllocFillUTF8(SBCS.FUTF8.Original, ccOriginal);
+    Result := LSBCS.FUTF8.Original;
+    if (Result = nil) then Result := LSBCS.AllocFillUTF8(LSBCS.FUTF8.Original, ccOriginal);
   end;
 end;
 
 procedure TByteTextWriter.InitContexts;
 var
-  Flags: Cardinal;
+  LFlags: Cardinal;
 begin
-  Flags := CHARCASE_FLAGS[0];
+  LFlags := CHARCASE_FLAGS[0];
   if (FSBCS = nil) then
   begin
-    Flags := Flags + (Cardinal(bomUTF8) shl ENCODING_DESTINATION_OFFSET);
+    LFlags := LFlags + (Cardinal(bomUTF8) shl ENCODING_DESTINATION_OFFSET);
   end else
   begin
     TUniConvContextEx(FHugeContext).FCallbacks.Writer := FSBCSValues;
     TUniConvContextEx(FUTF32Context).FCallbacks.Writer := FSBCSValues;
   end;
 
-  TUniConvContextEx(FHugeContext).F.Flags := Flags;
-  TUniConvContextEx(FUTF32Context).F.Flags := Flags + Cardinal(bomUTF32);
+  TUniConvContextEx(FHugeContext).F.Flags := LFlags;
+  TUniConvContextEx(FUTF32Context).F.Flags := LFlags + Cardinal(bomUTF32);
   @TUniConvContextEx(FUTF32Context).FConvertProc := @TUniConvContextEx.convert_universal;
 end;
 
@@ -32973,33 +32976,33 @@ begin
     Self.Flush;
 end;
 
-procedure TByteTextWriter.WriteBufferedAscii(From: PByte; Count: NativeUInt);
+procedure TByteTextWriter.WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt);
 {$ifNdef CPUINTELASM}
 type
-  TDefaultCaller = procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
+  TDefaultCaller = procedure(ASelf: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
 var
   P: NativeUInt{PByte};
   i: NativeUInt;
 begin
   P := NativeUInt(FCurrent);
-  Inc(P, Count);
+  Inc(P, ACount);
 
   if (P <= NativeUInt(Self.FOverflow)) then
   begin
     Self.FCurrent := Pointer(P);
-    Dec(P, Count);
+    Dec(P, ACount);
 
-    for i := 1 to (Count + (SizeOf(NativeUInt) - 1)) shr {$ifdef LARGEINT}3{$else}2{$endif} do
+    for i := 1 to (ACount + (SizeOf(NativeUInt) - 1)) shr {$ifdef LARGEINT}3{$else}2{$endif} do
     begin
-      PNativeUInt(P)^ := PNativeUInt(From)^;
-      Inc(From, SizeOf(NativeUInt));
+      PNativeUInt(P)^ := PNativeUInt(AFrom)^;
+      Inc(AFrom, SizeOf(NativeUInt));
       Inc(P, SizeOf(NativeUInt));
     end;
     Exit;
   end else
   begin
     P := NativeUInt(@TByteTextWriter.WriteAscii);
-    TDefaultCaller(P)(Self, Pointer(From), Count);
+    TDefaultCaller(P)(Self, Pointer(AFrom), ACount);
   end;
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
@@ -33100,8 +33103,7 @@ asm
 end;
 {$endif}
 
-procedure TByteTextWriter.WriteAscii(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
@@ -33262,8 +33264,7 @@ asm
 end;
 {$endif}
 
-procedure TByteTextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar; const ALength: NativeUInt);
 label
   _1, _2, _3;
 const
@@ -33271,10 +33272,10 @@ const
 var
   i, j: NativeUInt;
   P: PByte;
-  Src: PWord;
+  LSrc: PWord;
   X, U: NativeUInt;
 begin
-  Src := Pointer(AChars);
+  LSrc := Pointer(AChars);
   P := Pointer(Self.FCurrent);
 
   for i := 1 to (ALength {$ifdef CPUX86}div 32{$else}shr 5{$endif}) do
@@ -33282,13 +33283,13 @@ begin
     for j := 1 to (32 div CHARS_IN_ITERATION) do
     begin
       {$ifdef LARGEINT}
-      X := PNativeUInt(Src)^;
-      Inc(Src, CHARS_IN_ITERATION);
+      X := PNativeUInt(LSrc)^;
+      Inc(LSrc, CHARS_IN_ITERATION);
       {$else .SMALLINT}
-      X := PCardinal(Src)^;
-      Inc(Src, CHARS_IN_ITERATION shr 1);
-      U := PCardinal(Src)^;
-      Inc(Src, CHARS_IN_ITERATION shr 1);
+      X := PCardinal(LSrc)^;
+      Inc(LSrc, CHARS_IN_ITERATION shr 1);
+      U := PCardinal(LSrc)^;
+      Inc(LSrc, CHARS_IN_ITERATION shr 1);
       {$endif}
 
       {$ifdef LARGEINT}
@@ -33318,13 +33319,13 @@ begin
   for i := 1 to ((ALength and 31) shr 2) do
   begin
     {$ifdef LARGEINT}
-    X := PNativeUInt(Src)^;
-    Inc(Src, CHARS_IN_ITERATION);
+    X := PNativeUInt(LSrc)^;
+    Inc(LSrc, CHARS_IN_ITERATION);
     {$else .SMALLINT}
-    X := PCardinal(Src)^;
-    Inc(Src, CHARS_IN_ITERATION shr 1);
-    U := PCardinal(Src)^;
-    Inc(Src, CHARS_IN_ITERATION shr 1);
+    X := PCardinal(LSrc)^;
+    Inc(LSrc, CHARS_IN_ITERATION shr 1);
+    U := PCardinal(LSrc)^;
+    Inc(LSrc, CHARS_IN_ITERATION shr 1);
     {$endif}
 
     {$ifdef LARGEINT}
@@ -33347,24 +33348,24 @@ begin
     3:
     begin
     _3:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _2;
     end;
     2:
     begin
     _2:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _1;
     end;
     1:
     begin
     _1:
-      P^ := Src^;
-      // Inc(Src);
+      P^ := LSrc^;
+      // Inc(LSrc);
       Inc(P);
     end;
   end;
@@ -33374,22 +33375,21 @@ begin
     Self.Flush;
 end;
 
-procedure TByteTextWriter.WriteUCS4Ascii(const AChars: PUCS4Char;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteUCS4Ascii(const AChars: PUCS4Char; const ALength: NativeUInt);
 var
   i, j: NativeUInt;
   P: PByte;
-  Src: PCardinal;
+  LSrc: PCardinal;
 begin
-  Src := Pointer(AChars);
+  LSrc := Pointer(AChars);
   P := Pointer(Self.FCurrent);
 
   for i := 1 to (ALength {$ifdef CPUX86}div 32{$else}shr 5{$endif}) do
   begin
     for j := 1 to 32 do
     begin
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
     end;
 
@@ -33403,8 +33403,8 @@ begin
 
   for j := 1 to (ALength and 31) do
   begin
-    P^ := Src^;
-    Inc(Src);
+    P^ := LSrc^;
+    Inc(LSrc);
     Inc(P);
   end;
 
@@ -33414,16 +33414,15 @@ begin
 end;
 
 // result = length
-procedure TByteTextWriter.WriteSBCSCharsToSBCS(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteSBCSCharsToSBCS(const AChars: PAnsiChar; const ALength: NativeUInt);
 var
   P: PByte;
-  Converter: Pointer;
+  LConverter: Pointer;
 begin
   P := Self.FCurrent;
-  Converter := Self.FSBCSLookup.CurrentConverter;
+  LConverter := Self.FSBCSLookup.CurrentConverter;
   Inc(P, ALength);
-  if (Converter = nil) then
+  if (LConverter = nil) then
   begin
     // write data
     if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
@@ -33442,7 +33441,7 @@ begin
     begin
       FHugeContext.Source := AChars;
       FHugeContext.SourceSize := ALength;
-      TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
+      TUniConvContextEx(FHugeContext).FCallbacks.Converter := LConverter;
       TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_sbcs);
       TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_sbcs;
       Self.WriteContextData(FHugeContext);
@@ -33450,22 +33449,21 @@ begin
     begin
       Self.FCurrent := P;
       Dec(P, ALength);
-      UniConv.sbcs_from_sbcs(Pointer(P), AChars, ALength, Converter);
+      UniConv.sbcs_from_sbcs(Pointer(P), AChars, ALength, LConverter);
     end;
   end;
 end;
 
 // result = min: length; max: length*3
-procedure TByteTextWriter.WriteSBCSCharsToUTF8(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteSBCSCharsToUTF8(const AChars: PAnsiChar; const ALength: NativeUInt);
 var
   P: PByte;
-  Limit, Count: NativeUInt;
+  LLimit, LCount: NativeUInt;
 begin
   P := Self.FCurrent;
-  Limit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+  LLimit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
 
-  if (Limit > NativeUInt(Self.FOverflow)) then
+  if (LLimit > NativeUInt(Self.FOverflow)) then
   begin
     FHugeContext.Source := AChars;
     FHugeContext.SourceSize := ALength;
@@ -33475,8 +33473,8 @@ begin
     Self.WriteContextData(FHugeContext);
   end else
   begin
-    Count := UniConv.utf8_from_sbcs(PUTF8Char(P), AChars, ALength, Self.FSBCSLookup.CurrentConverter);
-    Inc(P, Count);
+    LCount := UniConv.utf8_from_sbcs(PUTF8Char(P), AChars, ALength, Self.FSBCSLookup.CurrentConverter);
+    Inc(P, LCount);
 
     Self.FCurrent := P;
     if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
@@ -33485,16 +33483,15 @@ begin
 end;
 
 // result = min: length/6; max: length
-procedure TByteTextWriter.WriteUTF8Chars(const AChars: PUTF8Char;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteUTF8Chars(const AChars: PUTF8Char; const ALength: NativeUInt);
 var
   P: PByte;
-  Converter: Pointer;
-  Limit, Count: NativeUInt;
+  LConverter: Pointer;
+  LLimit, LCount: NativeUInt;
 begin
   P := Self.FCurrent;
-  Converter := Self.FSBCSValues;
-  if (Converter = nil) then
+  LConverter := Self.FSBCSValues;
+  if (LConverter = nil) then
   begin
     // write data
     Inc(P, ALength);
@@ -33510,20 +33507,20 @@ begin
   end else
   begin
     // sbcs_from_utf8
-    Limit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
-    if (Limit > NativeUInt(Self.FOverflow)) then
+    LLimit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+    if (LLimit > NativeUInt(Self.FOverflow)) then
     begin
       FHugeContext.Source := AChars;
-      FHugeContext.SourceSize := {ALength}(Limit + WRITER_OVERFLOW_LIMIT) - NativeUInt(P);
-      TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
+      FHugeContext.SourceSize := {ALength}(LLimit + WRITER_OVERFLOW_LIMIT) - NativeUInt(P);
+      TUniConvContextEx(FHugeContext).FCallbacks.Converter := LConverter;
       TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_utf8);
       TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf8;
       Self.WriteContextData(FHugeContext);
     end else
     begin
-      Count := UniConv.sbcs_from_utf8(Pointer(P), AChars,
-        {ALength}(Limit + WRITER_OVERFLOW_LIMIT) - NativeUInt(P), Converter);
-      Inc(P, Count);
+      LCount := UniConv.sbcs_from_utf8(Pointer(P), AChars,
+        {ALength}(LLimit + WRITER_OVERFLOW_LIMIT) - NativeUInt(P), LConverter);
+      Inc(P, LCount);
 
       Self.FCurrent := P;
       if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
@@ -33533,23 +33530,22 @@ begin
 end;
 
 // result = min: length/2; max: length*3
-procedure TByteTextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
-  const ALength: NativeUInt);
+procedure TByteTextWriter.WriteUnicodeChars(const AChars: PUnicodeChar; const ALength: NativeUInt);
 var
   P: PByte;
-  Converter: Pointer;
-  Limit, Count: NativeUInt;
+  LConverter: Pointer;
+  LLimit, LCount: NativeUInt;
 begin
   FHugeContext.Source := AChars;
   FHugeContext.SourceSize := ALength;
   P := Self.FCurrent;
-  Converter := Self.FSBCSValues;
-  if (Converter = nil) then
+  LConverter := Self.FSBCSValues;
+  if (LConverter = nil) then
   begin
     // result = min: length; max: length*3
     // utf8_from_utf16
-    Limit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
-    if (Limit > NativeUInt(Self.FOverflow)) then
+    LLimit := (ALength * 3) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+    if (LLimit > NativeUInt(Self.FOverflow)) then
     begin
       TUniConvContextEx(FHugeContext).SourceSize := TUniConvContextEx(FHugeContext).SourceSize * 2;
       TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_utf8_from_utf16);
@@ -33557,8 +33553,8 @@ begin
       Self.WriteContextData(FHugeContext);
     end else
     begin
-      Count := UniConv.utf8_from_utf16(PUTF8Char(P), FHugeContext.Source, FHugeContext.SourceSize);
-      Inc(P, Count);
+      LCount := UniConv.utf8_from_utf16(PUTF8Char(P), FHugeContext.Source, FHugeContext.SourceSize);
+      Inc(P, LCount);
 
       Self.FCurrent := P;
       if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
@@ -33568,18 +33564,18 @@ begin
   begin
     // result = min: length/2; max: length
     // sbcs_from_utf16
-    Limit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
-    if (Limit > NativeUInt(Self.FOverflow)) then
+    LLimit := ALength + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+    if (LLimit > NativeUInt(Self.FOverflow)) then
     begin
       TUniConvContextEx(FHugeContext).SourceSize := TUniConvContextEx(FHugeContext).SourceSize * 2;
-      TUniConvContextEx(FHugeContext).FCallbacks.Converter := Converter;
+      TUniConvContextEx(FHugeContext).FCallbacks.Converter := LConverter;
       TUniConvContextEx(FHugeContext).FConvertProc := Pointer(@TUniConvContextEx.convert_sbcs_from_utf16);
       TUniConvContextEx(FHugeContext).FCallbacks.ReaderWriter := @UniConv.sbcs_from_utf16;
       Self.WriteContextData(FHugeContext);
     end else
     begin
-      Count := UniConv.sbcs_from_utf16(Pointer(P), FHugeContext.Source, FHugeContext.SourceSize, Converter);
-      Inc(P, Count);
+      LCount := UniConv.sbcs_from_utf16(Pointer(P), FHugeContext.Source, FHugeContext.SourceSize, LConverter);
+      Inc(P, LCount);
 
       Self.FCurrent := P;
       if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
@@ -33591,48 +33587,48 @@ end;
 
 { TUTF16TextWriter }
 
-constructor TUTF16TextWriter.Create(const Target: TCachedWriter;
-  const BOM: TBOM; const DefaultByteEncoding: Word; const Owner: Boolean);
+constructor TUTF16TextWriter.Create(const ATarget: TCachedWriter;
+  const ABOM: TBOM; const ADefaultByteEncoding: Word; const AOwner: Boolean);
 var
-  Context: PUniConvContext;
+  LContext: PUniConvContext;
 begin
-  {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.GetInternalContext;
-  Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
+  {Check}DetectSBCS(ADefaultByteEncoding);
+  LContext := @Self.FInternalContext;
+  ATarget.Write(BOM_INFO[ABOM].Data, BOM_INFO[ABOM].Size);
 
-  if (BOM = bomUTF16) then
+  if (ABOM = bomUTF16) then
   begin
-    Context := nil;
+    LContext := nil;
   end else
   begin
-    Context.Init(BOM, bomUTF16, DefaultByteEncoding);
+    LContext.Init(ABOM, bomUTF16, ADefaultByteEncoding);
   end;
 
   FVirtuals.WriteSBCSCharsInternal := Pointer(@TUTF16TextWriter.WriteSBCSCharsInternal);
-  inherited Create(Context, Target, Owner);
+  inherited Create(LContext, ATarget, AOwner);
 end;
 
-constructor TUTF16TextWriter.CreateFromFile(const FileName: string;
-  const BOM: TBOM; const DefaultByteEncoding: Word);
+constructor TUTF16TextWriter.CreateFromFile(const AFileName: string;
+  const ABOM: TBOM; const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  Create(TCachedFileWriter.Create(FileName), BOM, DefaultByteEncoding, True);
+  FFileName := AFileName;
+  Create(TCachedFileWriter.Create(AFileName), ABOM, ADefaultByteEncoding, True);
 end;
 
-constructor TUTF16TextWriter.CreateDirect(const Context: PUniConvContext;
-  const Target: TCachedWriter; const Owner: Boolean);
+constructor TUTF16TextWriter.CreateDirect(const AContext: PUniConvContext;
+  const ATarget: TCachedWriter; const AOwner: Boolean);
 begin
   FVirtuals.WriteSBCSCharsInternal := Pointer(@TUTF16TextWriter.WriteSBCSCharsInternal);
-  inherited Create(Context, Target, Owner);
+  inherited Create(AContext, ATarget, AOwner);
 end;
 
 procedure TUTF16TextWriter.InitContexts;
 var
-  Flags: Cardinal;
+  LFlags: Cardinal;
 begin
-  Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF16) shl ENCODING_DESTINATION_OFFSET);
-  TUniConvContextEx(FHugeContext).F.Flags := Flags;
-  TUniConvContextEx(FUTF32Context).F.Flags := Flags + Cardinal(bomUTF32);
+  LFlags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF16) shl ENCODING_DESTINATION_OFFSET);
+  TUniConvContextEx(FHugeContext).F.Flags := LFlags;
+  TUniConvContextEx(FUTF32Context).F.Flags := LFlags + Cardinal(bomUTF32);
   @TUniConvContextEx(FUTF32Context).FConvertProc := @TUniConvContextEx.convert_universal;
 end;
 
@@ -33650,28 +33646,28 @@ begin
     Self.Flush;
 end;
 
-procedure TUTF16TextWriter.WriteBufferedAscii(From: PByte; Count: NativeUInt);
+procedure TUTF16TextWriter.WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt);
 type
-  TDefaultCaller = procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
+  TDefaultCaller = procedure(ASelf: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
 const
   CHARS_IN_ITERATION = 4;
 var
   P: NativeUInt{PByte};
-  Size, X, i: NativeUInt;
+  LSize, X, i: NativeUInt;
 begin
   P := NativeUInt(FCurrent);
-  Size := Count shl 1;
-  Inc(P, Size);
+  LSize := ACount shl 1;
+  Inc(P, LSize);
 
   if (P <= NativeUInt(Self.FOverflow)) then
   begin
     Self.FCurrent := Pointer(P);
-    Dec(P, Size);
+    Dec(P, LSize);
 
-    for i := 0 to Size shr (2 + 1) do
+    for i := 0 to LSize shr (2 + 1) do
     begin
-      X := PCardinal(From)^;
-      Inc(From, CHARS_IN_ITERATION);
+      X := PCardinal(AFrom)^;
+      Inc(AFrom, CHARS_IN_ITERATION);
 
       {$ifNdef LARGEINT}
         PCardinal(P)^ := (X and $7f) + ((X and $7f00) shl 8);
@@ -33689,12 +33685,11 @@ begin
   end else
   begin
     P := NativeUInt(@TUTF16TextWriter.WriteAscii);
-    TDefaultCaller(P)(Self, Pointer(From), Size shr 1);
+    TDefaultCaller(P)(Self, Pointer(AFrom), LSize shr 1);
   end;
 end;
 
-procedure TUTF16TextWriter.WriteAscii(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TUTF16TextWriter.WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
 label
   _1, _2, _3;
 const
@@ -33702,18 +33697,18 @@ const
 var
   i, j: NativeUInt;
   P: PWord;
-  Src: PByte;
+  LSrc: PByte;
   X: NativeUInt;
 begin
-  Src := Pointer(AChars);
+  LSrc := Pointer(AChars);
   P := Pointer(Self.FCurrent);
 
   for i := 1 to (ALength {$ifdef CPUX86}div 32{$else}shr 5{$endif}) do
   begin
     for j := 1 to (32 div CHARS_IN_ITERATION) do
     begin
-      X := PCardinal(Src)^;
-      Inc(Src, CHARS_IN_ITERATION);
+      X := PCardinal(LSrc)^;
+      Inc(LSrc, CHARS_IN_ITERATION);
 
       {$ifNdef LARGEINT}
         PCardinal(P)^ := (X and $7f) + ((X and $7f00) shl 8);
@@ -33738,8 +33733,8 @@ begin
 
   for i := 1 to ((ALength and 31) shr 2) do
   begin
-    X := PCardinal(Src)^;
-    Inc(Src, CHARS_IN_ITERATION);
+    X := PCardinal(LSrc)^;
+    Inc(LSrc, CHARS_IN_ITERATION);
 
     {$ifNdef LARGEINT}
       PCardinal(P)^ := (X and $7f) + ((X and $7f00) shl 8);
@@ -33758,24 +33753,24 @@ begin
     3:
     begin
     _3:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _2;
     end;
     2:
     begin
     _2:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _1;
     end;
     1:
     begin
     _1:
-      P^ := Src^;
-      // Inc(Src);
+      P^ := LSrc^;
+      // Inc(LSrc);
       Inc(P);
     end;
   end;
@@ -33790,20 +33785,20 @@ procedure TUTF16TextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar;
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
-  Size: NativeUInt;
+  LSize: NativeUInt;
 begin
   P := FCurrent;
-  Size := ALength shl 1;
-  Inc(P, Size);
+  LSize := ALength shl 1;
+  Inc(P, LSize);
 
   if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
   begin
-    OverflowWriteData(AChars^, Size);
+    OverflowWriteData(AChars^, LSize);
   end else
   begin
     FCurrent := P;
-    Dec(P, Size);
-    NcMove(AChars^, P^, Size);
+    Dec(P, LSize);
+    NcMove(AChars^, P^, LSize);
   end;
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
@@ -33953,22 +33948,21 @@ asm
 end;
 {$endif}
 
-procedure TUTF16TextWriter.WriteUCS4Ascii(const AChars: PUCS4Char;
-  const ALength: NativeUInt);
+procedure TUTF16TextWriter.WriteUCS4Ascii(const AChars: PUCS4Char; const ALength: NativeUInt);
 var
   i, j: NativeUInt;
   P: PWord;
-  Src: PCardinal;
+  LSrc: PCardinal;
 begin
-  Src := Pointer(AChars);
+  LSrc := Pointer(AChars);
   P := Pointer(Self.FCurrent);
 
   for i := 1 to (ALength {$ifdef CPUX86}div 32{$else}shr 5{$endif}) do
   begin
     for j := 1 to 32 do
     begin
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
     end;
 
@@ -33982,8 +33976,8 @@ begin
 
   for j := 1 to (ALength and 31) do
   begin
-    P^ := Src^;
-    Inc(Src);
+    P^ := LSrc^;
+    Inc(LSrc);
     Inc(P);
   end;
 
@@ -33993,16 +33987,15 @@ begin
 end;
 
 // result = length * SizeOf(WideChar)
-procedure TUTF16TextWriter.WriteSBCSCharsInternal(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TUTF16TextWriter.WriteSBCSCharsInternal(const AChars: PAnsiChar; const ALength: NativeUInt);
 var
   P: PByte;
-  Limit: NativeUInt;
+  LLimit: NativeUInt;
 begin
   P := Self.FCurrent;
-  Limit := (ALength + ALength) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+  LLimit := (ALength + ALength) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
 
-  if (Limit > NativeUInt(Self.FOverflow)) then
+  if (LLimit > NativeUInt(Self.FOverflow)) then
   begin
     FHugeContext.Source := AChars;
     FHugeContext.SourceSize := ALength;
@@ -34022,16 +34015,15 @@ begin
 end;
 
 // result = (min: length/3; max: length) * SizeOf(WideChar)
-procedure TUTF16TextWriter.WriteUTF8Chars(const AChars: PUTF8Char;
-  const ALength: NativeUInt);
+procedure TUTF16TextWriter.WriteUTF8Chars(const AChars: PUTF8Char; const ALength: NativeUInt);
 var
   P: PByte;
-  Limit, Count: NativeUInt;
+  LLimit, LCount: NativeUInt;
 begin
   P := Self.FCurrent;
-  Limit := (ALength + ALength) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
+  LLimit := (ALength + ALength) + NativeUInt(P) - WRITER_OVERFLOW_LIMIT;
 
-  if (Limit > NativeUInt(Self.FOverflow)) then
+  if (LLimit > NativeUInt(Self.FOverflow)) then
   begin
     FHugeContext.Source := AChars;
     FHugeContext.SourceSize := ALength;
@@ -34040,8 +34032,8 @@ begin
     Self.WriteContextData(FHugeContext);
   end else
   begin
-    Count := UniConv.utf16_from_utf8(Pointer(P), AChars, ALength);
-    Inc(P, Count + Count);
+    LCount := UniConv.utf16_from_utf8(Pointer(P), AChars, ALength);
+    Inc(P, LCount + LCount);
 
     Self.FCurrent := P;
     if (NativeUInt(P) >= NativeUInt(Self.FOverflow)) then
@@ -34049,25 +34041,24 @@ begin
   end;
 end;
 
-procedure TUTF16TextWriter.WriteUnicodeChars(const AChars: PUnicodeChar;
-  const ALength: NativeUInt);
+procedure TUTF16TextWriter.WriteUnicodeChars(const AChars: PUnicodeChar; const ALength: NativeUInt);
 {$ifNdef CPUINTELASM}
 var
   P: PByte;
-  Size: NativeUInt;
+  LSize: NativeUInt;
 begin
   P := FCurrent;
-  Size := ALength + ALength;
-  Inc(P, Size);
+  LSize := ALength + ALength;
+  Inc(P, LSize);
 
   if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
   begin
-    OverflowWriteData(AChars^, Size);
+    OverflowWriteData(AChars^, LSize);
   end else
   begin
     FCurrent := P;
-    Dec(P, Size);
-    NcMove(AChars^, P^, Size);
+    Dec(P, LSize);
+    NcMove(AChars^, P^, LSize);
   end;
 end;
 {$else .CPUX86/CPUX64} {$ifdef FPC}assembler; nostackframe;{$endif}
@@ -34220,47 +34211,47 @@ end;
 
 { TUTF32TextWriter }
 
-constructor TUTF32TextWriter.Create(const Target: TCachedWriter;
-  const BOM: TBOM; const DefaultByteEncoding: Word; const Owner: Boolean);
+constructor TUTF32TextWriter.Create(const ATarget: TCachedWriter;
+  const ABOM: TBOM; const ADefaultByteEncoding: Word; const AOwner: Boolean);
 var
-  Context: PUniConvContext;
+  LContext: PUniConvContext;
 begin
-  {Check}DetectSBCS(DefaultByteEncoding);
-  Context := Self.GetInternalContext;
-  Target.Write(BOM_INFO[BOM].Data, BOM_INFO[BOM].Size);
+  {Check}DetectSBCS(ADefaultByteEncoding);
+  LContext := @Self.FInternalContext;
+  ATarget.Write(BOM_INFO[ABOM].Data, BOM_INFO[ABOM].Size);
 
-  if (BOM = bomUTF32) then
+  if (ABOM = bomUTF32) then
   begin
-    Context := nil;
+    LContext := nil;
   end else
   begin
-    Context.Init(BOM, bomUTF32, DefaultByteEncoding);
+    LContext.Init(ABOM, bomUTF32, ADefaultByteEncoding);
   end;
 
   FVirtuals.WriteSBCSCharsInternal := Pointer(@TUTF32TextWriter.WriteSBCSCharsInternal);
-  inherited Create(Context, Target, Owner);
+  inherited Create(LContext, ATarget, AOwner);
 end;
 
-constructor TUTF32TextWriter.CreateFromFile(const FileName: string;
-  const BOM: TBOM; const DefaultByteEncoding: Word);
+constructor TUTF32TextWriter.CreateFromFile(const AFileName: string;
+  const ABOM: TBOM; const ADefaultByteEncoding: Word);
 begin
-  FFileName := FileName;
-  Create(TCachedFileWriter.Create(FileName), BOM, DefaultByteEncoding, True);
+  FFileName := AFileName;
+  Create(TCachedFileWriter.Create(AFileName), ABOM, ADefaultByteEncoding, True);
 end;
 
-constructor TUTF32TextWriter.CreateDirect(const Context: PUniConvContext;
-  const Target: TCachedWriter; const Owner: Boolean);
+constructor TUTF32TextWriter.CreateDirect(const AContext: PUniConvContext;
+  const ATarget: TCachedWriter; const AOwner: Boolean);
 begin
   FVirtuals.WriteSBCSCharsInternal := Pointer(@TUTF32TextWriter.WriteSBCSCharsInternal);
-  inherited Create(Context, Target, Owner);
+  inherited Create(AContext, ATarget, AOwner);
 end;
 
 procedure TUTF32TextWriter.InitContexts;
 var
-  Flags: Cardinal;
+  LFlags: Cardinal;
 begin
-  Flags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
-  TUniConvContextEx(FHugeContext).F.Flags := Flags;
+  LFlags := CHARCASE_FLAGS[0] + (Cardinal(bomUTF32) shl ENCODING_DESTINATION_OFFSET);
+  TUniConvContextEx(FHugeContext).F.Flags := LFlags;
   @TUniConvContextEx(FHugeContext).FConvertProc := @TUniConvContextEx.convert_universal;
   @TUniConvContextEx(FUTF32Context).FConvertProc := @TUniConvContextEx.convert_copy;
 end;
@@ -34281,28 +34272,28 @@ begin
     Self.Flush;
 end;
 
-procedure TUTF32TextWriter.WriteBufferedAscii(From: PByte; Count: NativeUInt);
+procedure TUTF32TextWriter.WriteBufferedAscii(AFrom: PByte; ACount: NativeUInt);
 type
-  TDefaultCaller = procedure(Self: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
+  TDefaultCaller = procedure(ASelf: Pointer; const AChars: PAnsiChar; const ALength: NativeUInt);
 const
   CHARS_IN_ITERATION = 4;
 var
   P: NativeUInt{PByte};
-  Size, X, i: NativeUInt;
+  LSize, X, i: NativeUInt;
 begin
   P := NativeUInt(FCurrent);
-  Size := Count shl 2;
-  Inc(P, Size);
+  LSize := ACount shl 2;
+  Inc(P, LSize);
 
   if (P <= NativeUInt(Self.FOverflow)) then
   begin
     Self.FCurrent := Pointer(P);
-    Dec(P, Size);
+    Dec(P, LSize);
 
-    for i := 0 to Size shr (2 + 2) do
+    for i := 0 to LSize shr (2 + 2) do
     begin
-      X := PCardinal(From)^;
-      Inc(From, CHARS_IN_ITERATION);
+      X := PCardinal(AFrom)^;
+      Inc(AFrom, CHARS_IN_ITERATION);
 
       PCardinal(P)^ := Byte(X);
       Inc(P, SizeOf(Cardinal));
@@ -34320,12 +34311,11 @@ begin
   end else
   begin
     P := NativeUInt(@TUTF32TextWriter.WriteAscii);
-    TDefaultCaller(P)(Self, Pointer(From), Size shr 2);
+    TDefaultCaller(P)(Self, Pointer(AFrom), LSize shr 2);
   end;
 end;
 
-procedure TUTF32TextWriter.WriteAscii(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TUTF32TextWriter.WriteAscii(const AChars: PAnsiChar; const ALength: NativeUInt);
 label
   _1, _2, _3;
 const
@@ -34333,18 +34323,18 @@ const
 var
   i, j: NativeUInt;
   P: PCardinal;
-  Src: PByte;
+  LSrc: PByte;
   X: NativeUInt;
 begin
-  Src := Pointer(AChars);
+  LSrc := Pointer(AChars);
   P := Pointer(Self.FCurrent);
 
   for i := 1 to (ALength {$ifdef CPUX86}div 32{$else}shr 5{$endif}) do
   begin
     for j := 1 to (32 div CHARS_IN_ITERATION) do
     begin
-      X := PCardinal(Src)^;
-      Inc(Src, CHARS_IN_ITERATION);
+      X := PCardinal(LSrc)^;
+      Inc(LSrc, CHARS_IN_ITERATION);
 
       P^ := Byte(X);
       Inc(P);
@@ -34369,8 +34359,8 @@ begin
 
   for i := 1 to ((ALength and 31) shr 2) do
   begin
-    X := PCardinal(Src)^;
-    Inc(Src, CHARS_IN_ITERATION);
+    X := PCardinal(LSrc)^;
+    Inc(LSrc, CHARS_IN_ITERATION);
 
     P^ := Byte(X);
     Inc(P);
@@ -34389,24 +34379,24 @@ begin
     3:
     begin
     _3:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _2;
     end;
     2:
     begin
     _2:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _1;
     end;
     1:
     begin
     _1:
-      P^ := Src^;
-      // Inc(Src);
+      P^ := LSrc^;
+      // Inc(LSrc);
       Inc(P);
     end;
   end;
@@ -34416,8 +34406,7 @@ begin
     Self.Flush;
 end;
 
-procedure TUTF32TextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar;
-  const ALength: NativeUInt);
+procedure TUTF32TextWriter.WriteUnicodeAscii(const AChars: PUnicodeChar; const ALength: NativeUInt);
 label
   _1, _2, _3;
 const
@@ -34425,30 +34414,30 @@ const
 var
   i, j: NativeUInt;
   P: PCardinal;
-  Src: PWord;
+  LSrc: PWord;
   X: NativeUInt;
 begin
-  Src := Pointer(AChars);
+  LSrc := Pointer(AChars);
   P := Pointer(Self.FCurrent);
 
   for i := 1 to (ALength {$ifdef CPUX86}div 32{$else}shr 5{$endif}) do
   begin
     for j := 1 to (32 div CHARS_IN_ITERATION) do
     begin
-      X := PNativeUInt(Src)^;
+      X := PNativeUInt(LSrc)^;
 
       P^ := Word(X);
       Inc(P);
       X := X shr 16;
       {$ifdef LARGEINT}
-      Inc(Src, CHARS_IN_ITERATION);
+      Inc(LSrc, CHARS_IN_ITERATION);
       P^ := Word(X);
       X := X shr 16;
       {$else}
-      Inc(Src, CHARS_IN_ITERATION shr 1);
+      Inc(LSrc, CHARS_IN_ITERATION shr 1);
       P^ := X;
-      X := PCardinal(Src)^;
-      Inc(Src, CHARS_IN_ITERATION shr 1);
+      X := PCardinal(LSrc)^;
+      Inc(LSrc, CHARS_IN_ITERATION shr 1);
       {$endif}
       Inc(P);
       P^ := Word(X);
@@ -34468,20 +34457,20 @@ begin
 
   for i := 1 to ((ALength and 31) shr 2) do
   begin
-    X := PNativeUInt(Src)^;
+    X := PNativeUInt(LSrc)^;
 
     P^ := Word(X);
     Inc(P);
     X := X shr 16;
     {$ifdef LARGEINT}
-    Inc(Src, CHARS_IN_ITERATION);
+    Inc(LSrc, CHARS_IN_ITERATION);
     P^ := Word(X);
     X := X shr 16;
     {$else}
-    Inc(Src, CHARS_IN_ITERATION shr 1);
+    Inc(LSrc, CHARS_IN_ITERATION shr 1);
     P^ := X;
-    X := PCardinal(Src)^;
-    Inc(Src, CHARS_IN_ITERATION shr 1);
+    X := PCardinal(LSrc)^;
+    Inc(LSrc, CHARS_IN_ITERATION shr 1);
     {$endif}
     Inc(P);
     P^ := Word(X);
@@ -34495,23 +34484,23 @@ begin
     3:
     begin
     _3:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _2;
     end;
     2:
     begin
     _2:
-      P^ := Src^;
-      Inc(Src);
+      P^ := LSrc^;
+      Inc(LSrc);
       Inc(P);
       goto _1;
     end;
     1:
     begin
     _1:
-      P^ := Src^;
+      P^ := LSrc^;
       // Inc(Src);
       Inc(P);
     end;
@@ -34522,29 +34511,27 @@ begin
     Self.Flush;
 end;
 
-procedure TUTF32TextWriter.WriteUCS4Ascii(const AChars: PUCS4Char;
-  const ALength: NativeUInt);
+procedure TUTF32TextWriter.WriteUCS4Ascii(const AChars: PUCS4Char; const ALength: NativeUInt);
 var
   P: PByte;
-  Size: NativeUInt;
+  LSize: NativeUInt;
 begin
   P := FCurrent;
-  Size := ALength shl 2;
-  Inc(P, Size);
+  LSize := ALength shl 2;
+  Inc(P, LSize);
 
   if (NativeUInt(P) > NativeUInt(Self.FOverflow)) then
   begin
-    OverflowWriteData(AChars^, Size);
+    OverflowWriteData(AChars^, LSize);
   end else
   begin
     FCurrent := P;
-    Dec(P, Size);
-    NcMove(AChars^, P^, Size);
+    Dec(P, LSize);
+    NcMove(AChars^, P^, LSize);
   end;
 end;
 
-procedure TUTF32TextWriter.WriteSBCSCharsInternal(const AChars: PAnsiChar;
-  const ALength: NativeUInt);
+procedure TUTF32TextWriter.WriteSBCSCharsInternal(const AChars: PAnsiChar; const ALength: NativeUInt);
 begin
   with TUniConvContextEx(FHugeContext) do
   begin
@@ -34557,8 +34544,7 @@ begin
   Self.WriteContextData(FHugeContext);
 end;
 
-procedure TUTF32TextWriter.WriteUTF8Chars(const AChars: PUTF8Char;
-  const ALength: NativeUInt);
+procedure TUTF32TextWriter.WriteUTF8Chars(const AChars: PUTF8Char; const ALength: NativeUInt);
 begin
   with TUniConvContextEx(FHugeContext) do
   begin

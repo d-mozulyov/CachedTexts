@@ -56,7 +56,7 @@ type
     procedure ParseOptionsLine(const S: UTF16String);
     procedure SetEncoding(const Value: Word);
   public
-    function CachedStringType: UnicodeString;
+    function CachedStringType(const ANullTerminated: Boolean): UnicodeString;
     function ParseOption(const S: UnicodeString): Boolean;
     function Add(const S: UnicodeString): NativeUInt;
     procedure Delete(const AFrom: NativeUInt; const ACount: NativeUInt = 1);
@@ -106,8 +106,10 @@ type
     FOptions: ^TSerializeOptions;
     FStringKind: TCachedStringKind;
     FCharSize: NativeUInt;
+    FNullTerminatedAlignment: NativeUInt;
     FIsFunction: Boolean;
     FIsConsts: Boolean;
+    FIsNullTerminated: Boolean;
     FFunctionValues: TUnicodeStrings;
 
     procedure InspecOptions;
@@ -154,7 +156,7 @@ const
 type
   T4Bytes = array[0..3] of Byte;
   P4Bytes = ^T4Bytes;
-  TUseDataProc = function(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+  TUseDataProc = function(const Item: PIdentifier; const Offset, NullTerminatedAlignment: NativeUInt): UnicodeString;
 
 function UnicodeFormat(const FmtStr: UnicodeString; const Args: array of const): UnicodeString;
 begin
@@ -167,35 +169,36 @@ begin
     'Please, send your file to developers at softforyou@inbox.ru');
 end;
 
-function UseByte(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+function UseByte(const Item: PIdentifier; const Offset, NullTerminatedAlignment: NativeUInt): UnicodeString;
 begin
   Result := UnicodeFormat('Bytes[%d]', [Offset]);
 end;
 
-function UseWord(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+function UseWord(const Item: PIdentifier; const Offset, NullTerminatedAlignment: NativeUInt): UnicodeString;
 begin
   Result := UnicodeFormat('Words%s[%d]', [MEMORYDATA_POSTFIXES[Offset and 1], Offset shr 1]);
 end;
 
-function UseCardinal(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+function UseCardinal(const Item: PIdentifier; const Offset, NullTerminatedAlignment: NativeUInt): UnicodeString;
 begin
   Result := UnicodeFormat('Cardinals%s[%d]', [MEMORYDATA_POSTFIXES[Offset and 3], Offset shr 2]);
 end;
 
-function UseThree(const Item: PIdentifier; const Offset: NativeUInt): UnicodeString;
+function UseThree(const Item: PIdentifier; const Offset, NullTerminatedAlignment: NativeUInt): UnicodeString;
 begin
   if (Offset = 0) then
   begin
-    if (Item.DataSize >= 4) then
+    if (Item.DataSize >= 4) and
+      ((NullTerminatedAlignment = 0) or (NullTerminatedAlignment >= 4)) then
     begin
-      Result := UseCardinal(Item, 0) + ' and $ffffff';
+      Result := UseCardinal(Item, 0, NullTerminatedAlignment) + ' and $ffffff';
     end else
     begin
-      Result := UseWord(Item, Offset) + ' + ' + UseByte(Item, Offset + SizeOf(Word)) + ' shl 16';
+      Result := UseWord(Item, Offset, NullTerminatedAlignment) + ' + ' + UseByte(Item, Offset + SizeOf(Word), NullTerminatedAlignment) + ' shl 16';
     end;
   end else
   begin
-    Result := UseCardinal(Item, Offset - 1) + ' shr 8';
+    Result := UseCardinal(Item, Offset - 1, NullTerminatedAlignment) + ' shr 8';
   end;
 end;
 
@@ -216,11 +219,11 @@ begin
   if (Result[i] = #32) then Result[i] := '0';
 end;
 
-function UseDataMasked(const Item: PIdentifier; const Offset, ByteCount: NativeUInt): UnicodeString;
+function UseDataMasked(const Item: PIdentifier; const Offset, NullTerminatedAlignment, ByteCount: NativeUInt): UnicodeString;
 var
   OrMask: Cardinal;
 begin
-  Result := USE_DATA_PROCS[ByteCount](Item, Offset);
+  Result := USE_DATA_PROCS[ByteCount](Item, Offset, NullTerminatedAlignment);
   OrMask := PCardinal(@Item.DataOr[Offset])^ and AND_VALUES[ByteCount];
   if (OrMask <> 0) then Result := Result + ' or ' + HexConst(OrMask, ByteCount);
 end;
@@ -273,13 +276,24 @@ begin
   FEncoding := Value;
 end;
 
-function TSerializeOptions.CachedStringType: UnicodeString;
+function TSerializeOptions.CachedStringType(const ANullTerminated: Boolean): UnicodeString;
 begin
-  case FEncoding of
-    CODEPAGE_UTF16: Result := 'UTF16String';
-    CODEPAGE_UTF32: Result := 'UTF32String';
-  else
-    Result := 'ByteString';
+  if (ANullTerminated) then
+  begin
+    case FEncoding of
+      CODEPAGE_UTF16: Result := 'PWideChar';
+      CODEPAGE_UTF32: Result := 'PUCS4Char';
+    else
+      Result := 'PAnsiChar';
+    end;
+  end else
+  begin
+    case FEncoding of
+      CODEPAGE_UTF16: Result := 'UTF16String';
+      CODEPAGE_UTF32: Result := 'UTF32String';
+    else
+      Result := 'ByteString';
+    end;
   end;
 end;
 
@@ -292,7 +306,7 @@ begin
   if (P = 0) then
   begin
     FFuncName := AFuncNameSType;
-    FFuncSType := CachedStringType;
+    FFuncSType := '';
     FCharsParam := 'S.Chars';
     FLengthParam := 'S.Length';
   end else
@@ -523,6 +537,7 @@ var
   Str: UTF16String;
   Buf: UnicodeString;
   L: NativeUInt;
+  Temp: Cardinal;
 begin
   Str := S;
   while (Str.Trim) do
@@ -538,6 +553,12 @@ begin
       raise Exception.CreateFmt('Unknown file parameter: %s', [Buf]);
 
     Str.Skip(L);
+  end;
+
+  if (FFuncSType = '') then
+  begin
+    Str.Assign(FLengthParam);
+    FFuncSType := CachedStringType(Str.TryToCardinal(Temp));
   end;
 end;
 
@@ -563,6 +584,8 @@ end;
 { TSerializer }
 
 procedure TSerializer.InspecOptions;
+var
+  S: UTF16String;
 begin
   FStringKind := csByte;
   case FOptions.Encoding of
@@ -572,6 +595,14 @@ begin
   FCharSize := 1 shl SHIFT_VALUES[FStringKind];
   FIsFunction := (FOptions.FuncName <> '');
   FIsConsts := (FIsFunction) and (FOptions.EnumTypeName = '');
+
+  S.Assign(FOptions.FLengthParam);
+  if (S.TryToCardinal(PCardinal(@FNullTerminatedAlignment)^)) then
+  begin
+    FIsNullTerminated := True;
+    if (FNullTerminatedAlignment < FCharSize) then
+      FNullTerminatedAlignment := FCharSize;
+  end;
 
   if (FOptions.Count = 0) then
     raise Exception.Create('Identifier list not defined');
@@ -828,7 +859,7 @@ procedure TSerializer.TextBufferIncludeIfThenLine(const Level: NativeUInt;
   const Item: PIdentifier; Offset, ByteCount: NativeUInt; ModeIf: Boolean);
 var
   Buf: UnicodeString;
-  i, Count: NativeUInt;
+  i, Count, MaxCount: NativeUInt;
   OrMask, AndMask, V1, V2: Cardinal;
 begin
   while (ByteCount <> 0) do
@@ -837,7 +868,19 @@ begin
     V1 := PCardinal(@Item.Data1[Offset])^;
     V2 := PCardinal(@Item.Data2[Offset])^;
     Count := 1;
-    for i := 1 to ByteCount do
+    if (not FIsNullTerminated) then
+    begin
+      MaxCount := ByteCount;
+    end else
+    begin
+      MaxCount := FNullTerminatedAlignment - Offset mod FNullTerminatedAlignment;
+      if (ByteCount < MaxCount) then
+      begin
+        MaxCount := ByteCount;
+      end;
+    end;
+
+    for i := 1 to MaxCount do
     begin
       if (i > SizeOf(Cardinal)) then Break;
 
@@ -850,7 +893,7 @@ begin
     AndMask := AND_VALUES[Count];
     V1 := (V1 or OrMask) and AndMask;
     V2 := (V2 or OrMask) and AndMask;
-    Buf := UseDataMasked(Item, Offset, Count);
+    Buf := UseDataMasked(Item, Offset, FNullTerminatedAlignment, Count);
 
     // = $... / in [$.., $..]
     if (V1 = V2) then
@@ -940,7 +983,8 @@ begin
     if (not Info.MarkerReference) and (FIsFunction) then
       Buf := FunctionValue(Info.Value);
 
-    AddIdentifier(List, Info, Options.Encoding, Options.IgnoreCase, Buf);
+    AddIdentifier(List, Info, Options.Encoding, Options.IgnoreCase,
+      FIsNullTerminated, Buf);
   end;
   IdentifiersCount := Length(List);
   if (IdentifiersCount = 0) then
@@ -1038,8 +1082,20 @@ CODEPAGE_USERDEFINED: Buf := 'user';
       end;
     end;
 
+    if (FIsNullTerminated) then
+    begin
+      Buf := Buf + ', #0 terminated (' + IntToStr(FNullTerminatedAlignment) + ' byte';
+      if (FNullTerminatedAlignment > 1) then
+      begin
+        Buf := Buf + 's';
+      end;
+      Buf := Buf + ' aligned)';
+    end;
+
     if (Options.IgnoreCase) then
+    begin
       Buf := Buf + ', ignore case';
+    end;
 
     TextBufferFlush;
     TextBufferInitFmt(Options.FCodeIndent + INDENT_STEP, '// %s', [Buf]);
@@ -1048,6 +1104,11 @@ CODEPAGE_USERDEFINED: Buf := 'user';
 
   // case start
   TextBufferFlush;
+  if (FIsNullTerminated) then
+  begin
+    TextBufferInitFmt(Options.FCodeIndent + INDENT_STEP, 'if (Pointer(%s) <> nil) then', [Options.CharsParam]);
+    TextBufferFlush;
+  end;
   TextBufferInitFmt(Options.FCodeIndent + INDENT_STEP, 'with PMemoryItems(%s)^ do', [Options.CharsParam]);
   TextBufferFlush;
 
@@ -1233,7 +1294,7 @@ type
   end;
 
 var
-  i, j: NativeUInt;
+  i, j, MaxByteCount: NativeUInt;
   BestByteCount, BestValue, Value: NativeUInt;
   WholeCases: TWholeCasesInfo;
   MovedCount: NativeUInt;
@@ -1241,23 +1302,29 @@ var
 begin
   WholeCases := CheckCases(Items, Count, Offset, KnownLength);
 
+  MaxByteCount := 4;
+  if (FIsNullTerminated) then
+  begin
+    MaxByteCount := FNullTerminatedAlignment - Offset mod FNullTerminatedAlignment;
+  end;
+
   BestByteCount := 1;
   BestValue := CasesCost(WholeCases[1], 1);
-  for i := 2 to 4 do
+  for i := 2 to MaxByteCount do
   if (WholeCases[i].ByteCount <> 0) then
   begin
     Value := CasesCost(WholeCases[i], i);
 
     if (Value <= BestValue) then
     begin
-      if (not KnownLength) and (i mod FCharSize <> 0) then Continue;
+      if (not KnownLength) and (not FIsNullTerminated) and (i mod FCharSize <> 0) then Continue;
       BestByteCount := i;
       BestValue := Value;
     end;
   end;
 
   // unknown length --> known length
-  if (not KnownLength) then
+  if (not KnownLength) and (not FIsNullTerminated) then
   begin
     if (BestByteCount < FCharSize) or (CasesCount(WholeCases[FCharSize]) > Count shr 1) then
     begin
@@ -1334,7 +1401,7 @@ begin
   next:
   end;
   SameDataSize := Offs - Offset;
-  if (not KnownLength) and (SameDataSize > FCharSize) then
+  if (not KnownLength) and (not FIsNullTerminated) and (SameDataSize > FCharSize) then
     SameDataSize := SameDataSize and -FCharSize;
 end;
 
@@ -1350,7 +1417,7 @@ begin
   SetLength(LocalCaseGroups, BestCases.GroupCount);
   Move(Pointer(FCaseGroups)^, Pointer(LocalCaseGroups)^, SizeOf(TCases) * BestCases.GroupCount);
 
-  TextBufferIncludeFmt(Level, 'case (%s) of ', [UseDataMasked(@Items[0], Offset, BestCases.ByteCount)]);
+  TextBufferIncludeFmt(Level, 'case (%s) of ', [UseDataMasked(@Items[0], Offset, FNullTerminatedAlignment, BestCases.ByteCount)]);
   TextBufferIncludeComments(Items, Count);
   TextBufferFlush;
   begin
@@ -1432,7 +1499,10 @@ begin
   if (Count = 1) then
   begin
     Item := @Items[0];
-    if (not KnownLength) then TextBufferIncludeLengthCondition(Level, Offset, SameDataSize, SameDataSize, {ModeThen}(SameDataSize = 0));
+    if (not KnownLength) and (not FIsNullTerminated) then
+    begin
+      TextBufferIncludeLengthCondition(Level, Offset, SameDataSize, SameDataSize, {ModeThen}(SameDataSize = 0));
+    end;
     TextBufferIncludeIfThenLine(Level, Item, Offset, SameDataSize, KnownLength);
 
     CodeLines := Length(Item.Info.Code);
@@ -1470,7 +1540,7 @@ begin
   end;
 
   // same (one) length --> known length
-  if (MinDataSize = MaxDataSize) and (not KnownLength) then
+  if (MinDataSize = MaxDataSize) and (not KnownLength) and (not FIsNullTerminated) then
   begin
     TextBufferIncludeLengthCondition(Level, Offset, MinDataSize, MaxDataSize);
     TextBufferFlush;
@@ -1479,6 +1549,10 @@ begin
 
   // emmit childs
   BestCases := CalculateBestCases(Items, Count, Offset, KnownLength);
+  if (FIsNullTerminated) then
+  begin
+    WriteCaseIdentifiers(Items, Count, Offset, Level, BestCases, False, 0, 0);
+  end else
   if (BestCases.ByteCount >= FCharSize) then
   begin
     if ({usually 0}SameDataSize < FCharSize) then

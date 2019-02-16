@@ -50,10 +50,11 @@ type
   PIdentifier = ^TIdentifier;
   TIdentifier = object
   protected
-    procedure FillDataBytes(var Bytes: TBytes; var Converter: TTemporaryString; const Value: UnicodeString);
+    procedure FillDataBytes(var Bytes: TBytes; var Converter: TTemporaryString;
+      const NullTerminated: Boolean; const Value: UnicodeString);
     procedure FillData(var Converter: TTemporaryString;
       const Value, Comment: UnicodeString; const Code: TUnicodeStrings;
-      const IgnoreCase: Boolean);
+      const IgnoreCase, NullTerminated: Boolean);
   public
     CasesGroup: NativeUInt;
   public
@@ -80,7 +81,7 @@ type
 
   // fill data parameters
   procedure AddIdentifier(var List: TIdentifierList; const Info: TIdentifierInfo;
-    const Encoding: Word; const IgnoreCase: Boolean; const FunctionValue: UnicodeString);
+    const Encoding: Word; const IgnoreCase, NullTerminated: Boolean; const FunctionValue: UnicodeString);
 
 
 const
@@ -317,14 +318,18 @@ end;
 
 { TIdentifier }
 
-procedure TIdentifier.FillDataBytes(var Bytes: TBytes;
-  var Converter: TTemporaryString; const Value: UnicodeString);
+procedure TIdentifier.FillDataBytes(var Bytes: TBytes; var Converter: TTemporaryString;
+  const NullTerminated: Boolean; const Value: UnicodeString);
 var
   i: NativeUInt;
   SBCSValues: PUniConvSBCSValues;
 begin
   Converter.Length := 0;
   Converter.Append(Value);
+  if (NullTerminated) then
+  begin
+    Converter.AppendAscii(#0, 1);
+  end;
 
   Self.DataSize := Converter.Length shl SHIFT_VALUES[Converter.Kind];
   SetLength(Bytes, Self.DataSize + SizeOf(Cardinal){Gap});
@@ -343,7 +348,7 @@ end;
 
 procedure TIdentifier.FillData(var Converter: TTemporaryString;
   const Value, Comment: UnicodeString; const Code: TUnicodeStrings;
-  const IgnoreCase: Boolean);
+  const IgnoreCase, NullTerminated: Boolean);
 var
   Buf: UnicodeString;
   L: NativeUInt;
@@ -366,8 +371,8 @@ begin
   end;
 
   // data
-  FillDataBytes(Data1, Converter, Value);
-  FillDataBytes(Data2, Converter, Buf);
+  FillDataBytes(Data1, Converter, NullTerminated, Value);
+  FillDataBytes(Data2, Converter, NullTerminated, Buf);
 
   // or mask
   SetLength(DataOr, DataSize + SizeOf(Cardinal));
@@ -424,7 +429,7 @@ end;
 
 // fill data parameters
 procedure AddIdentifier(var List: TIdentifierList; const Info: TIdentifierInfo;
-  const Encoding: Word; const IgnoreCase: Boolean; const FunctionValue: UnicodeString);
+  const Encoding: Word; const IgnoreCase, NullTerminated: Boolean; const FunctionValue: UnicodeString);
 var
   i, Count: NativeUInt;
   Found: Boolean;
@@ -502,7 +507,7 @@ begin
 
   // list items
   Item := AddIdentifierItem(List);
-  Item.FillData(Converter, Info.Value, Info.Comment, Code, IgnoreCase);
+  Item.FillData(Converter, Info.Value, Info.Comment, Code, IgnoreCase, NullTerminated);
   Item.Info.Marker := Info.Marker;
   Item.Info.MarkerReference := Info.MarkerReference;
 
@@ -537,7 +542,7 @@ begin
 
       // add identifier
       Item := AddIdentifierItem(List);
-      Item.FillData(Converter, Buffer, Info.Comment, Code, IgnoreCase);
+      Item.FillData(Converter, Buffer, Info.Comment, Code, IgnoreCase, NullTerminated);
     until (False);
   end;
 end;

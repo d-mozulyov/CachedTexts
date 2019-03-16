@@ -80,6 +80,9 @@ type
 
 { TSerializer class }
 
+const
+  RIGHT_MARGIN_VALUE = 120;
+
 type
   PCases = ^TCases;
   TCases = record
@@ -794,7 +797,7 @@ begin
   L2 := Length(S);
   if (L2 = 0) then Exit;
 
-  if (L1 = 0) or (L1 - (Level div 2) + L2 >= 90) then
+  if (L1 = 0) or (L1 - (Level div 2) + L2 >= RIGHT_MARGIN_VALUE) then
   begin
     TextBufferFlush;
     TextBufferInit(Level, S);
@@ -937,7 +940,7 @@ begin
       Inc(BufferLength, 2);
     end;
 
-    if (i = 1) or (i = Count) or (BufferLength + L < 90) then
+    if (i = 1) or (i = Count) or (BufferLength + L < RIGHT_MARGIN_VALUE) then
     begin
       FTextBuffer := FTextBuffer + Item.Info.Comment;
       Inc(BufferLength, L);
@@ -1410,7 +1413,8 @@ procedure TSerializer.WriteCaseIdentifiers(const Items: PIdentifierItems;
   const Count, Offset, Level: NativeUInt; const BestCases: TCasesInfo;
   const KnownLength: Boolean; const UnknownLenghtRangeMin, UnknownLenghtRangeMax: NativeUInt);
 var
-  i, j, ChildCount: NativeUInt;
+  i, j, ChildCount, ChildLevel: NativeUInt;
+  EstimatedCount: NativeUInt;
   Cases: PCases;
   LocalCaseGroups: array of TCases;
 begin
@@ -1438,12 +1442,32 @@ begin
       end;
       FTextBuffer[Length(FTextBuffer) - 1] := ':';
 
+      // estimated write chars count
+      EstimatedCount := (UnknownLenghtRangeMax - Offset - BestCases.ByteCount) *
+        (4 + 2 * Byte(FOptions.FIgnoreCase));
+
       // childs
-      WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount,
-        Offset + BestCases.ByteCount,
-        Level + INDENT_STEP,
-        Level + INDENT_STEP + (3 + 2 * BestCases.ByteCount) * Cases.Count,
-        KnownLength, UnknownLenghtRangeMin, UnknownLenghtRangeMax);
+      ChildLevel :=  Level + INDENT_STEP + (3 + 2 * BestCases.ByteCount) * Cases.Count;
+      if (ChildLevel < RIGHT_MARGIN_VALUE - 40) and
+        ((RIGHT_MARGIN_VALUE - ChildLevel) * 2 < EstimatedCount) then
+      begin
+        TextBufferFlush;
+        TextBufferInit(Level + INDENT_STEP, 'begin');
+        TextBufferFlush;
+          WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount,
+            Offset + BestCases.ByteCount,
+            Level + INDENT_STEP * 2, Level + INDENT_STEP * 2,
+            KnownLength, UnknownLenghtRangeMin, UnknownLenghtRangeMax);
+        TextBufferInit(Level + INDENT_STEP, 'end;');
+        TextBufferFlush;
+      end else
+      begin
+        WriteIdentifiers(PIdentifierItems(@Items[i]), ChildCount,
+          Offset + BestCases.ByteCount,
+          Level + INDENT_STEP, ChildLevel,
+          KnownLength, UnknownLenghtRangeMin, UnknownLenghtRangeMax);
+      end;
+
       Inc(i, ChildCount);
     end;
   end;

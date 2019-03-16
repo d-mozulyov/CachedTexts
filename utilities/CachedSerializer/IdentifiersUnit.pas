@@ -550,6 +550,7 @@ end;
 function DefaultIdentifierComparator(const Id1, Id2: TIdentifier; const Offset: NativeUInt): NativeInt;
 var
   i, S1, S2: NativeUInt;
+  V1, V2: Byte;
 begin
   if (@Id1 = @Id2) then
   begin
@@ -573,10 +574,15 @@ begin
   end;
 
   for i := Offset to S1 - 1 do
-  if (Id1.Data1[i] <> Id2.Data1[i]) then
   begin
-    Result := NativeInt(Id1.Data1[i]) - NativeInt(Id2.Data1[i]);
-    Exit;
+    V1 := Id1.Data1[i] or Id1.DataOr[i];
+    V2 := Id2.Data1[i] or Id2.DataOr[i];
+
+    if (V1 <> V2) then
+    begin
+      Result := NativeInt(V1) - NativeInt(V2);
+      Exit;
+    end;
   end;
 end;
 

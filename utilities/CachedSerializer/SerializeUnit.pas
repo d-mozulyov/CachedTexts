@@ -138,9 +138,10 @@ type
     function CheckCases(const Items: PIdentifierItems; const Count, Offset, ByteCount, OrMask: Cardinal; const KnownLength: Boolean; var CheckedCount, CaseCount: NativeUInt): NativeUInt; overload;
     function CheckCases(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean): TWholeCasesInfo; overload;
     function CalculateBestCases(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean): TCasesInfo;
-    procedure InspectIdentifiers(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean; var MinDataSize, MaxDataSize, SameDataSize: NativeUInt);
+    function InspectIdentifiers(const Items: PIdentifierItems; const Count, Offset: NativeUInt; const KnownLength: Boolean; var MinDataSize, MaxDataSize, SameDataSize: NativeUInt): Boolean;
     procedure WriteCaseIdentifiers(const Items: PIdentifierItems; const Count, Offset, Level: NativeUInt; const BestCases: TCasesInfo; const KnownLength: Boolean; const UnknownLenghtRangeMin, UnknownLenghtRangeMax: NativeUInt);
     procedure WriteLengthIdentifiers(const Items: PIdentifierItems; const Count, Offset, Level: NativeUInt);
+    procedure WriteSplittedIdentifiers(const Items: PIdentifierItems; const Count, Offset, LargeCodeLevel, Level: NativeUInt; KnownLength: Boolean; UnknownLenghtRangeMin, UnknownLenghtRangeMax: NativeUInt);
     procedure WriteIdentifiers(const Items: PIdentifierItems; const Count, Offset, LargeCodeLevel, Level: NativeUInt; KnownLength: Boolean; UnknownLenghtRangeMin, UnknownLenghtRangeMax: NativeUInt);
   public
     function Process(const Options: TSerializeOptions): TUnicodeStrings;
@@ -780,9 +781,18 @@ begin
 end;
 
 procedure TSerializer.TextBufferFlush;
+var
+  LCount: Integer;
 begin
   if (FTextBuffer <> '') then
   begin
+    LCount := Length(FTextBuffer);
+    while (LCount <> 0) and (FTextBuffer[LCount] <= #32) do
+    begin
+      Dec(LCount);
+      SetLength(FTextBuffer, LCount);
+    end;
+
     AddLine(FTextBuffer);
     TextBufferClear;
   end;
@@ -1248,6 +1258,8 @@ function TSerializer.CheckCases(const Items: PIdentifierItems;
 var
   i: NativeUInt;
   OrMask: Cardinal;
+  Item: PIdentifier;
+  Found: Boolean;
 begin
   // detect or mask
   OrMask := 0;
@@ -1262,6 +1274,7 @@ begin
   end;
 
   // best case bytes/or mask
+  Found := False;
   FillChar(Result, SizeOf(Result), #0);
   for i := 1 to 4 do
   begin
@@ -1270,12 +1283,26 @@ begin
 
     if (Result[i].GroupCount <> 0) then
     begin
+      Found := True;
       Result[i].ByteCount := i;
       Result[i].OrMask := OrMask and AND_VALUES[i];
     end;
   end;
-  if (Result[1].CaseCount = 0) then
+
+  if (not Found) then
+  begin
+    // check case sensitivity
+    if (Count <> 0) then
+    for i := 0 to Count - 1 do
+    begin
+      Item := @Items[i];
+      if (Item.Data1[Offset] <> Item.Data2[Offset]) then
+        Exit;
+    end;
+
+    // exception
     raise InternalException;
+  end;
 end;
 
 function TSerializer.CalculateBestCases(const Items: PIdentifierItems;
@@ -1293,7 +1320,13 @@ type
 
   function CasesCost(const Cases: TCasesInfo; const ByteCount: NativeUInt): NativeUInt;
   begin
-    Result := Round(CasesCount(Cases) * 100 / COST_MUL[ByteCount]);
+    if (Cases.GroupCount <> 0) then
+    begin
+      Result := Round(CasesCount(Cases) * 100 / COST_MUL[ByteCount]);
+    end else
+    begin
+      Result := High(NativeUInt);
+    end;
   end;
 
 var
@@ -1361,9 +1394,9 @@ begin
   SortIdentifiers(Items, MovedCount, Offset, DataSizeIdentifierComparator);
 end;
 
-procedure TSerializer.InspectIdentifiers(const Items: PIdentifierItems;
+function TSerializer.InspectIdentifiers(const Items: PIdentifierItems;
   const Count, Offset: NativeUInt; const KnownLength: Boolean;
-  var MinDataSize, MaxDataSize, SameDataSize: NativeUInt);
+  var MinDataSize, MaxDataSize, SameDataSize: NativeUInt): Boolean;
 label
   next;
 var
@@ -1385,19 +1418,25 @@ begin
   if (Count = 1) then
   begin
     SameDataSize := MinDataSize{=MaxDataSize};
+    Result := True;
     Exit;
   end;
 
   // same data size
   Offs := Offset;
+  Result := False;
   while (Offs <> Offset + MinDataSize) do
   begin
     WholeCases := CheckCases(Items, Count, Offs, True);
     for i := 4 downto 1 do
-    if (WholeCases[i].CaseCount = 1) then
+    if (WholeCases[i].CaseCount <> 0) then
     begin
-      Inc(Offs, i);
-      goto next;
+      Result := True;
+      if (WholeCases[i].CaseCount = 1) then
+      begin
+        Inc(Offs, i);
+        goto next;
+      end;
     end;
     Break;
 
@@ -1443,13 +1482,20 @@ begin
       FTextBuffer[Length(FTextBuffer) - 1] := ':';
 
       // estimated write chars count
-      EstimatedCount := (UnknownLenghtRangeMax - Offset - BestCases.ByteCount) *
+      if (UnknownLenghtRangeMax <> 0) then
+      begin
+        EstimatedCount := UnknownLenghtRangeMax * FCharSize;
+      end else
+      begin
+        EstimatedCount := Items[0].DataSize;
+      end;
+      EstimatedCount := (EstimatedCount - Offset - BestCases.ByteCount) *
         (4 + 2 * Byte(FOptions.FIgnoreCase));
 
       // childs
-      ChildLevel :=  Level + INDENT_STEP + (3 + 2 * BestCases.ByteCount) * Cases.Count;
-      if (ChildLevel < RIGHT_MARGIN_VALUE - 40) and
-        ((RIGHT_MARGIN_VALUE - ChildLevel) * 2 < EstimatedCount) then
+      ChildLevel := Level + INDENT_STEP + (3 + 2 * BestCases.ByteCount) * Cases.Count;
+      if ((ChildLevel > 22) and (ChildCount <> 1)) or
+        ((ChildLevel < RIGHT_MARGIN_VALUE - 40) and ((RIGHT_MARGIN_VALUE - ChildLevel) * 2 < EstimatedCount)) then
       begin
         TextBufferFlush;
         TextBufferInit(Level + INDENT_STEP, 'begin');
@@ -1502,12 +1548,54 @@ begin
   end;
 end;
 
+procedure TSerializer.WriteSplittedIdentifiers(const Items: PIdentifierItems;
+  const Count, Offset, LargeCodeLevel, Level: NativeUInt; KnownLength: Boolean;
+  UnknownLenghtRangeMin, UnknownLenghtRangeMax: NativeUInt);
+var
+  LCount, i: NativeUInt;
+  LItem: PIdentifier;
+  LBuffer: TIdentifierList;
+begin
+  LCount := 0;
+  SetLength(LBuffer, Count * 2);
+
+  if (Count <> 0) then
+  for i := 0 to Count - 1 do
+  begin
+    LItem := @Items[i];
+    LBuffer[LCount] := LItem^;
+
+    if (LItem.Data1[Offset] = LItem.Data2[Offset]) then
+    begin
+      Inc(LCount);
+    end else
+    begin
+      LBuffer[LCount].Data2 := Copy(LItem.Data2, 0, MaxInt);
+      LBuffer[LCount].Data2[Offset] := LItem.Data1[Offset];
+      LBuffer[LCount].DataOr := Copy(LItem.DataOr, 0, MaxInt);
+      LBuffer[LCount].DataOr[Offset] := 0;
+      Inc(LCount);
+      LBuffer[LCount] := LItem^;
+      LBuffer[LCount].Data1 := Copy(LItem.Data1, 0, MaxInt);
+      LBuffer[LCount].Data1[Offset] := LItem.Data2[Offset];
+      LBuffer[LCount].DataOr := Copy(LItem.DataOr, 0, MaxInt);
+      LBuffer[LCount].DataOr[Offset] := 0;
+      Inc(LCount);
+    end;
+  end;
+
+  SetLength(LBuffer, LCount);
+  SortIdentifiers(LBuffer, Offset, DefaultIdentifierComparator);
+  WriteIdentifiers(Pointer(LBuffer), LCount, Offset, LargeCodeLevel, Level,
+    KnownLength, UnknownLenghtRangeMin, UnknownLenghtRangeMax);
+end;
+
 // identifiers recursion
 procedure TSerializer.WriteIdentifiers(const Items: PIdentifierItems;
   const Count, Offset, LargeCodeLevel, Level: NativeUInt; KnownLength: Boolean;
   UnknownLenghtRangeMin, UnknownLenghtRangeMax: NativeUInt);
 label
-  length_cases;
+  sort_length_cases, length_cases;
 var
   i, UncheckedCount: NativeUInt;
   Item: PIdentifier;
@@ -1517,7 +1605,17 @@ var
   Buf: UnicodeString;
 begin
   // min/max/same data size
-  InspectIdentifiers(Items, Count, Offset, KnownLength, MinDataSize, MaxDataSize, SameDataSize);
+  // optional split
+  if (not InspectIdentifiers(Items, Count, Offset, KnownLength, MinDataSize, MaxDataSize, SameDataSize)) then
+  begin
+    if (MinDataSize <> MaxDataSize) and (not FIsNullTerminated) then
+    begin
+      goto sort_length_cases;
+    end;
+
+    WriteSplittedIdentifiers(Items, Count, Offset, LargeCodeLevel, Level,
+      KnownLength, UnknownLenghtRangeMin, UnknownLenghtRangeMax);
+  end;
 
   // final identifier
   if (Count = 1) then
@@ -1676,6 +1774,7 @@ begin
   end else
   begin
     // length and cases
+  sort_length_cases:
     SortIdentifiers(Items, Count, Offset, DataSizeIdentifierComparator);
   length_cases:
     if (NativeUInt(Length(FTextBuffer)) = Level) then

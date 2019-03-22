@@ -223,12 +223,10 @@ begin
   if (Result[i] = #32) then Result[i] := '0';
 end;
 
-function UseDataMasked(const Item: PIdentifier; const Offset, NullTerminatedAlignment, ByteCount: NativeUInt): UnicodeString;
-var
-  OrMask: Cardinal;
+function UseDataMasked(Item: PIdentifier; Offset, NullTerminatedAlignment, OrMask, ByteCount: NativeUInt): UnicodeString;
 begin
   Result := USE_DATA_PROCS[ByteCount](Item, Offset, NullTerminatedAlignment);
-  OrMask := PCardinal(@Item.DataOr[Offset])^ and AND_VALUES[ByteCount];
+  OrMask := OrMask and AND_VALUES[ByteCount];
   if (OrMask <> 0) then Result := Result + ' or ' + HexConst(OrMask, ByteCount);
 end;
 
@@ -906,7 +904,7 @@ begin
     AndMask := AND_VALUES[Count];
     V1 := (V1 or OrMask) and AndMask;
     V2 := (V2 or OrMask) and AndMask;
-    Buf := UseDataMasked(Item, Offset, FNullTerminatedAlignment, Count);
+    Buf := UseDataMasked(Item, Offset, FNullTerminatedAlignment, OrMask, Count);
 
     // = $... / in [$.., $..]
     if (V1 = V2) then
@@ -1460,7 +1458,7 @@ begin
   SetLength(LocalCaseGroups, BestCases.GroupCount);
   Move(Pointer(FCaseGroups)^, Pointer(LocalCaseGroups)^, SizeOf(TCases) * BestCases.GroupCount);
 
-  TextBufferIncludeFmt(Level, 'case (%s) of ', [UseDataMasked(@Items[0], Offset, FNullTerminatedAlignment, BestCases.ByteCount)]);
+  TextBufferIncludeFmt(Level, 'case (%s) of ', [UseDataMasked(@Items[0], Offset, FNullTerminatedAlignment, BestCases.OrMask, BestCases.ByteCount)]);
   TextBufferIncludeComments(Items, Count);
   TextBufferFlush;
   begin

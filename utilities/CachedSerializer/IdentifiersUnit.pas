@@ -217,6 +217,7 @@ procedure TIdentifierInfo.ParseCode(const S: UnicodeString);
 var
   Count, i: NativeUInt;
   Str, Sub: UTF16String;
+  Found: Boolean;
 begin
   Str.Assign(S);
   Count := Length(Code);
@@ -224,9 +225,11 @@ begin
   while (Str.Length <> 0) do
   begin
     Sub := Str;
+    Found := False;
     for i := 0 to Str.Length - 1 do
     if (Str.Chars[i] = #13) or (Str.Chars[i] = #10) then
     begin
+      Found := True;
       Sub := Str.SubString(i);
 
       if (Str.Chars[i] = #13) and (i <> Str.Length - 1) and (Str.Chars[i + 1] = #10) then
@@ -239,7 +242,7 @@ begin
 
       Break;
     end;
-    if (Sub.Length = Str.Length) then
+    if (not Found) then
        Str.Length := 0;
 
     Inc(Count);

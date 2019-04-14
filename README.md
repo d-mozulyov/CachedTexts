@@ -11,8 +11,8 @@ Byte-encoding, UTF-16 and UTF-32. Each of them has its advantages and disadvanta
 * Despite the fact that [CachedString](https://github.com/d-mozulyov/CachedTexts#cachedstrings-bytestringutf16stringutf32string)-types quite quickly compare with 
 string constants, the problem of identification of strings (such as serialization) is quite demanding to resources. Many people use solutions based on binary-trees or hash-tables, however, CachedTexts library contains the [CachedSerializer](https://github.com/d-mozulyov/CachedTexts#cachedserializer)-utility, allowing to achieve maximum performance at the expense of code generation.
 
-[Demo.zip]( http://dmozulyov.ucoz.net/CachedTexts/Demo.zip)
-![](http://dmozulyov.ucoz.net/CachedTexts/ScreenShots.png)
+[Demo.zip](http://github.com/d-mozulyov/CachedTexts/raw/master/data/Demo.zip)
+![](http://github.com/d-mozulyov/CachedTexts/raw/master/data/ScreenShots.png)
 
 ##### CachedTextReaders: TByteTextReader/TUTF16TextReader/TUTF32TextReader
 There are several classes for sequential reading of text data: `TByteTextReader`, `TUTF16TextReader` and `TUTF32TextReader`. You can choose any class for parsing in dependence which encoding is more comfortable to use. In case the encoding of the source text data is different, the conversion will be executed automatically, but it might significantly slow down the application execution. The most of text files are in the byte-encoding, so it is recommended to use the `TByteTextReader`-class for parts of a code which are demanding for performance, because the automatic conversion of text will not be made and `ByteString` is the fastest string type.
@@ -339,7 +339,7 @@ Delphi is the way to build applications for WINDOWS 10, MAC, mobile and more.
 Delphi is the best.
 ```
 ##### CachedSerializer
-Utility `CachedSerializer` works for the one and only aim - to identificate string data with the maximum performance. You can build the project from the source in folder "utilities/CachedSerializer" or download [binary]( http://dmozulyov.ucoz.net/CachedTexts/CachedSerializer.zip) with examples. As the first argument of command line utility gets the path of a text file, which contains options and identifiers. It’s necessary to have the following options for serialization:
+Utility `CachedSerializer` works for the one and only aim - to identificate string data with the maximum performance. You can build the project from the source in folder "utilities/CachedSerializer" or download [binary](http://github.com/d-mozulyov/CachedTexts/raw/master/data/CachedSerializer.zip) with examples. As the first argument of command line utility gets the path of a text file, which contains options and identifiers. It’s necessary to have the following options for serialization:
 * `-<encoding>`. "-utf16", "-utf8", "-utf32" and the other code page encodings can act as an encoding option, e.g. "-1250" (you can see the whole list of SBCS-encodings in [UniConv](https://github.com/d-mozulyov/UniConv#supported-encodings) library description). "-raw" means `CODEPAGE_RAWDATA`, "-user" means `CODEPAGE_USERDEFINED`, "-ansi" means `CODEPAGE_DEFAULT`. "-ansi" is a default encoding. If your `ByteString` identifier contains only ASCII-characters, then encoding is unnecessary, you can specify "-ansi" or don't do this at all.
 * `-p"<variable_name>"` or `-p"<pointer_name>:<length_name>"` or `-p"<pointer_name>:<length_name>:<code_indent>"`. Serialization goes for 2 parameters: character pointer and character length. If your identifier is stored in `CachedString`, then use `<variable_name>`, so that serialization will be going for parameters `<Name>.Chars` and `<Name>.Length`. Default value is `"S"`. Default code indent is `0`. To serialize null-terminated strings, the `<variable_name>` parameter should be the number of bytes, to which the memory is aligned. `0` means the memory is aligned to the size of the character.
 * `-i`. This option tells that serialization will be insensitive.

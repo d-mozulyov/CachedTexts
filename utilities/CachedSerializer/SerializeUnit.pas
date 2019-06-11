@@ -56,6 +56,7 @@ type
     procedure ParseOptionsLine(const S: UTF16String);
     procedure SetEncoding(const Value: Word);
   public
+    procedure Clear;
     function CachedStringType(const ANullTerminated: Boolean): UnicodeString;
     function ParseOption(const S: UnicodeString): Boolean;
     function Add(const S: UnicodeString): NativeUInt;
@@ -276,6 +277,12 @@ begin
   end;
 
   FEncoding := Value;
+end;
+
+procedure TSerializeOptions.Clear;
+begin
+  Finalize(Self);
+  FillChar(Self, SizeOf(Self), #0);
 end;
 
 function TSerializeOptions.CachedStringType(const ANullTerminated: Boolean): UnicodeString;

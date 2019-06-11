@@ -84,6 +84,7 @@ begin
       Writeln('https://github.com/d-mozulyov/CachedTexts#cachedserializer');
     end else
     begin
+      Options.Clear;
       Options.AddFromFile(OptionsFileName, True);
 
       // update options

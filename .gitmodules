@@ -1,6 +1,6 @@
-[submodule "lib/CachedBuffers"]
-	path = lib/CachedBuffers
+[submodule "thirdparty/CachedBuffers"]
+	path = thirdparty/CachedBuffers
 	url = https://github.com/d-mozulyov/CachedBuffers.git
-[submodule "lib/UniConv"]
-	path = lib/UniConv
+[submodule "thirdparty/UniConv"]
+	path = thirdparty/UniConv
 	url = https://github.com/d-mozulyov/UniConv.git

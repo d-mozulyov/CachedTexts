@@ -1,7 +1,7 @@
 unit CachedTexts;
 
 {******************************************************************************}
-{ Copyright (c) 2014-2019 Dmitry Mozulyov                                           }
+{ Copyright (c) Dmitry Mozulyov                                                }
 {                                                                              }
 { Permission is hereby granted, free of charge, to any person obtaining a copy }
 { of this software and associated documentation files (the "Software"), to deal}
@@ -38,6 +38,7 @@ unit CachedTexts;
   {$define INLINESUPPORT}
   {$define INLINESUPPORTSIMPLE}
   {$define OPERATORSUPPORT}
+  {$define STATICSUPPORT}
   {$define ANSISTRSUPPORT}
   {$define SHORTSTRSUPPORT}
   {$define WIDESTRSUPPORT}
@@ -62,6 +63,7 @@ unit CachedTexts;
     {$WARN UNSAFE_CODE OFF}
     {$WARN UNSAFE_TYPE OFF}
     {$WARN UNSAFE_CAST OFF}
+    {$WARN SYMBOL_DEPRECATED OFF}
   {$ifend}
   {$if CompilerVersion >= 20}
     {$define INLINESUPPORT}
@@ -72,14 +74,24 @@ unit CachedTexts;
   {$if CompilerVersion >= 18}
     {$define OPERATORSUPPORT}
   {$ifend}
+  {$if CompilerVersion >= 18.5}
+    {$define STATICSUPPORT}
+  {$ifend}
   {$if CompilerVersion < 23}
     {$define CPUX86}
-  {$else}
+  {$ifend}
+  {$if CompilerVersion >= 23}
     {$define UNITSCOPENAMES}
+    {$define RETURNADDRESS}
+    {$define SYSARRAYSUPPORT}
   {$ifend}
   {$if CompilerVersion >= 21}
     {$WEAKLINKRTTI ON}
     {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
+    {$define EXTENDEDRTTI}
+  {$ifend}
+  {$if CompilerVersion >= 33}
+    {$define MANAGEDRECORDS}
   {$ifend}
   {$if (not Defined(NEXTGEN)) or (CompilerVersion >= 31)}
     {$define ANSISTRSUPPORT}
@@ -87,7 +99,7 @@ unit CachedTexts;
   {$ifNdef NEXTGEN}
     {$define SHORTSTRSUPPORT}
   {$endif}
-  {$if Defined(MSWINDOWS) or Defined(MACOS)}
+  {$if Defined(MSWINDOWS) or (Defined(MACOS) and not Defined(IOS))}
     {$define WIDESTRSUPPORT}
   {$ifend}
   {$if Defined(MSWINDOWS) or (Defined(WIDESTRSUPPORT) and (CompilerVersion <= 21))}
@@ -95,6 +107,9 @@ unit CachedTexts;
   {$ifend}
   {$if Defined(ANSISTRSUPPORT) and (CompilerVersion >= 20)}
     {$define INTERNALCODEPAGE}
+  {$ifend}
+  {$if Defined(NEXTGEN)}
+    {$POINTERMATH ON}
   {$ifend}
 {$endif}
 {$U-}{$V+}{$B-}{$X+}{$T+}{$P+}{$H+}{$J-}{$Z1}{$A4}
@@ -113,6 +128,13 @@ unit CachedTexts;
   {$ifend}
   {$define CPUINTEL}
 {$endif}
+{$if Defined(CPUINTEL) and Defined(POSIX)}
+  {$ifdef CPUX86}
+    {$define POSIXINTEL32}
+  {$else}
+    {$define POSIXINTEL64}
+  {$endif}
+{$ifend}
 {$if Defined(CPUX64) or Defined(CPUARM64)}
   {$define LARGEINT}
 {$else}
@@ -145,7 +167,7 @@ interface
        CachedBuffers, UniConv;
 
 type
-  // standard types
+  // RTL types
   {$ifdef FPC}
     PUInt64 = ^UInt64;
     PBoolean = ^Boolean;
@@ -165,10 +187,16 @@ type
     {$ifend}
     PWord = ^Word;
   {$endif}
+  {$if not Defined(FPC) and (CompilerVersion < 20)}
+  TDate = type TDateTime;
+  TTime = type TDateTime;
+  {$ifend}
+  PDate = ^TDate;
+  PTime = ^TTime;
   {$if SizeOf(Extended) >= 10}
     {$define EXTENDEDSUPPORT}
   {$ifend}
-  TBytes = {$if (not Defined(FPC)) and (CompilerVersion >= 23)}TArray<Byte>{$else}array of Byte{$ifend};
+  TBytes = {$ifdef SYSARRAYSUPPORT}TArray<Byte>{$else}array of Byte{$endif};
   PBytes = ^TBytes;
   {$if Defined(KOL)}
   TFloatFormat = (ffGeneral, ffExponent, ffFixed, ffNumber, ffCurrency);
@@ -1142,16 +1170,19 @@ type
           0: (Words1: HugeWordArray);
           1: (Cardinals1: HugeCardinalArray);
           2: (NativeUInts1: HugeNativeUIntArray);
+          3: (_: packed record end);
         );
     5: (A2: array[1..2] of Byte;
         case Integer of
           0: (Cardinals2: HugeCardinalArray);
           1: (NativeUInts2: HugeNativeUIntArray);
+          2: (__: packed record end);
         );
     6: (A3: array[1..3] of Byte;
         case Integer of
           0: (Cardinals3: HugeCardinalArray);
           1: (NativeUInts3: HugeNativeUIntArray);
+          2: (___: packed record end);
         );
   {$ifdef LARGEINT}
     7: (A4: array[1..4] of Byte; NativeUInts4: HugeNativeUIntArray);
@@ -1159,6 +1190,7 @@ type
     9: (A6: array[1..6] of Byte; NativeUInts6: HugeNativeUIntArray);
    10: (A7: array[1..7] of Byte; NativeUInts7: HugeNativeUIntArray);
   {$endif}
+    -1: (____: packed record end);
   end;
 
 
@@ -1423,6 +1455,7 @@ type
             0: (Flags: Cardinal);
             1: (Ascii, References: Boolean; Tag: Byte; SBCSIndex: ShortInt);
             2: (NativeFlags: NativeUInt);
+            3: (_: packed record end);
          );
     end;
     FString: Pointer;
@@ -27797,39 +27830,49 @@ end;
 
 procedure TCachedTextBuffer.Finalize;
 begin
-  if (FDataBuffer <> nil) then
-  begin
-    FDataBuffer.Current := FCurrent;
+  try
+    if (FDataBuffer <> nil) then
+    try
+      try
+        FDataBuffer.Current := FCurrent;
 
-    if (FTextConverter <> nil) then
-    begin
-      if (FKind = cbReader) then
-      begin
-        FOwner := FOwner or TUniConvReReader(FDataBuffer).Owner;
-        TUniConvReReader(FDataBuffer).Owner := False;
-        FDataBuffer := TUniConvReReader(FDataBuffer).Source;
-      end else
-      begin
-        FOwner := FOwner or TUniConvReWriter(FDataBuffer).Owner;
-        TUniConvReWriter(FDataBuffer).Owner := False;
-        FDataBuffer := TUniConvReWriter(FDataBuffer).Target;
+        if (FTextConverter <> nil) then
+        begin
+          if (FKind = cbReader) then
+          begin
+            FOwner := FOwner or TUniConvReReader(FDataBuffer).Owner;
+            TUniConvReReader(FDataBuffer).Owner := False;
+            FDataBuffer := TUniConvReReader(FDataBuffer).Source;
+          end else
+          begin
+            FOwner := FOwner or TUniConvReWriter(FDataBuffer).Owner;
+            TUniConvReWriter(FDataBuffer).Owner := False;
+            FDataBuffer := TUniConvReWriter(FDataBuffer).Target;
+          end;
+
+          FreeAndNil(FTextConverter);
+        end;
+      finally
+        if (FOwner) then
+        begin
+          FDataBuffer.Free;
+        end;
       end;
-
-      FTextConverter.Free;
-      FTextConverter := nil;
+    finally
+      FDataBuffer := nil;
+      FCurrent := nil;
+      FOverflow := nil;
+      FFinishing := False;
+      FEOF := False;
+      FOwner := False;
     end;
 
-    if (FOwner) then FDataBuffer.Free;
-
-    FDataBuffer := nil;
-    FCurrent := nil;
-    FOverflow := nil;
-    FFinishing := False;
-    FEOF := False;
-    FOwner := False;
+  finally
+    if (FFileName <> '') then
+    begin
+      FFileName := '';
+    end;
   end;
-
-  if (FFileName <> '') then FFileName := '';
 end;
 
 destructor TCachedTextBuffer.Destroy;
@@ -27889,15 +27932,21 @@ procedure TCachedTextBuffer.OverflowReaderSkip(const ACount: NativeUInt);
 begin
   Dec(FCurrent, ACount);
   FDataBuffer.Current := FCurrent;
-  (FDataBuffer as TCachedReader).Skip(ACount);
-  FieldsCopy;
+  try
+    (FDataBuffer as TCachedReader).Skip(ACount);
+  finally
+    FieldsCopy;
+  end;
 end;
 
 function TCachedTextBuffer.Flush: NativeUInt;
 begin
   FDataBuffer.Current := FCurrent;
-  Result := FDataBuffer.Flush;
-  FieldsCopy;
+  try
+    Result := FDataBuffer.Flush;
+  finally
+    FieldsCopy;
+  end;
 end;
 
 

@@ -33,7 +33,7 @@
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_DependencyCheckOutputName>bin\Writing.exe</DCC_DependencyCheckOutputName>
         <VerInfo_Locale>1049</VerInfo_Locale>
-        <DCC_UnitSearchPath>..\sources;C:\OpenSource\CachedTexts\lib\CachedBuffers\sources;C:\OpenSource\CachedTexts\lib\UniConv\sources;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\;..\thirdparty\CachedBuffers;..\thirdparty\UniConv;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <Manifest_File>None</Manifest_File>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_DcuOutput>dcu</DCC_DcuOutput>

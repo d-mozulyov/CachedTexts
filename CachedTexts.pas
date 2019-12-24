@@ -39,6 +39,7 @@ unit CachedTexts;
   {$define INLINESUPPORTSIMPLE}
   {$define OPERATORSUPPORT}
   {$define STATICSUPPORT}
+  {$define GENERICSUPPORT}
   {$define ANSISTRSUPPORT}
   {$define SHORTSTRSUPPORT}
   {$define WIDESTRSUPPORT}
@@ -77,13 +78,16 @@ unit CachedTexts;
   {$if CompilerVersion >= 18.5}
     {$define STATICSUPPORT}
   {$ifend}
+  {$if CompilerVersion >= 20}
+    {$define GENERICSUPPORT}
+    {$define SYSARRAYSUPPORT}
+  {$ifend}
   {$if CompilerVersion < 23}
     {$define CPUX86}
   {$ifend}
   {$if CompilerVersion >= 23}
     {$define UNITSCOPENAMES}
     {$define RETURNADDRESS}
-    {$define SYSARRAYSUPPORT}
   {$ifend}
   {$if CompilerVersion >= 21}
     {$WEAKLINKRTTI ON}
@@ -1350,8 +1354,14 @@ type
 
 { TFloatSettings object }
 
+  PFloatSettings = ^TFloatSettings;
+  {$A1}
+  {$ifdef BCB}
+  TFloatSettings = record
+  {$else}
   TFloatSettings = object
   protected
+  {$endif}
     F: packed record
     case Integer of
       0: (
@@ -1373,7 +1383,7 @@ type
     property Precision: SmallInt read F.Precision write F.Precision;
     property Digits: SmallInt read F.Digits write F.Digits;
   end;
-  PFloatSettings = ^TFloatSettings;
+  {$A4}
 
 
 { TDateTimeSettings object }
@@ -1382,8 +1392,14 @@ type
   TTimeFormat = (timeHHMM, timeHHMMSS, timeHHMMSSZZZ, timeHHMMSSZZZZZZ);
   TDateTimeSeparator = (sepNone, sepDot, sepDash, sepSlash, sepColon, sepSpace, sepT);
 
+  PDateTimeSettings = ^TDateTimeSettings;
+  {$A1}
+  {$ifdef BCB}
+  TDateTimeSettings = record
+  {$else}
   TDateTimeSettings = object
   protected
+  {$endif}
     F: packed record
     case Integer of
       0: (
@@ -1405,13 +1421,19 @@ type
     property MSecSeparator: TDateTimeSeparator read F.MSecSeparator write F.MSecSeparator;
     property BetweenSeparator: TDateTimeSeparator read F.BetweenSeparator write F.BetweenSeparator;
   end;
-  PDateTimeSettings = ^TDateTimeSettings;
+  {$A4}
 
 
 { TTemporaryAllocator object }
 
+  PTemporaryAllocator = ^TTemporaryAllocator;
+  {$A1}
+  {$ifdef BCB}
+  TTemporaryAllocator = record
+  {$else}
   TTemporaryAllocator = object
   protected
+  {$endif}
     FData: TBytes;
     FSize: NativeUInt;
   public
@@ -1422,18 +1444,24 @@ type
     property Data: TBytes read FData;
     property Size: NativeUInt read FSize;
   end;
-  PTemporaryAllocator = ^TTemporaryAllocator;
+  {$A4}
 
 
 { TTemporaryString object }
 
-  {$if Defined(FPC) or (CompilerVersion >= 21)}
+  PTemporaryString = ^TTemporaryString;
+  {$A1}
+  {$if (Defined(FPC) or (CompilerVersion >= 21)) and not Defined(BCB)}
   TTemporaryString = object(TTemporaryAllocator)
   public
     procedure Clear; reintroduce;
   {$else}
+  {$ifdef BCB}
+  TTemporaryString = record
+  {$else}
   TTemporaryString = object
   protected
+  {$endif}
     FData: TBytes;
     FSize: NativeUInt;
   public
@@ -1444,7 +1472,11 @@ type
     property Data: TBytes read FData;
     property Size: NativeUInt read FSize;
   {$ifend}
+  {$ifdef BCB}
+  public
+  {$else}
   protected
+  {$endif}
     FBuffer: packed record
     case TCachedStringKind of
       csByte: (CastByteString: ByteString);
@@ -1538,7 +1570,7 @@ type
     procedure AppendVariant(const AValue: Variant; const AFloatSettings: TFloatSettings; const ADateTimeSettings: TDateTimeSettings); overload;
     procedure AppendVariant(const AValue: Variant); overload; {$ifNdef CPUINTELASM}inline;{$endif}
   end;
-  PTemporaryString = ^TTemporaryString;
+  {$A4}
 
 
 { TCachedTextWriter class }
@@ -2127,10 +2159,10 @@ type
   TExtendedBytes = array[0..{$ifdef EXTENDEDSUPPORT}10{$else}SizeOf(Extended){$endif} - 1] of Byte;
 
   PUniConvSBCSEx = ^TUniConvSBCSEx;
-  TUniConvSBCSEx = object(TUniConvSBCS) end;
+  TUniConvSBCSEx = {$ifdef BCB}TUniConvSBCS{$else}object(TUniConvSBCS) end{$endif};
 
   PUniConvContextEx = ^TUniConvContextEx;
-  TUniConvContextEx = object(TUniConvContext) end;
+  TUniConvContextEx = {$ifdef BCB}TUniConvContext{$else}object(TUniConvContext) end{$endif};
 
   {$ifNdef CPUX86}
     {$define CPUMANYREGS}
@@ -3912,7 +3944,8 @@ end;
 
 
 type
-  TStoredFloatSettings = object(TFloatSettings)
+  TStoredFloatSettings = packed record
+    Value: TFloatSettings;
     Exp: NativeInt;
   end;
   PStoredFloatSettings = ^TStoredFloatSettings;
@@ -3940,7 +3973,7 @@ begin
   // triples
   if (Aligned > 0) then
   begin
-    Separator := THOUSAND_SEPARATORS[Settings.ThousandSpace];
+    Separator := THOUSAND_SEPARATORS[Settings.Value.ThousandSpace];
     repeat
       Dec(Aligned, 3);
       PCardinal(P)^ := (PCardinal(Src)^ shl 8) + Separator;
@@ -3966,7 +3999,7 @@ begin
   Inc(P);
   if (Exp >= 0) then
   begin
-    if (Settings.Format = ffExponent) then
+    if (Settings.Value.Format = ffExponent) then
     begin
       P^ := Ord('+');
       Inc(P);
@@ -3978,7 +4011,7 @@ begin
     Inc(P);
   end;
 
-  Digits := Settings.Digits;
+  Digits := Settings.Value.Digits;
   Digits := Digits and (-NativeInt(Byte(NativeUInt(Digits) <= 4)));
   V := 1 + Byte(Byte(Exp > 9) + Byte(Exp > 99) + Byte(Exp > 999));
   if (Digits <= V) then Digits := V;
@@ -4049,8 +4082,8 @@ begin
   // settings, precision, decimals
   Exp{Options} := Settings.F.Options;
   Precision := Settings.F.PrecisionWidth;
-  Store.Settings.F.Options := Exp{Options};
-  Store.Settings.F.PrecisionWidth := Precision;
+  Store.Settings.Value.F.Options := Exp{Options};
+  Store.Settings.Value.F.PrecisionWidth := Precision;
   Decimals := SmallInt(Precision shr 16);
   Precision := SmallInt(Precision);
 
@@ -4071,7 +4104,7 @@ begin
     else
     Precision := CMaxExtPrecision;
 
-    Store.Settings.F.Precision := Precision;
+    Store.Settings.Value.F.Precision := Precision;
   end;
 
   // sign, 0, +-INF, NaN
@@ -4100,7 +4133,7 @@ begin
     if (Store.Float.Cardinals[0] = 0) and
       (Store.Float.Cardinals[1] {$ifNdef EXTENDEDSUPPORT}and $000fffff{$endif} = 0) then
     begin
-      if (Byte(Store.Settings.Format) >= Byte(ffCurrency)) then
+      if (Byte(Store.Settings.Value.Format) >= Byte(ffCurrency)) then
       begin
       float_unsupported:
         raise ECachedText.Create('Unsupported float format');
@@ -4112,7 +4145,7 @@ begin
       Inc(P);
       Store.Sign := False;
 
-      case Store.Settings.Format of
+      case Store.Settings.Value.Format of
         // ffGeneral: ;
         ffCurrency{ENotation}:
         begin
@@ -4121,7 +4154,7 @@ begin
         end;
         ffNumber, ffFixed:
         begin
-          Decimals := Store.Settings.Digits;
+          Decimals := Store.Settings.Value.Digits;
           if (Decimals > 0) then
           begin
             if (Decimals > CMaxExtPrecision) then
@@ -4131,11 +4164,11 @@ begin
         end;
         ffExponent:
         begin
-          Decimals := Store.Settings.Precision;
+          Decimals := Store.Settings.Value.Precision;
           Dec(Decimals);
 
         float_zero_decimals:
-          P^ := DECIMAL_SEPARATORS[Store.Settings.DecimalDot];
+          P^ := DECIMAL_SEPARATORS[Store.Settings.Value.DecimalDot];
           Inc(P);
           repeat
             Dec(Decimals, SizeOf(Cardinal));
@@ -4145,7 +4178,7 @@ begin
           Inc(P, Decimals);
 
           Store.Settings.Exp := 1;
-          if (Store.Settings.Format = ffExponent) then goto write_exponent;
+          if (Store.Settings.Value.Format = ffExponent) then goto write_exponent;
         end;
       end;
 
@@ -4199,7 +4232,7 @@ begin
   Store.Settings.Exp := Exp;
 
   // check float format, digits count
-  case Store.Settings.Format of
+  case Store.Settings.Value.Format of
     ffExponent:
     begin
       goto precision_decimals;
@@ -4208,7 +4241,7 @@ begin
     begin
       if (Exp > Precision) then
       begin
-        Store.Settings.Format := {ENotation}ffCurrency;
+        Store.Settings.Value.Format := {ENotation}ffCurrency;
       end else
       begin
         if (Decimals > CMaxExtPrecision) then
@@ -4227,12 +4260,12 @@ begin
       begin
         if (Decimals < 0) then
         begin
-          Store.Settings.Format := ffFixed{/ffNumber};
+          Store.Settings.Value.Format := ffFixed{/ffNumber};
           goto float_zero;
         end;
         Exp := Decimals - Precision;
       fixed_nullchars:
-        if (Store.Settings.Format <> {ENotation}ffCurrency) then
+        if (Store.Settings.Value.Format <> {ENotation}ffCurrency) then
         begin
           P := Pointer(@DigitsRec.Quads[0]);
           Store.NullChars := Exp;
@@ -4251,7 +4284,7 @@ begin
     ffGeneral:
     begin
       if (Exp > Precision) or (Exp < -3) then
-        Store.Settings.Format := {ENotation}ffCurrency;
+        Store.Settings.Value.Format := {ENotation}ffCurrency;
 
     precision_decimals:
       Decimals := Precision;
@@ -4288,13 +4321,13 @@ begin
       if (Store.Int64Value <> 0) then
       begin
         Inc(Store.Settings.Exp);
-        if (Store.Settings.Exp > Store.Settings.Precision) and
-          (Store.Settings.Format <> ffExponent) then
+        if (Store.Settings.Exp > Store.Settings.Value.Precision) and
+          (Store.Settings.Value.Format <> ffExponent) then
         begin
-          Store.Settings.Format := {ENotation}ffCurrency;
+          Store.Settings.Value.Format := {ENotation}ffCurrency;
           Store.NullChars := 0;
         end;
-        if (Store.Settings.Format = ffExponent) and (Store.Int64Value > 1) then
+        if (Store.Settings.Value.Format = ffExponent) and (Store.Int64Value > 1) then
           Store.Int64Value := Round(Store.Int64Value * (1 / 10));
       end else
       begin
@@ -4322,7 +4355,7 @@ store_int64_digits:
   TopQuad := @DigitsRec.Quads[0];
   Quad := SeparateUInt64(TopQuad, Store.Int64Value);
   Dec(Quad);
-  if {ffGeneral, ENotation}(NativeUInt(Store.Settings.Format) - 1 > 2) and (Quad^ = 0) then
+  if {ffGeneral, ENotation}(NativeUInt(Store.Settings.Value.Format) - 1 > 2) and (Quad^ = 0) then
   begin
     if (Quad = TopQuad) then goto float_zero;
     Dec(Quad);
@@ -4366,12 +4399,12 @@ store_int64_digits:
 
   // format chars
   P := @DigitsRec.Ascii[0];
-  case Cardinal(Store.Settings.Format) of
+  case Cardinal(Store.Settings.Value.Format) of
     Ord(ffNumber), Ord(ffFixed):
     begin
       Exp := Store.Settings.Exp;
       if (Exp <= 0) then goto write_negative_exp;
-      if (Store.Settings.Format = ffFixed) then goto write_fully_float;
+      if (Store.Settings.Value.Format = ffFixed) then goto write_fully_float;
 
       Dec(Decimals, Exp);
       P := WriteNumberDigits(PDigitsRec(P)^, Src, Store.Settings);
@@ -4388,7 +4421,7 @@ store_int64_digits:
     Dec(Decimals, Byte(Byte(U and $ff000000 = 0) +
       Byte(U and $ffff0000 = 0) + Byte(U and $ffffff00 = 0)));
 
-    if (Store.Settings.Format = ffGeneral) then
+    if (Store.Settings.Value.Format = ffGeneral) then
     begin
       Exp := Store.Settings.Exp;
       if (Exp > 0) then
@@ -4412,14 +4445,14 @@ store_int64_digits:
         goto done;
       end else
       begin
-        if (not Store.Settings.GeneralCompact) then
+        if (not Store.Settings.Value.GeneralCompact) then
         begin
         write_negative_exp:
           P^ := Ord('0');
           Inc(P);
         end;
         Exp := -Exp;
-        P^ := DECIMAL_SEPARATORS[Store.Settings.DecimalDot];
+        P^ := DECIMAL_SEPARATORS[Store.Settings.Value.DecimalDot];
         Inc(P);
 
         if (Exp <> 0) then
@@ -4458,7 +4491,7 @@ store_int64_digits:
     Inc(Src, Exp);
     if (Decimals = 0) then goto done;
   write_separated_decimals:
-    P^ := DECIMAL_SEPARATORS[Store.Settings.DecimalDot];
+    P^ := DECIMAL_SEPARATORS[Store.Settings.Value.DecimalDot];
     Inc(P);
   write_decimals:
     repeat
@@ -28943,7 +28976,7 @@ end;
 
 { TTemporaryString }
 
-{$if not Defined(FPC) and (CompilerVersion < 21)}
+{$if (not Defined(FPC) and (CompilerVersion < 21)) or Defined(BCB)}
 function TTemporaryString.Resize(const ASize, AMemoryDelta: NativeUInt): Pointer;
 begin
   FSize := (ASize + AMemoryDelta - 1) and (-AMemoryDelta);
